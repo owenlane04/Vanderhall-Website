@@ -3,3 +3,4 @@ work/
 public/
 .vercel/
 .DS_Store
+.env.local
