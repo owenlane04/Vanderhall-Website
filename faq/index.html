@@ -20,45 +20,16 @@
     <div class="site-header__inner">
       <a class="brand" href="/"><img src="/assets/brand/vanderhall-lockup-horizontal.svg" alt="Vanderhall home" width="269" height="28"></a>
       <nav class="desktop-nav" aria-label="Primary">
-        <a class="nav-link" href="/vehicles/" data-vehicles-trigger aria-haspopup="true" aria-expanded="false">Vehicles</a>
+        <a class="nav-link" href="/vehicles/">Vehicles</a>
         <a class="nav-link" href="/concepts/">Concepts</a>
         <a class="nav-link" href="/about/">About</a>
         <a class="nav-link" href="/faq/" aria-current="page">Support</a>
       </nav>
       <div class="site-header__actions">
         <a class="dealer-link" href="/dealers/" aria-label="Find a dealer"><span aria-hidden="true">⌖</span><span class="dealer-link__text">Find a dealer</span></a>
-        <button class="button button--primary header-request" type="button" data-open-lead>Request info</button>
+        <a class="button button--primary header-request" href="/contact/">Request info</a>
         <button class="icon-button desktop-theme" type="button" data-theme-toggle aria-label="Use dark theme"><span aria-hidden="true">◐</span></button>
         <button class="icon-button menu-button" type="button" data-open-menu aria-label="Open menu" aria-expanded="false"><span aria-hidden="true">☰</span></button>
-      </div>
-    </div>
-    <div class="mega-panel" data-mega-panel hidden>
-      <div class="mega-panel__grid">
-        <a class="mega-model" href="/venice/">
-          <span class="mega-model__media">
-  <img class="" src="/assets/images/v2/cards/venice/venice-800.webp" style="--media-focal:50% 55%"
-    width="800" height="500" alt=""
-    loading="lazy" fetchpriority="low" decoding="async"></span>
-          <strong>Venice</strong><span>gas · 3-wheel</span>
-        </a><a class="mega-model" href="/carmel/">
-          <span class="mega-model__media">
-  <img class="" src="/assets/images/v2/cards/carmel/carmel-800.webp" style="--media-focal:52% 60%"
-    width="800" height="500" alt=""
-    loading="lazy" fetchpriority="low" decoding="async"></span>
-          <strong>Carmel</strong><span>gas · 3-wheel</span>
-        </a><a class="mega-model" href="/santarosa/">
-          <span class="mega-model__media">
-  <img class="" src="/assets/images/v2/cards/santarosa/santarosa-800.webp" style="--media-focal:52% 50%"
-    width="800" height="500" alt=""
-    loading="lazy" fetchpriority="low" decoding="async"></span>
-          <strong>Santarosa</strong><span>electric · 3-wheel</span>
-        </a><a class="mega-model" href="/brawley/">
-          <span class="mega-model__media">
-  <img class="" src="/assets/images/v2/cards/brawley/brawley-800.webp" style="--media-focal:45% 55%"
-    width="800" height="500" alt=""
-    loading="lazy" fetchpriority="low" decoding="async"></span>
-          <strong>Brawley</strong><span>electric · 4x4</span>
-        </a>
       </div>
     </div>
   </header>
@@ -70,45 +41,6 @@
       <a href="/dealers/">Find a dealer</a><a class="button button--primary" href="/contact/">Request info</a>
       <button class="button button--secondary" type="button" data-theme-toggle>Change theme</button>
     </nav>
-  </div>
-  <div class="sheet sheet--lead" data-lead-sheet hidden aria-hidden="true">
-    <div class="sheet__top"><div><p class="eyebrow">REQUEST INFO</p><h2>Start the conversation.</h2></div><button class="icon-button" type="button" data-close-lead aria-label="Close request form">×</button></div>
-    <form class="lead-form lead-form--panel" id="panel-lead" novalidate data-site-form data-form-id="request-info" data-endpoint="">
-  <p class="form-key">Fields marked * are required.</p>
-  <div class="form-error-summary" role="alert" tabindex="-1" hidden></div>
-    <div class="form-grid form-grid--pairs">
-      <div class="field"><label for="panel-lead-first">First name<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="panel-lead-first" name="first_name" autocomplete="given-name" required aria-required="true"><span class="field__error" id="panel-lead-first-error"></span></div>
-      <div class="field"><label for="panel-lead-last">Last name<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="panel-lead-last" name="last_name" autocomplete="family-name" required aria-required="true"><span class="field__error" id="panel-lead-last-error"></span></div>
-    </div>
-    <div class="field"><label for="panel-lead-email">Email<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="panel-lead-email" name="email" type="email" autocomplete="email" inputmode="email" required aria-required="true"><span class="field__error" id="panel-lead-email-error"></span></div>
-    <div class="field"><label for="panel-lead-phone">Phone</label><input id="panel-lead-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel"><span class="field__error" id="panel-lead-phone-error"></span></div>
-    <div class="field"><label for="panel-lead-zip">ZIP<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="panel-lead-zip" name="zip" autocomplete="postal-code" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" required aria-required="true"><span class="field__error" id="panel-lead-zip-error"></span></div>
-    <div class="field"><label for="panel-lead-dealer">Dealer<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><select id="panel-lead-dealer" name="dealer" required aria-required="true"><option value="not-sure">Not sure yet, help me choose</option></select><span class="field__error" id="panel-lead-dealer-error"></span>
-  <div class="missing" role="status" data-missing="data/dealer-list">
-    <strong>MISSING: data/dealer-list</strong>
-    <span>Verified dealer names and routing data have not been supplied.</span>
-  </div></div>
-    <fieldset class="field-group"><legend>I'm interested in</legend><div class="checkbox-grid"><label class="check"><input type="checkbox" name="interest" value="venice"> <span>Venice</span></label><label class="check"><input type="checkbox" name="interest" value="carmel"> <span>Carmel</span></label><label class="check"><input type="checkbox" name="interest" value="santarosa"> <span>Santarosa</span></label><label class="check"><input type="checkbox" name="interest" value="brawley"> <span>Brawley</span></label><label class="check"><input type="checkbox" name="interest" value="concepts"> <span>Concepts</span></label><label class="check"><input type="checkbox" name="interest" value="not-sure-yet"> <span>Not sure yet</span></label></div></fieldset>
-    <div class="field"><label for="panel-lead-timeframe">Timeframe</label><select id="panel-lead-timeframe" name="timeframe"><option value="">Select a timeframe</option><option>Ready now</option><option>1 to 3 months</option><option>3 to 6 months</option><option>Just looking</option></select><span class="field__error" id="panel-lead-timeframe-error"></span></div>
-    <div class="field"><label for="panel-lead-message">Message</label><textarea id="panel-lead-message" name="message" rows="4"></textarea><span class="field__error" id="panel-lead-message-error"></span></div>
-    <div class="check check--consent"><input id="panel-lead-consent" type="checkbox" name="consent" required aria-required="true" aria-describedby="panel-lead-consent-copy"><label id="panel-lead-consent-copy" for="panel-lead-consent"><span class="sr-only">Consent required. </span>
-  <div class="missing" role="status" data-missing="form/consent-copy">
-    <strong>MISSING: form/consent-copy</strong>
-    <span>Legal-approved email and SMS consent language is required.</span>
-  </div></label></div>
-    
-  <div class="honeypot" aria-hidden="true"><label>Company<input name="honeypot" tabindex="-1" autocomplete="off"></label></div>
-  <input type="hidden" name="render_timestamp" value="">
-  <input type="hidden" name="form_id" value="request-info">
-  <input type="hidden" name="page" value="">
-  <div class="form-submit-row"><button class="button button--primary" type="submit" data-submit-label="Send request">Send request</button>
-  <div class="missing" role="status" data-missing="form-endpoint/request-info">
-    <strong>MISSING: form-endpoint/request-info</strong>
-    <span>No submission destination is configured. Your information will not be sent.</span>
-  </div></div>
-  <div class="form-progress" aria-hidden="true"></div>
-  <p class="form-status" tabindex="-1" aria-live="polite"></p>
-  </form>
   </div>
   <div class="sheet-backdrop" data-sheet-backdrop hidden></div>
   <main id="main"><div class="page faq-page">
@@ -128,8 +60,8 @@
     <strong>MISSING: legal/safety-boilerplate</strong>
     <span>Legal-approved site-wide safety language has not been supplied.</span>
   </div></div>
-      <div class="manual-callout"><h2>Brawley owner's manual</h2><p>Read the complete 2026 source manual for operating and safety information.</p>
-  <a class="button button--secondary" href="/assets/manuals/2026-brawley-owners-manual.pdf">Open 2026 manual</a></div>
+      <div class="manual-callout"><h2>Owner resources</h2><p>Browse the available Vanderhall owner's manuals by model and year.</p>
+  <a class="button button--secondary" href="/owners/">View owner resources</a></div>
     </section>
   </div></main>
   <footer class="site-footer">
@@ -143,13 +75,13 @@
   <div class="footer-links">
     <div><h3>Vehicles</h3><a href="/venice/">Venice</a><a href="/carmel/">Carmel</a><a href="/santarosa/">Santarosa</a><a href="/brawley/">Brawley</a><a href="/concepts/">Concepts</a></div>
     <div><h3>Company</h3><a href="/about/">About</a></div>
-    <div><h3>Owners</h3><a href="/faq/">Support and FAQ</a><a href="/assets/manuals/2026-brawley-owners-manual.pdf">2026 Brawley owner's manual</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a></div>
+    <div><h3>Owners</h3><a href="/owners/">Owner resources</a><a href="/faq/">Support and FAQ</a><a href="/assets/manuals/2026-brawley-owners-manual.pdf">2026 Brawley owner's manual</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a></div>
     <div><h3>Connect</h3><a href="/dealers/">Find a dealer</a><a href="/recommend-dealer/">Recommend a Dealer</a><a href="/contact/">Contact</a><a href="/dealer-inquiry/">Become a Dealer</a></div>
   </div>
   <div class="footer-legal">
     <img class="footer-lockup" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" width="231" height="24" loading="lazy" decoding="async" alt="Vanderhall Motor Works">
     <span>© 2026 Vanderhall Motor Works. Hand-built in Provo, Utah.</span>
-    
+
   <div class="missing" role="status" data-missing="legal/price-disclaimer">
     <strong>MISSING: legal/price-disclaimer</strong>
     <span>Legal review is required before the site-wide price disclaimer can publish.</span>

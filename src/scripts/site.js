@@ -51,8 +51,6 @@ const showSheet = (sheet, trigger) => {
 
 document.querySelector("[data-open-menu]")?.addEventListener("click", (event) => showSheet(document.querySelector("[data-menu-sheet]"), event.currentTarget));
 document.querySelector("[data-close-menu]")?.addEventListener("click", closeSheet);
-document.querySelectorAll("[data-open-lead]").forEach((button) => button.addEventListener("click", (event) => showSheet(document.querySelector("[data-lead-sheet]"), event.currentTarget)));
-document.querySelector("[data-close-lead]")?.addEventListener("click", closeSheet);
 document.querySelector("[data-sheet-backdrop]")?.addEventListener("click", closeSheet);
 
 document.addEventListener("keydown", (event) => {
@@ -64,58 +62,6 @@ document.addEventListener("keydown", (event) => {
   const last = focusable.at(-1);
   if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
   if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-});
-
-const megaTrigger = document.querySelector("[data-vehicles-trigger]");
-const megaPanel = document.querySelector("[data-mega-panel]");
-let megaTimer;
-const openMega = () => {
-  if (!megaPanel || !megaTrigger || matchMedia("(max-width: 1023px)").matches) return;
-  clearTimeout(megaTimer);
-  megaPanel.hidden = false;
-  megaTrigger.setAttribute("aria-expanded", "true");
-};
-const closeMega = (delay = 0) => {
-  clearTimeout(megaTimer);
-  megaTimer = setTimeout(() => {
-    if (!megaPanel || !megaTrigger) return;
-    megaPanel.hidden = true;
-    megaTrigger.setAttribute("aria-expanded", "false");
-  }, delay);
-};
-megaTrigger?.addEventListener("click", (event) => {
-  if (matchMedia("(min-width: 1024px)").matches) {
-    event.preventDefault();
-    megaPanel.hidden ? openMega() : closeMega();
-  }
-});
-megaTrigger?.addEventListener("mouseenter", () => { megaTimer = setTimeout(openMega, 80); });
-megaTrigger?.addEventListener("mouseleave", () => closeMega(200));
-megaPanel?.addEventListener("mouseenter", () => clearTimeout(megaTimer));
-megaPanel?.addEventListener("mouseleave", () => closeMega(200));
-megaPanel?.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") { closeMega(); megaTrigger.focus(); }
-});
-
-document.querySelectorAll("[data-filter-pill]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const filter = button.dataset.filterPill;
-    const cards = [...document.querySelectorAll("[data-model-grid] .model-card")];
-    document.querySelectorAll("[data-filter-pill]").forEach((pill) => {
-      const active = pill === button;
-      pill.classList.toggle("is-active", active);
-      pill.setAttribute("aria-pressed", String(active));
-    });
-    let count = 0;
-    cards.forEach((card) => {
-      const haystack = card.dataset.filter;
-      const show = filter === "all" || haystack.includes(filter) || (filter === "on-road" && !haystack.includes("4x4")) || (filter === "off-road" && haystack.includes("4x4"));
-      card.hidden = !show;
-      if (show) count += 1;
-    });
-    const live = document.querySelector("[data-filter-live]");
-    if (live) live.textContent = `${count} vehicles shown.`;
-  });
 });
 
 document.querySelectorAll("[data-spec-table]").forEach((table) => {

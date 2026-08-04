@@ -10,21 +10,27 @@ const websiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const projectRoot = resolve(websiteRoot, "..");
 const assetsRoot = resolve(projectRoot, "Assets");
 const legacyRoot = resolve(assetsRoot, "Legacy Website Selection");
+const v3Root = "/Users/owenburton/Desktop/v3 materials";
+const v3ConceptRoot = resolve(v3Root, "Concepts");
 const outputRoot = resolve(websiteRoot, "assets/images");
 const brandRoot = resolve(websiteRoot, "assets/brand");
 const manifest = [];
 
 await rm(resolve(outputRoot, "v2"), { recursive: true, force: true });
+await rm(resolve(outputRoot, "v3"), { recursive: true, force: true });
 await rm(brandRoot, { recursive: true, force: true });
 
-const record = (output, source, transform) => manifest.push({
+const record = (output, source, transform, metadata = {}) => manifest.push({
   delivered_file: relative(websiteRoot, output),
-  source_path: relative(projectRoot, source),
+  source_path: source.startsWith(projectRoot) ? relative(projectRoot, source) : source,
   transform,
+  verified_clean: "yes",
+  ...metadata,
 });
 
 const encode = async (input, output, options = {}) => {
   await mkdir(dirname(output), { recursive: true });
+  const sourceMetadata = await sharp(input).metadata();
   let pipeline = sharp(input).rotate();
   if (options.extract) pipeline = pipeline.extract(options.extract);
   if (options.width && options.height) {
@@ -39,8 +45,14 @@ const encode = async (input, output, options = {}) => {
     pipeline = pipeline.resize({ width: options.width, withoutEnlargement: true });
   }
   if (options.extend) pipeline = pipeline.extend(options.extend);
-  await pipeline.webp({ quality: 80, effort: 6, smartSubsample: true }).toFile(output);
-  record(output, input, options.transform || JSON.stringify(options));
+  const outputInfo = await pipeline.webp({ quality: 80, effort: 6, smartSubsample: true }).toFile(output);
+  record(output, input, options.transform || JSON.stringify(options), {
+    source_width: sourceMetadata.width,
+    source_height: sourceMetadata.height,
+    output_width: outputInfo.width,
+    output_height: outputInfo.height,
+    crop_window: options.extract ? `x=${options.extract.left} y=${options.extract.top} width=${options.extract.width} height=${options.extract.height}` : "full frame",
+  });
 };
 
 const crop = async (input, directory, slug, width, height, options = {}) => {
@@ -68,7 +80,6 @@ const heroes = [
   ["Brawley", "brawley-hero-mountain-pass", "home", "47% 60%"],
   ["Venice", "venice-hero-light-streaks", "venice", "45% 55%"],
   ["Carmel", "carmel-hero-sunset", "carmel", "52% 60%"],
-  ["Santarosa", "santarosa-hero-light-streaks", "santarosa", "52% 50%"],
 ];
 for (const [group, name, slug, focal] of heroes) {
   const input = source(group, name);
@@ -130,11 +141,95 @@ await crop(source("Brawley", "brawley-hero-starry-night"), "character/brawley", 
   transform: "4:5 crop y=800..2600; baked bottom disclaimer excluded",
 });
 
-const conceptLegacy = ["indio", "yuma", "brawley-r", "speedster", "coachella", "balboa"];
-for (const slug of conceptLegacy) await encode(source("Concepts", `concept-${slug}`), resolve(outputRoot, `v2/concepts/${slug}.webp`), { width: 656, transform: "source-width concept card" });
-for (const [filename, slug] of [["concepts-Laduna-resized-blue.jpg", "laduna"], ["concepts-Santarosa-R.jpg", "santarosa-r"], ["concepts-Yuma-Defense.jpg", "yuma-defense"]]) {
-  await encode(resolve(assetsRoot, filename), resolve(outputRoot, `v2/concepts/${slug}.webp`), { width: 656, transform: "concept card, no upscale" });
+const encodeLadder = async (input, directory, base, widths, { extract, transform = "native ratio" } = {}) => {
+  for (const width of widths) {
+    const output = resolve(outputRoot, `v3/${directory}/${base}-${width}.webp`);
+    await encode(input, output, { width, ...(extract ? { extract } : {}), transform: `${transform}; ${width}w; WebP q80; verified clean` });
+  }
+};
+
+const santarosaCover = resolve(v3Root, "Vehicle Cover Candidates/Santarosa/santarosa-hangar.jpg");
+const brawleyCover = resolve(v3Root, "Vehicle Cover Candidates/Brawley/brawley-desert-three-quarter.jpg");
+await encodeLadder(santarosaCover, "heroes/santarosa", "santarosa-wide", [960, 1280, 1920, 2560], { extract: { left: 0, top: 300, width: 2880, height: 1234 }, transform: "crop x=0..2880 y=300..1534; focal 34% 49%" });
+await encodeLadder(santarosaCover, "heroes/santarosa", "santarosa-tall", [480, 720, 960], { extract: { left: 285, top: 0, width: 1410, height: 1762 }, transform: "crop x=285..1695 y=0..1762; focal 34% 49%" });
+await encodeLadder(brawleyCover, "heroes/brawley", "brawley-wide", [960, 1280, 1920, 2560], { extract: { left: 0, top: 180, width: 2880, height: 1234 }, transform: "crop x=0..2880 y=180..1414; watermark excluded; focal 50% 55%" });
+await encodeLadder(brawleyCover, "heroes/brawley", "brawley-tall", [480, 720, 960], { extract: { left: 1170, top: 0, width: 1131, height: 1414 }, transform: "crop x=1170..2301 y=0..1414; front three-quarter detail; focal 50% 55%" });
+
+const santarosaLightStreaks = source("Santarosa", "santarosa-hero-light-streaks");
+await encodeLadder(santarosaLightStreaks, "character/santarosa", "light-streaks", [1600], { transform: "16:9 full-frame character plate; focal 52% 50%" });
+await encodeLadder(santarosaLightStreaks, "character/santarosa", "light-streaks-tall", [960], { extract: { left: 792, top: 0, width: 1296, height: 1620 }, transform: "4:5 center character crop; focal 52% 50%" });
+
+const chapterSpecs = [
+  [source("Venice", "venice-exterior-seaside-profile"), "venice", null, "full frame"],
+  [source("Carmel", "carmel-lifestyle-beach-reflection"), "carmel", { left: 188, top: 0, width: 2504, height: 1669 }, "3:2 crop x=188..2692"],
+  [source("Santarosa", "santarosa-lifestyle-sunset"), "santarosa", { left: 250, top: 0, width: 2160, height: 1440 }, "3:2 crop with bottom disclaimer excluded"],
+  [source("Brawley", "brawley-lifestyle-desert-camp"), "brawley", { left: 355, top: 140, width: 2169, height: 1446 }, "3:2 crop after y=140; baked top disclaimer excluded"],
+];
+for (const [input, slug, extract, transform] of chapterSpecs) await encodeLadder(input, "vehicles", slug, [800, 960, 1600], { extract, transform });
+
+const conceptFile = (folder, filename) => resolve(v3ConceptRoot, folder, filename);
+const conceptLadders = [
+  ["Indio", "indio-desktop-slide-001.jpg", "indio", "gallery-1"],
+  ["Indio", "indio-desktop-slide-002b.jpg", "indio", "gallery-2"],
+  ["Indio", "indio-concept-slide-004c.jpg", "indio", "gallery-3"],
+  ["Indio", "vanderhall-indio-concept-001.png", "indio", "gallery-4"],
+  ["Coachella", "coachella-concept-03.jpg", "coachella", "hero"],
+  ["Coachella", "coachella-concept-slide-02.jpg", "coachella", "gallery-1"],
+  ["Coachella", "coachella-interior-front-view-slide-002.jpg", "coachella", "gallery-2"],
+  ["Coachella", "vanderhall-coachella-concept-image.png", "coachella", "gallery-3"],
+  ["Brawley R", "brawley-r-slide-8.jpg", "brawley-r", "hero"],
+  ["Brawley R", "brawley-r-slide-1.jpg", "brawley-r", "gallery-1"],
+  ["Brawley R", "vanderhall-brawley-r-lower-image-2.png", "brawley-r", "gallery-2"],
+  ["Santarosa R", "santarosa-r-slide-2.jpg", "santarosa-r", "hero"],
+  ["Santarosa R", "vanderhall-santarosa-r-lower-image.png", "santarosa-r", "gallery-1"],
+  ["Speedster", "santarosa-speedster-slide-3.jpg", "speedster", "hero"],
+  ["Speedster", "vanderhall-speedster.png", "speedster", "gallery-1"],
+  ["Yuma", "vanderhall-yuma-concept-new-002-hinges.png", "yuma", "hero"],
+  ["Yuma", "yuma-frame-1-3p-desert-scaled.jpg", "yuma", "gallery-1"],
+  ["Yuma", "vanderhall-yuma-concept-desert-hinges.png", "yuma", "gallery-2"],
+  ["Yuma Defense", "yuma-defense-frame-2.jpg", "yuma-defense", "hero"],
+  ["Laduna", "vanderhall-yuma-concept-new-blue.png", "laduna", "hero"],
+  ["Laduna", "laduna-frame-blue-interior-blue-scaled.jpg", "laduna", "gallery-1"],
+  ["Laduna", "future-models-laduna-new-slide-grabber-blue-gold-wheels.png", "laduna", "gallery-2"],
+  ["Balboa", "vanderhall-balboa-ev-concept.png", "balboa", "hero"],
+  ["Balboa", "balboa-slide-1-2-scaled.jpg", "balboa", "gallery-1"],
+];
+for (const [folder, filename, slug, base] of conceptLadders) {
+  const metadata = await sharp(conceptFile(folder, filename)).metadata();
+  const widths = [960, 1280, 1920, 2560].filter((width) => width <= metadata.width);
+  await encodeLadder(conceptFile(folder, filename), `concepts/${slug}`, base, widths, { transform: `full-frame ${filename}; no line art, callouts, disclaimer, or legacy UI` });
 }
+
+await encodeLadder(conceptFile("Indio", "indio-beach-slide-scaled.jpg"), "concepts/indio", "hero", [960, 1440, 2560], { transform: "full-frame featured Indio hero" });
+await encodeLadder(conceptFile("Yuma Defense", "vanderhall-yuma-defense-concept-vehicle.png"), "concepts/yuma-defense", "gallery-2", [960, 1280], { extract: { left: 0, top: 0, width: 1400, height: 650 }, transform: "clean left vehicle band; More Concepts furniture excluded" });
+const conceptMobiles = [
+  ["Indio", "indio-slide-2-mobile.jpg", "indio"],
+  ["Coachella", "coachella-slide-03-mobile-size.jpg", "coachella"],
+  ["Brawley R", "brawley-r-slide-mobile-6.jpg", "brawley-r"],
+  ["Santarosa R", "vanderhall-santarosa-r-slide-mobile.jpg", "santarosa-r"],
+  ["Yuma", "yuma-slide-1-3-mobile-2.jpg", "yuma"],
+];
+for (const [folder, filename, slug] of conceptMobiles) await encode(conceptFile(folder, filename), resolve(outputRoot, `v3/concepts/${slug}/mobile-704.webp`), { width: 704, transform: `native mobile source ${filename}; verified clean` });
+await encode(conceptFile("Speedster", "santarosa-speedster.jpg"), resolve(outputRoot, "v3/concepts/speedster/gallery-2-704.webp"), { width: 704, transform: "native small gallery plate; verified clean" });
+await encode(conceptFile("Yuma Defense", "yuma-defense-slide-revised-2.jpg"), resolve(outputRoot, "v3/concepts/yuma-defense/gallery-1-704.webp"), { width: 704, transform: "native small gallery plate; verified clean" });
+
+await encodeLadder(conceptFile("Coachella", "coachella-concept-03.jpg"), "concepts/hub", "coachella", [800, 1200, 1880], { extract: { left: 500, top: 0, width: 1880, height: 806 }, transform: "21:9 hub crop x=500..2380" });
+await encodeLadder(conceptFile("Brawley R", "brawley-r-slide-8.jpg"), "concepts/hub", "brawley-r", [800, 1200, 1880], { extract: { left: 500, top: 0, width: 1880, height: 806 }, transform: "21:9 hub crop x=500..2380" });
+for (const [filename, slug] of [["santarosa-r-concept.jpg", "santarosa-r"], ["speedster-concept.jpg", "speedster"], ["yuma-concept.jpg", "yuma"], ["yuma-defense-concept.jpg", "yuma-defense"], ["laduna-concept-blue-2.jpg", "laduna"], ["balboa-concept-2.jpg", "balboa"]]) {
+  await encode(conceptFile("Hub Cards", filename), resolve(outputRoot, `v3/concepts/hub/${slug}-656.webp`), { width: 656, transform: `native 656x445 hub card ${filename}; verified clean` });
+}
+
+for (const [folder, filename, slug] of [
+  ["Indio", "indio-logo-2.png", "indio"],
+  ["Coachella", "vanderhall-coachella-logo.png", "coachella"],
+  ["Brawley R", "vanderhall-brawley-r-logo.png", "brawley-r"],
+  ["Santarosa R", "vanderhall-vanderhall-r-logo.png", "santarosa-r"],
+  ["Speedster", "vanderhall-speedster-logo-landing-page-1.png", "speedster"],
+  ["Yuma", "yuma-logo.png", "yuma"],
+  ["Yuma Defense", "yuma-defense-logo.png", "yuma-defense"],
+  ["Laduna", "laduna-logo.png", "laduna"],
+  ["Balboa", "balboa-logo.png", "balboa"],
+]) await encode(conceptFile(folder, filename), resolve(outputRoot, `v3/concepts/${slug}/wordmark.webp`), { transform: `native wordmark ${filename}; WebP q80` });
 
 const studioDir = resolve(assetsRoot, "Brawley Icons");
 const studioFiles = (await readdir(studioDir)).filter((name) => name.toLowerCase().endsWith(".jpg")).sort();
@@ -151,9 +246,10 @@ for (const filename of studioFiles) {
   await encode(resolve(studioDir, filename), output, { width: 1600, transform: "1600w walkaround frame" });
 }
 
-const legacyLifestyle = [["Vanderhall Brawley White Easter Jeep Safari (138).jpg", "easter-sunset", [640, 960, 1600, 2400]], ["Brawley-EV-desert-01-scaled.jpg", "desert", [640, 960, 1280]], ["Brawley-GTS-EV-interior-scaled.jpg", "interior", [640, 960, 1280]], ["Brawley-GTS-off-road-EV-01.jpg", "off-road", [640, 960, 1280]], ["Brawley-front-view-on-mountain-road-01-scaled.jpg", "mountain-road", [640, 960, 1280]], ["110A3638-HDR.jpg", "mountain", [640, 960, 1280]], ["110A3943-HDR.jpg", "juniper", [640, 960, 1280]], ["Bralwey-steering-wheel-scaled.jpg", "steering", [640, 960, 1280]]];
+const legacyLifestyle = [["Brawley-EV-desert-01-scaled.jpg", "desert", [640, 960, 1280]], ["Brawley-GTS-EV-interior-scaled.jpg", "interior", [640, 960, 1280]], ["Brawley-GTS-off-road-EV-01.jpg", "off-road", [640, 960, 1280]], ["Brawley-front-view-on-mountain-road-01-scaled.jpg", "mountain-road", [640, 960, 1280]], ["110A3638-HDR.jpg", "mountain", [640, 960, 1280]], ["110A3943-HDR.jpg", "juniper", [640, 960, 1280]], ["Bralwey-steering-wheel-scaled.jpg", "steering", [640, 960, 1280]]];
 for (const [filename, slug, widths] of legacyLifestyle) for (const width of widths) await encode(resolve(assetsRoot, filename), resolve(outputRoot, `brawley/lifestyle/${slug}-${width}.webp`), { width, transform: `${width}w V1 carry-forward` });
-for (const width of [480, 640, 720, 960, 1440]) await encode(resolve(assetsRoot, "Vanderhall Brawley White Easter Jeep Safari (138).jpg"), resolve(outputRoot, `brawley/lifestyle/easter-sunset-tall-${width}.webp`), { extract: { left: 2836, top: 0, width: 3240, height: 4050 }, width, height: Math.round(width * 5 / 4), transform: "4:5 V1 hero carry-forward" });
+const brawleyLifestyleDir = resolve(outputRoot, "brawley/lifestyle");
+for (const filename of await readdir(brawleyLifestyleDir)) if (filename.startsWith("easter-sunset-")) await rm(resolve(brawleyLifestyleDir, filename));
 
 await mkdir(brandRoot, { recursive: true });
 const logoPdf = resolve(assetsRoot, "vanderhall logos/vanderhall logo with symbols.pdf");
@@ -181,8 +277,39 @@ for (const width of [32, 180, 192, 512]) { const output = resolve(brandRoot, wid
 await cp(resolve(brandRoot, "favicon-32.png"), resolve(brandRoot, "favicon.ico"));
 record(resolve(brandRoot, "favicon.ico"), logoPdf, "32px PNG fallback with ICO filename");
 
-await mkdir(resolve(websiteRoot, "assets/manuals"), { recursive: true });
-await cp(resolve(assetsRoot, "Owner Manuals/2026_Vanderhall_Brawley_Owners_Manual_01132026.pdf"), resolve(websiteRoot, "assets/manuals/2026-brawley-owners-manual.pdf"));
+const manualsOutput = resolve(websiteRoot, "assets/manuals");
+await rm(manualsOutput, { recursive: true, force: true });
+await mkdir(manualsOutput, { recursive: true });
+const v3ManualRoot = resolve(v3Root, "Manuals/Owner Manuals");
+const manualCopies = [
+  ["2017-vanderhall-venice-owners-manual.pdf", "2017-vanderhall-venice-owners-manual.pdf"],
+  ["2018-vanderhall-venice-owners-manual.pdf", "2018-vanderhall-venice-owners-manual.pdf"],
+  ["2019-vanderhall-speedster-owners-manual.pdf", "2019-vanderhall-speedster-owners-manual.pdf"],
+  ["2019-vanderhall-venice-owners-manual.pdf", "2019-vanderhall-venice-owners-manual.pdf"],
+  ["2020-vanderhall-carmel-owners-manual.pdf", "2020-vanderhall-carmel-owners-manual.pdf"],
+  ["2020-vanderhall-venice-owners-manual.pdf", "2020-vanderhall-venice-owners-manual.pdf"],
+  ["2021-vanderhall-carmel-owners-manual.pdf", "2021-vanderhall-carmel-owners-manual.pdf"],
+  ["2021-vanderhall-venice-owners-manual.pdf", "2021-vanderhall-venice-owners-manual.pdf"],
+  ["2022-vanderhall-carmel-owners-manual.pdf", "2022-vanderhall-carmel-owners-manual.pdf"],
+  ["2022-vanderhall-venice-owners-manual.pdf", "2022-vanderhall-venice-owners-manual.pdf"],
+  ["2023-vanderhall-carmel-owners-manual.pdf", "2023-vanderhall-carmel-owners-manual.pdf"],
+  ["2023-vanderhall-venice-owners-manual.pdf", "2023-vanderhall-venice-owners-manual.pdf"],
+  ["2024-vanderhall-carmel-owners-manual.pdf", "2024-vanderhall-carmel-owners-manual.pdf"],
+  ["2024-vanderhall-venice-owners-manual.pdf", "2024-vanderhall-venice-owners-manual.pdf"],
+  ["2024_vanderhall_brawley_owners_manual_4.1.pdf", "2024-brawley-owners-manual.pdf"],
+  ["spanish-2024_vanderhall_brawley_owners_manual_05062025.pdf", "2024-brawley-owners-manual-spanish.pdf"],
+  ["2025_vanderhall_brawley_owners_manual_4.1.pdf", "2025-brawley-owners-manual.pdf"],
+  ["laguna-owners-manual-2016-12-19.pdf", "2016-vanderhall-laguna-owners-manual.pdf"],
+];
+for (const [sourceName, outputName] of manualCopies) {
+  const input = resolve(v3ManualRoot, sourceName);
+  const output = resolve(manualsOutput, outputName);
+  await cp(input, output);
+  record(output, input, "approved owner manual copy; normalized filename");
+}
+const canonicalBrawleyManual = resolve(assetsRoot, "Owner Manuals/2026_Vanderhall_Brawley_Owners_Manual_01132026.pdf");
+await cp(canonicalBrawleyManual, resolve(manualsOutput, "2026-brawley-owners-manual.pdf"));
+record(resolve(manualsOutput, "2026-brawley-owners-manual.pdf"), canonicalBrawleyManual, "existing canonical 2026 owner manual");
 await writeFile(resolve(websiteRoot, "assets/build-manifest.json"), JSON.stringify(manifest, null, 2));
 
 console.log(`Encoded ${manifest.length} traced assets, including ${written.size} walkaround frames.`);

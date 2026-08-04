@@ -1,4 +1,4 @@
-import { cp, mkdir, readFile, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { concepts } from "./data/concepts.mjs";
@@ -8,6 +8,7 @@ import {
   eyebrow,
   featureModule,
   internationalDealerForm,
+  inquiryBand,
   leadForm,
   media,
   missing,
@@ -18,6 +19,7 @@ import {
   shell,
   specTable,
   statBand,
+  vehicleChapter,
   walkaround,
 } from "./components.mjs";
 
@@ -28,13 +30,13 @@ const hero = (model) => {
   const heroAlt = {
     venice: "Silver Vanderhall Venice side view with motion light streaks",
     carmel: "Red Vanderhall Carmel at sunset",
-    santarosa: "Red Vanderhall Santarosa side view with light streaks",
-    brawley: "White Vanderhall Brawley at sunset in Utah",
+    santarosa: "Blue Vanderhall Santarosa parked in an aircraft hangar",
+    brawley: "Red and white Vanderhall Brawley parked among desert rock formations",
   }[model.slug];
   const visual = model.images.hero
     ? `<picture><source media="(max-width: 767px)" srcset="${model.images.heroTallSrcset}" sizes="100vw"><img class="hero__image" src="${model.images.hero}" srcset="${model.images.heroSrcset}" sizes="100vw" width="1920" height="823" alt="${heroAlt}" loading="eager" fetchpriority="high" decoding="async"></picture>`
     : missing(`hero-wide/${model.slug}`);
-  return `<section class="hero model-hero bleed${model.images.hero ? "" : " model-hero--missing"}" style="--hero-focal:${model.images.focal}">
+  return `<section class="hero model-hero bleed${model.images.hero ? "" : " model-hero--missing"}${model.images.heroAlign === "end" ? " hero--content-end" : ""}" style="--hero-focal:${model.images.focal}">
     <div class="hero__media">${visual}</div>
     <div class="hero__scrim" aria-hidden="true"></div>
     <div class="hero__content">
@@ -144,7 +146,7 @@ const modelPage = (model) => {
     <section class="section--major">${colorways}</section>
     ${darkCharacter}
     <section class="section--major narrow" id="specifications"><div class="section-heading">${eyebrow("DETAILS")}<h2>Specifications</h2><p>Every published value is selectable HTML text.</p></div>${specTable(model)}</section>
-    <section class="lead-section section--major narrow">${eyebrow("REQUEST INFO")}<h2>Talk with Vanderhall.</h2>${leadForm({ id: `${model.slug}-lead`, presentation: "compact", prefill: model.slug })}</section>
+    ${inquiryBand(model.slug)}
     <section class="related section--major"><div class="section-heading">${eyebrow("KEEP EXPLORING")}<h2>Related vehicles</h2></div><div class="related-grid">${relatedModels(model.slug).map((related) => modelCard(related, { related: true })).join("")}</div></section>
   </div>`;
   return shell({ title: model.name, description: model.descriptor, path: `/${model.slug}`, body });
@@ -171,22 +173,41 @@ const homePage = () => {
 const vehiclesPage = () => {
   const body = `<div class="page vehicles-page">
     ${pageHeader("VEHICLES", "Choose your road. Or leave it.", "Explore Vanderhall's gas and electric lineup.")}
-    <section class="section--tight">
-      <div class="filter-row" aria-label="Filter vehicles">${["All", "Gas", "Electric", "On-road", "Off-road"].map((filter, index) => `<button type="button" class="filter-pill${index === 0 ? " is-active" : ""}" aria-pressed="${index === 0 ? "true" : "false"}" data-filter-pill="${filter.toLowerCase()}">${filter}</button>`).join("")}</div>
-      <p class="sr-only" aria-live="polite" data-filter-live></p>
-      <div class="model-grid model-grid--lineup" data-model-grid>${models.map((model, index) => modelCard(model, { eager: index < 2 })).join("")}</div>
-    </section>
+    <div class="vehicle-chapters">${models.map((model, index) => vehicleChapter(model, index % 2 === 1)).join("")}</div>
     <section class="concepts-teaser section--major">${eyebrow("CONCEPTS")}<h2>Ideas beyond the current lineup.</h2><p>Concept vehicles are not offered for sale.</p>${buttonLink("View concepts", "/concepts/", "secondary")}</section>
+    <section class="dealer-cta section--major narrow">${eyebrow("DEALERS")}<h2>Connect with Vanderhall.</h2><p>Find a dealer or start a conversation about a vehicle.</p><div class="cluster">${buttonLink("Find a dealer", "/dealers/")}${buttonLink("Request info", "/contact/", "secondary")}</div></section>
   </div>`;
   return shell({ title: "Vehicles", description: "Explore Vanderhall gas and electric vehicles.", path: "/vehicles", body });
 };
 
 const conceptsPage = () => {
+  const featured = concepts.find((concept) => concept.hub.tier === "featured");
+  const wide = concepts.filter((concept) => concept.hub.tier === "wide");
+  const standard = concepts.filter((concept) => concept.hub.tier === "standard");
   const body = `<div class="page concepts-page">
-    ${pageHeader("DESIGN STUDIES", "Concepts", "These vehicles are concepts. They are not offered for sale, and no pricing or specifications are published here.")}
-    <section class="concept-grid section--tight">${concepts.map((concept) => `<article class="concept-card"><div class="concept-card__media">${media({ src: concept.image, alt: `${concept.name} concept vehicle`, width: 656, height: 445 })}</div><span class="chip chip--concept">CONCEPT</span><h2>${concept.name}</h2></article>`).join("")}</section>
+    ${pageHeader("DESIGN STUDIES", "Concepts", "These vehicles are concepts. They are not offered for sale, and no pricing or specifications are published here. Explore each Vanderhall design study in detail.")}
+    <a class="concept-feature bleed" href="/concepts/${featured.slug}/"><span class="concept-feature__media"><img src="${featured.hub.image}" srcset="${featured.hub.srcset}" sizes="100vw" width="${featured.hub.width}" height="${featured.hub.height}" alt="${featured.hero.alt}" loading="eager" fetchpriority="high" decoding="async"></span><span class="concept-feature__plate"><span class="chip chip--concept">CONCEPT</span><span class="wordmark-plate"><img src="${featured.wordmark.src}" width="${featured.wordmark.width}" height="${featured.wordmark.height}" alt=""></span><span class="concept-feature__name" role="heading" aria-level="2">${featured.name}</span><span class="concept-feature__category">${featured.category}</span><span class="text-link">View ${featured.name}<span aria-hidden="true"> →</span></span></span></a>
+    <section class="concept-wide-list section--major">${wide.map((concept) => `<a class="concept-wide" href="/concepts/${concept.slug}/"><img src="${concept.hub.image}" srcset="${concept.hub.srcset}" sizes="(min-width: 1440px) 1200px, calc(100vw - 2 * var(--gutter))" width="${concept.hub.width}" height="${concept.hub.height}" alt="${concept.hero.alt}" loading="lazy" decoding="async"><span class="concept-wide__plate"><span class="chip chip--concept">CONCEPT</span><span class="concept-wide__name" role="heading" aria-level="2">${concept.name}</span><span>${concept.category}</span><span class="text-link">View ${concept.name}<span aria-hidden="true"> →</span></span></span></a>`).join("")}</section>
+    <section class="concept-tiles section--major" aria-label="More concepts">${standard.map((concept) => `<a class="concept-tile" href="/concepts/${concept.slug}/"><span class="concept-tile__media"><img src="${concept.hub.image}" width="656" height="445" alt="${concept.hero.alt}" loading="lazy" decoding="async"></span><span class="chip chip--concept">CONCEPT</span><h2>${concept.name}</h2><span class="concept-tile__category">${concept.category}</span></a>`).join("")}</section>
+    <p class="concept-standing section--major">Concept vehicle. Not offered for sale.</p>
   </div>`;
   return shell({ title: "Concepts", description: "Vanderhall concept vehicles, clearly identified as not for sale.", path: "/concepts", body, bodyClass: "concepts-theme" });
+};
+
+const conceptPicture = (concept, item, { eager = false, heroImage = false } = {}) => `<picture>${item.mobile ? `<source media="(max-width: 639px)" srcset="${item.mobile}"${item.mobileWidth ? ` width="${item.mobileWidth}" height="${item.mobileHeight}"` : ""}>` : ""}<img src="${item.src}"${item.srcset ? ` srcset="${item.srcset}"` : ""} sizes="100vw" width="${item.width}" height="${item.height}" alt="${item.alt}" loading="${eager ? "eager" : "lazy"}"${eager ? ' fetchpriority="high"' : ""} decoding="async"${heroImage && !item.mobile ? ' class="panorama__inset-mobile"' : ""}></picture>`;
+
+const conceptPage = (concept, index) => {
+  const previous = concepts[(index - 1 + concepts.length) % concepts.length];
+  const next = concepts[(index + 1) % concepts.length];
+  const gallery = concept.gallery.map((item) => `<section class="concept-gallery ${item.treatment === "band" ? "band bleed" : "plate"}">${conceptPicture(concept, item)}</section>`).join("");
+  const body = `<div class="page concept-detail">
+    <header class="concept-header section--major narrow"><span class="chip chip--concept">CONCEPT</span><h1>${concept.name}</h1><span class="wordmark-plate"><img src="${concept.wordmark.src}" width="${concept.wordmark.width}" height="${concept.wordmark.height}" alt=""></span><p class="concept-header__category">${concept.category}</p><p class="concept-header__status">Concept vehicle. Not offered for sale.</p></header>
+    <section class="panorama${concept.hero.treatment === "plate" ? " plate" : " bleed"}">${conceptPicture(concept, concept.hero, { eager: true, heroImage: true })}</section>
+    <section class="concept-intro section--major narrow">${concept.intro ? `<p>${concept.intro}</p>` : missing(`copy/concept-page-${concept.slug}`)}</section>
+    ${gallery}
+    <nav class="concept-ring section--major" aria-label="Concept navigation"><a rel="prev" href="/concepts/${previous.slug}/"><span aria-hidden="true">← </span>${previous.name}</a><a href="/concepts/">All concepts</a><a rel="next" href="/concepts/${next.slug}/">${next.name}<span aria-hidden="true"> →</span></a></nav>
+  </div>`;
+  return shell({ title: `${concept.name} concept`, description: concept.category, path: `/concepts/${concept.slug}`, body, bodyClass: "concepts-theme" });
 };
 
 const dealersPage = () => {
@@ -197,7 +218,7 @@ const dealersPage = () => {
       ${missing("data/dealer-list", "Names, addresses, phones, hours, and routing data are required.")}
       <a class="text-link" href="/recommend-dealer/">Recommend a Dealer<span aria-hidden="true"> →</span></a>
     </section>
-    <section class="lead-section section--major narrow">${eyebrow("REQUEST INFO")}<h2>Let Vanderhall help.</h2>${leadForm({ id: "dealers-lead", presentation: "full" })}</section>
+    ${inquiryBand()}
   </div>`;
   return shell({ title: "Dealers", description: "Find a Vanderhall dealer or request information.", path: "/dealers", body });
 };
@@ -224,7 +245,7 @@ const faqPage = () => {
       <details><summary>What warranty applies to off-road products?</summary><p>Vanderhall off-road products carry a 6-month limited warranty from Vanderhall North America, LLC, also identified as Vanderhall NA.</p></details>
       <details><summary>Do I need a helmet or motorcycle endorsement?</summary>${missing("legal/licensing-faq", "The existing safety language requires legal review before publishing as guidance.")}</details>
       <div>${missing("legal/safety-boilerplate", "Legal-approved site-wide safety language has not been supplied.")}</div>
-      <div class="manual-callout"><h2>Brawley owner's manual</h2><p>Read the complete 2026 source manual for operating and safety information.</p>${buttonLink("Open 2026 manual", "/assets/manuals/2026-brawley-owners-manual.pdf", "secondary")}</div>
+      <div class="manual-callout"><h2>Owner resources</h2><p>Browse the available Vanderhall owner's manuals by model and year.</p>${buttonLink("View owner resources", "/owners/", "secondary")}</div>
     </section>
   </div>`;
   return shell({ title: "FAQ", description: "Verified Vanderhall support information and frequently asked questions.", path: "/faq", body });
@@ -233,7 +254,7 @@ const faqPage = () => {
 const contactPage = () => {
   const body = `<div class="page contact-page">
     ${pageHeader("CONTACT", "Start the conversation.", "Tell Vanderhall which vehicle or next step interests you.")}
-    <section class="lead-section section--tight narrow" id="form-destination-missing">${leadForm({ id: "contact-lead", presentation: "full" })}</section>
+    <section class="lead-section section--tight narrow" id="request-info">${leadForm({ id: "contact-lead", presentation: "full" })}</section>
     <section class="gate-register section--major narrow" aria-label="Open form integration items">${missing("form/dealer-routing", "Dealer routing rules have not been supplied.")}${missing("form/spam-protection", "Final spam protection depends on the endpoint platform.")}${missing("form/success-messaging", "Approved success copy and response timing have not been supplied.")}${missing("form/email-confirmation", "Submitter confirmation behavior has not been approved.")}</section>
   </div>`;
   return shell({ title: "Contact", description: "Contact Vanderhall Motor Works.", path: "/contact", body });
@@ -254,14 +275,53 @@ const notFoundPage = () => {
   return shell({ title: "Page not found", description: "The requested page was not found.", path: "/404", body });
 };
 
+const ownerManuals = [
+  ["venice", "Venice", 2017, "2017-vanderhall-venice-owners-manual.pdf"],
+  ["venice", "Venice", 2018, "2018-vanderhall-venice-owners-manual.pdf"],
+  ["venice", "Venice", 2019, "2019-vanderhall-venice-owners-manual.pdf"],
+  ["venice", "Venice", 2020, "2020-vanderhall-venice-owners-manual.pdf"],
+  ["venice", "Venice", 2021, "2021-vanderhall-venice-owners-manual.pdf"],
+  ["venice", "Venice", 2022, "2022-vanderhall-venice-owners-manual.pdf"],
+  ["venice", "Venice", 2023, "2023-vanderhall-venice-owners-manual.pdf"],
+  ["venice", "Venice", 2024, "2024-vanderhall-venice-owners-manual.pdf"],
+  ["carmel", "Carmel", 2020, "2020-vanderhall-carmel-owners-manual.pdf"],
+  ["carmel", "Carmel", 2021, "2021-vanderhall-carmel-owners-manual.pdf"],
+  ["carmel", "Carmel", 2022, "2022-vanderhall-carmel-owners-manual.pdf"],
+  ["carmel", "Carmel", 2023, "2023-vanderhall-carmel-owners-manual.pdf"],
+  ["carmel", "Carmel", 2024, "2024-vanderhall-carmel-owners-manual.pdf"],
+  ["brawley", "Brawley", 2024, "2024-brawley-owners-manual.pdf"],
+  ["brawley", "Brawley", 2024, "2024-brawley-owners-manual-spanish.pdf", "Spanish"],
+  ["brawley", "Brawley", 2025, "2025-brawley-owners-manual.pdf"],
+  ["brawley", "Brawley", 2026, "2026-brawley-owners-manual.pdf"],
+  ["speedster", "Speedster", 2019, "2019-vanderhall-speedster-owners-manual.pdf"],
+  ["laguna", "Laguna", 2016, "2016-vanderhall-laguna-owners-manual.pdf"],
+];
+
+const ownerManualData = await Promise.all(ownerManuals.map(async ([slug, model, year, file, language = "English"]) => {
+  const info = await stat(resolve(websiteRoot, "assets/manuals", file));
+  const size = info.size >= 1024 * 1024 ? `${(info.size / (1024 * 1024)).toFixed(1)} MB` : `${Math.ceil(info.size / 1024)} KB`;
+  return { slug, model, year, file, language, size };
+}));
+
+const ownersPage = () => {
+  const groups = ["venice", "carmel", "brawley", "speedster", "laguna"].map((slug) => {
+    const manuals = ownerManualData.filter((manual) => manual.slug === slug);
+    return `<section class="resource-group section--major" id="${slug}"><h2>${manuals[0].model}</h2><div class="resource-list">${manuals.map((manual) => `<a class="resource-row" href="/assets/manuals/${manual.file}" type="application/pdf"><span class="resource-row__title">${manual.year} ${manual.model} owner's manual</span><span class="chip">${manual.year}</span>${manual.language === "Spanish" ? '<span class="chip">Spanish</span>' : ""}<span class="resource-row__meta">PDF · ${manual.size}</span></a>`).join("")}</div></section>`;
+  }).join("");
+  const body = `<div class="page owners-page">${pageHeader("OWNERS", "Owner Resources", "Browse Vanderhall owner's manuals by model and year.")}<nav class="resource-nav bleed" aria-label="Owner manual groups">${["Venice", "Carmel", "Brawley", "Speedster", "Laguna"].map((name) => `<a href="#${name.toLowerCase()}">${name}</a>`).join("")}</nav><div class="resource-groups">${groups}</div></div>`;
+  return shell({ title: "Owner Resources", description: "Vanderhall owner's manuals grouped by model and year.", path: "/owners", body });
+};
+
 const pages = new Map([
   ["index.html", homePage()],
   ["vehicles/index.html", vehiclesPage()],
   ["concepts/index.html", conceptsPage()],
+  ...concepts.map((concept, index) => [`concepts/${concept.slug}/index.html`, conceptPage(concept, index)]),
   ["dealers/index.html", dealersPage()],
   ["about/index.html", aboutPage()],
   ["faq/index.html", faqPage()],
   ["contact/index.html", contactPage()],
+  ["owners/index.html", ownersPage()],
   ["recommend-dealer/index.html", recommendDealerPage()],
   ["dealer-inquiry/index.html", dealerInquiryPage()],
   ["404/index.html", notFoundPage()],
@@ -284,6 +344,6 @@ await writeFile(resolve(websiteRoot, "styles/bundle.css"), (await Promise.all(["
 await cp(resolve(sourceRoot, "scripts/site.js"), resolve(websiteRoot, "scripts/site.js"));
 await writeFile(resolve(websiteRoot, "robots.txt"), "User-agent: *\nAllow: /\n");
 await writeFile(resolve(websiteRoot, "site.webmanifest"), JSON.stringify({ name: "Vanderhall Motor Works", short_name: "Vanderhall", icons: [{ src: "/assets/brand/icon-192.png", sizes: "192x192", type: "image/png" }, { src: "/assets/brand/icon-512.png", sizes: "512x512", type: "image/png" }], theme_color: "#0E0E10", background_color: "#FFFFFF", display: "standalone" }, null, 2));
-await writeFile(resolve(websiteRoot, "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${["", "vehicles", "venice", "carmel", "santarosa", "brawley", "concepts", "dealers", "recommend-dealer", "dealer-inquiry", "about", "faq", "contact"].map((route) => `<url><loc>https://vanderhall-website.vercel.app/${route ? `${route}/` : ""}</loc></url>`).join("")}</urlset>`);
+await writeFile(resolve(websiteRoot, "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${["", "vehicles", "venice", "carmel", "santarosa", "brawley", "concepts", ...concepts.map((concept) => `concepts/${concept.slug}`), "dealers", "recommend-dealer", "dealer-inquiry", "about", "faq", "contact", "owners"].map((route) => `<url><loc>https://vanderhall-website.vercel.app/${route ? `${route}/` : ""}</loc></url>`).join("")}</urlset>`);
 
 console.log(`Built ${pages.size} HTML pages.`);

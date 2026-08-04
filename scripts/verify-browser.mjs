@@ -11,9 +11,10 @@ const outputDir = resolve(root, "work/browser-verification");
 await mkdir(outputDir, { recursive: true });
 
 const browser = await chromium.launch({ headless: true, executablePath: chromePath });
-const report = { routes: [], accessibility: {}, heroes: {}, forms: {}, media: {}, interactions: {}, noJs: {}, reducedMotion: {}, consoleErrors: [] };
+const report = { routes: [], accessibility: {}, heroes: {}, zoom200: {}, forms: {}, media: {}, interactions: {}, noJs: {}, reducedMotion: {}, consoleErrors: [] };
 const failures = [];
-const routes = ["/", "/vehicles/", "/venice/", "/carmel/", "/santarosa/", "/brawley/", "/concepts/", "/dealers/", "/recommend-dealer/", "/dealer-inquiry/", "/about/", "/faq/", "/contact/", "/404/"];
+const conceptRoutes = ["indio", "coachella", "brawley-r", "santarosa-r", "speedster", "yuma", "yuma-defense", "laduna", "balboa"].map((slug) => `/concepts/${slug}/`);
+const routes = ["/", "/vehicles/", "/venice/", "/carmel/", "/santarosa/", "/brawley/", "/concepts/", ...conceptRoutes, "/dealers/", "/recommend-dealer/", "/dealer-inquiry/", "/about/", "/faq/", "/contact/", "/owners/", "/404/"];
 
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 const page = await context.newPage();
@@ -21,17 +22,40 @@ page.setDefaultTimeout(5000);
 page.on("console", (message) => { if (message.type() === "error") report.consoleErrors.push(message.text()); });
 page.on("pageerror", (error) => report.consoleErrors.push(error.message));
 
+async function loadLazyMedia(targetPage) {
+  await targetPage.locator("img").evaluateAll(async (images) => {
+    images.forEach((image) => { image.loading = "eager"; });
+    await Promise.all(images.map((image) => {
+      if (image.complete) return Promise.resolve();
+      return new Promise((resolveImage) => {
+        image.addEventListener("load", resolveImage, { once: true });
+        image.addEventListener("error", resolveImage, { once: true });
+      });
+    }));
+  });
+  await targetPage.evaluate(async () => {
+    const delay = (milliseconds) => new Promise((resolveDelay) => setTimeout(resolveDelay, milliseconds));
+    for (let position = 0; position < document.documentElement.scrollHeight; position += innerHeight * 0.75) {
+      scrollTo(0, position);
+      await delay(40);
+    }
+    scrollTo(0, 0);
+    await delay(80);
+  });
+}
+
 for (const route of routes) {
   const response = await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   const status = response?.status();
   const h1Count = await page.locator("h1").count();
   const bodyLength = (await page.locator("body").innerText()).trim().length;
-  const brokenImages = await page.locator("img").evaluateAll((images) => images.filter((image) => image.currentSrc && image.complete && image.naturalWidth === 0).map((image) => image.currentSrc));
+  await loadLazyMedia(page);
+  const brokenImages = await page.locator("img").evaluateAll((images) => images.filter((image) => image.complete && image.naturalWidth === 0).map((image) => image.currentSrc || image.getAttribute("src")));
   report.routes.push({ route, status, h1Count, bodyLength, brokenImages });
   if (status !== 200 || h1Count !== 1 || bodyLength < 100 || brokenImages.length) failures.push(`Route check failed for ${route}`);
 }
 
-for (const route of ["/", "/brawley/", "/contact/", "/recommend-dealer/", "/dealer-inquiry/", "/concepts/"]) {
+for (const route of ["/", "/vehicles/", "/brawley/", "/contact/", "/recommend-dealer/", "/dealer-inquiry/", "/concepts/", "/concepts/indio/", "/owners/"]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   await page.addScriptTag({ content: axe.source });
   const result = await page.evaluate(async () => axe.run(document, { resultTypes: ["violations"] }));
@@ -71,6 +95,55 @@ for (const route of ["/", "/venice/", "/carmel/", "/santarosa/", "/brawley/"]) {
   }
 }
 
+for (const width of [768, 1024, 1280, 1440]) {
+  await page.setViewportSize({ width, height: 900 });
+  await page.goto(`${base}/santarosa/`, { waitUntil: "networkidle" });
+  const aligned = await page.locator(".hero__content").evaluate((content) => getComputedStyle(content).alignItems === "flex-end");
+  if (!aligned) failures.push(`Santarosa content-end alignment failed at ${width}px`);
+}
+
+for (const route of ["/santarosa/", "/brawley/"]) {
+  await page.setViewportSize({ width: 640, height: 900 });
+  await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  report.zoom200[route] = await page.evaluate(() => ({
+    proxyViewport: "640 CSS px for a 1280 px viewport at 200% zoom",
+    noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1,
+    h1Visible: Boolean(document.querySelector("h1")?.getClientRects().length),
+    navigationAvailable: Boolean([...document.querySelectorAll("a")].find((link) => link.textContent.trim().toLowerCase() === "request info")?.getClientRects().length || document.querySelector("[data-open-menu]")?.getClientRects().length),
+  }));
+  if (!Object.values(report.zoom200[route]).slice(1).every(Boolean)) failures.push(`200% zoom proxy failed for ${route}`);
+}
+
+await page.setViewportSize({ width: 1280, height: 900 });
+await page.goto(`${base}/vehicles/`, { waitUntil: "networkidle" });
+report.interactions.vehicleChapters = await page.locator(".chapter").count() === 4 && await page.locator(".chapter__facts").count() === 2;
+if (!report.interactions.vehicleChapters) failures.push("Vehicle chapter structure failed");
+await loadLazyMedia(page);
+await page.screenshot({ path: resolve(outputDir, "vehicles-desktop.png"), fullPage: true });
+
+await page.goto(`${base}/concepts/`, { waitUntil: "networkidle" });
+report.interactions.conceptHubLinks = await page.locator(".concept-feature, .concept-wide, .concept-tile").count() === 9;
+if (!report.interactions.conceptHubLinks) failures.push("Concept hub link structure failed");
+await loadLazyMedia(page);
+await page.screenshot({ path: resolve(outputDir, "concepts-desktop.png"), fullPage: true });
+
+for (let index = 0; index < conceptRoutes.length; index += 1) {
+  await page.goto(`${base}${conceptRoutes[index]}`, { waitUntil: "networkidle" });
+  const links = await page.locator(".concept-ring a").evaluateAll((anchors) => anchors.map((anchor) => new URL(anchor.href).pathname));
+  const previous = conceptRoutes[(index - 1 + conceptRoutes.length) % conceptRoutes.length];
+  const next = conceptRoutes[(index + 1) % conceptRoutes.length];
+  if (links[0] !== previous || links[1] !== "/concepts/" || links[2] !== next) failures.push(`Concept ring failed on ${conceptRoutes[index]}`);
+}
+
+await page.goto(`${base}/owners/`, { waitUntil: "networkidle" });
+report.interactions.ownerManuals = await page.locator(".resource-row").count();
+if (report.interactions.ownerManuals !== 19) failures.push("Owner manual list does not contain 19 rows");
+await page.screenshot({ path: resolve(outputDir, "owners-desktop.png"), fullPage: true });
+
+await page.goto(`${base}/concepts/indio/`, { waitUntil: "networkidle" });
+await loadLazyMedia(page);
+await page.screenshot({ path: resolve(outputDir, "indio-desktop.png"), fullPage: true });
+
 await page.setViewportSize({ width: 1440, height: 1000 });
 await page.goto(`${base}/`, { waitUntil: "networkidle" });
 report.media = await page.locator("img").evaluateAll((images) => ({
@@ -93,19 +166,34 @@ await metricRadio.check();
 report.interactions.metricToggle = await page.locator("html").evaluate((element) => element.classList.contains("unit-metric"));
 if (!report.interactions.metricToggle) failures.push("Metric toggle failed");
 
-const brawleyForm = page.locator("#brawley-lead");
-await brawleyForm.getByLabel(/^First name/).fill("Test");
-await brawleyForm.getByLabel(/^Last name/).fill("Visitor");
-await brawleyForm.getByLabel(/^Email/).fill("test@example.com");
-await brawleyForm.getByLabel(/^ZIP/).fill("84601");
-await brawleyForm.locator("[name='consent']").check();
-await brawleyForm.locator("[name='render_timestamp']").evaluate((input) => { input.value = String(Date.now() - 3000); });
-await brawleyForm.getByRole("button", { name: "Send request" }).click();
-const formStatus = await brawleyForm.locator(".form-status").innerText();
+await page.goto(`${base}/contact/?model=brawley`, { waitUntil: "networkidle" });
+const requestForm = page.locator("#contact-lead");
+await requestForm.getByLabel(/^First name/).fill("Test");
+await requestForm.getByLabel(/^Last name/).fill("Visitor");
+await requestForm.getByLabel(/^Email/).fill("test@example.com");
+await requestForm.getByLabel(/^ZIP/).fill("84601");
+await requestForm.locator("[name='consent']").check();
+await requestForm.locator("[name='render_timestamp']").evaluate((input) => { input.value = String(Date.now() - 3000); });
+await requestForm.getByRole("button", { name: "Send request" }).click();
+const formStatus = await requestForm.locator(".form-status").innerText();
 report.interactions.formValidation = formStatus === "This form is not connected yet. Your information was not sent.";
 if (!report.interactions.formValidation) failures.push("Lead form validation flow failed");
 
+report.interactions.modelPrefill = {};
+for (const value of ["venice", "carmel", "santarosa", "brawley", "concepts", "not-sure-yet"]) {
+  await page.goto(`${base}/contact/?model=${value}`, { waitUntil: "networkidle" });
+  const checked = await page.locator(`[name='interest'][value='${value}']`).isChecked();
+  report.interactions.modelPrefill[value] = checked;
+  if (!checked) failures.push(`Contact model prefill failed for ${value}`);
+}
+
+await page.goto(`${base}/brawley/`, { waitUntil: "networkidle" });
+await loadLazyMedia(page);
 await page.screenshot({ path: resolve(outputDir, "brawley-desktop.png"), fullPage: true });
+
+await page.goto(`${base}/santarosa/`, { waitUntil: "networkidle" });
+await loadLazyMedia(page);
+await page.screenshot({ path: resolve(outputDir, "santarosa-desktop.png"), fullPage: true });
 
 await page.setViewportSize({ width: 390, height: 844 });
 await page.goto(`${base}/brawley/`, { waitUntil: "networkidle" });
@@ -138,6 +226,9 @@ report.noJs = {
   forms: {},
 };
 if (report.noJs.status !== 200 || report.noJs.bodyLength < 1000 || report.noJs.visibleImperialValues === 0 || report.noJs.navLinks === 0 || report.noJs.visibleWalkaroundFrames !== 1) failures.push("No-JS verification failed");
+await noJsPage.goto(`${base}/`, { waitUntil: "load" });
+report.noJs.vehiclesHref = await noJsPage.getByRole("link", { name: "Vehicles", exact: true }).first().getAttribute("href");
+if (report.noJs.vehiclesHref !== "/vehicles/") failures.push("No-JS Vehicles navigation is not a plain link");
 for (const route of ["/contact/", "/recommend-dealer/", "/dealer-inquiry/"]) {
   await noJsPage.goto(`${base}${route}`, { waitUntil: "load" });
   const formAudit = await noJsPage.locator("[data-site-form]").last().evaluate((form) => {

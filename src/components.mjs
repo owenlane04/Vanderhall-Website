@@ -63,6 +63,32 @@ export const modelCard = (model, { eager = false, related = false } = {}) => {
   </article>`;
 };
 
+export const vehicleChapter = (model, reverse = false) => {
+  const status = model.status === "delivering" ? "NOW DELIVERING" : model.status === "reserve" ? "RESERVATION STAGE" : "";
+  const facts = model.slug === "santarosa"
+    ? [["Power", "180", "hp"], ["Standard range", "150", "mi"], ["Drive", "Twin-motor", "front-wheel drive"]]
+    : model.slug === "brawley"
+      ? [["Power", "283 to 404", "hp"], ["Torque", "488", "lb-ft"], ["Range", "Up to 140", "mi"]]
+      : [];
+  return `<section class="chapter${reverse ? " chapter--reverse" : ""}" aria-labelledby="chapter-${model.slug}-title">
+    <div class="chapter__media"><picture><source media="(max-width: 767px)" srcset="${model.images.chapterSmall} 800w" sizes="100vw"><img src="${model.images.chapter}" srcset="${model.images.chapter960} 960w, ${model.images.chapter} 1600w" sizes="(min-width: 1024px) 58vw, 100vw" width="1600" height="1067" alt="${escapeHtml(model.images.chapterAlt)}" loading="lazy" decoding="async" style="--media-focal:${model.images.chapterFocal}"></picture></div>
+    <div class="chapter__body">
+      <div class="chip-row"><span class="chip">${model.powertrain.fuel} · ${model.powertrain.layout}</span>${status ? `<span class="chip chip--status">${status}</span>` : ""}</div>
+      <h2 class="chapter__title" id="chapter-${model.slug}-title">${model.name}</h2>
+      <p class="chapter__descriptor">${escapeHtml(model.descriptor)}</p>
+${facts.length ? `      <dl class="chapter__facts">${facts.map(([labelText, value, unit]) => `<div><dt>${labelText}</dt><dd>${value} <span>${unit}</span></dd></div>`).join("")}</dl>\n` : ""}      ${price(model, "chapter")}
+      <div class="chapter__actions">${buttonLink(`Explore ${model.name}`, `/${model.slug}/`)}<a class="text-link" href="/contact/?model=${model.slug}">Request info<span aria-hidden="true"> →</span></a></div>
+    </div>
+  </section>`;
+};
+
+export const inquiryBand = (modelSlug = "") => `<section class="inquiry-band section--major narrow">
+  ${eyebrow("REQUEST INFO")}
+  <h2>Talk with Vanderhall.</h2>
+  <p>One form, one conversation. Tell Vanderhall which vehicle interests you.</p>
+  <div class="cluster">${buttonLink("Request info", modelSlug ? `/contact/?model=${modelSlug}` : "/contact/")}<a class="text-link" href="${modelSlug ? "/dealers/" : "/recommend-dealer/"}">${modelSlug ? "Find a dealer" : "Recommend a Dealer"}<span aria-hidden="true"> →</span></a></div>
+</section>`;
+
 const navCurrent = (path, prefix) => path === prefix || path.startsWith(`${prefix}/`) ? " aria-current=\"page\"" : "";
 
 const requiredMark = `<span aria-hidden="true"> *</span><span class="sr-only"> required</span>`;
@@ -160,24 +186,16 @@ export const header = (path) => {
     <div class="site-header__inner">
       <a class="brand" href="/"><img src="/assets/brand/vanderhall-lockup-horizontal.svg" alt="Vanderhall home" width="269" height="28"></a>
       <nav class="desktop-nav" aria-label="Primary">
-        <a class="nav-link${vehicleCurrent ? " is-current" : ""}" href="/vehicles/" data-vehicles-trigger aria-haspopup="true" aria-expanded="false">Vehicles</a>
+        <a class="nav-link${vehicleCurrent ? " is-current" : ""}" href="/vehicles/"${vehicleCurrent ? ' aria-current="page"' : ""}>Vehicles</a>
         <a class="nav-link" href="/concepts/"${navCurrent(path, "/concepts")}>Concepts</a>
         <a class="nav-link" href="/about/"${navCurrent(path, "/about")}>About</a>
         <a class="nav-link" href="/faq/"${navCurrent(path, "/faq")}>Support</a>
       </nav>
       <div class="site-header__actions">
         <a class="dealer-link" href="/dealers/" aria-label="Find a dealer"${navCurrent(path, "/dealers")}><span aria-hidden="true">⌖</span><span class="dealer-link__text">Find a dealer</span></a>
-        <button class="button button--primary header-request" type="button" data-open-lead>Request info</button>
+        <a class="button button--primary header-request" href="/contact/">Request info</a>
         <button class="icon-button desktop-theme" type="button" data-theme-toggle aria-label="Use dark theme"><span aria-hidden="true">◐</span></button>
         <button class="icon-button menu-button" type="button" data-open-menu aria-label="Open menu" aria-expanded="false"><span aria-hidden="true">☰</span></button>
-      </div>
-    </div>
-    <div class="mega-panel" data-mega-panel hidden>
-      <div class="mega-panel__grid">
-        ${models.map((model) => `<a class="mega-model" href="/${model.slug}/">
-          <span class="mega-model__media">${model.images.card ? media({ src: model.images.card, alt: "", width: 800, height: 500, style: `--media-focal:${model.images.cardFocal}` }) : missing(`nav-thumb/${model.slug}`)}</span>
-          <strong>${model.name}</strong><span>${model.powertrain.fuel} · ${model.powertrain.layout}</span>
-        </a>`).join("")}
       </div>
     </div>
   </header>
@@ -189,10 +207,6 @@ export const header = (path) => {
       <a href="/dealers/">Find a dealer</a><a class="button button--primary" href="/contact/">Request info</a>
       <button class="button button--secondary" type="button" data-theme-toggle>Change theme</button>
     </nav>
-  </div>
-  <div class="sheet sheet--lead" data-lead-sheet hidden aria-hidden="true">
-    <div class="sheet__top"><div>${eyebrow("REQUEST INFO")}<h2>Start the conversation.</h2></div><button class="icon-button" type="button" data-close-lead aria-label="Close request form">×</button></div>
-    ${leadForm({ id: "panel-lead", presentation: "panel" })}
   </div>
   <div class="sheet-backdrop" data-sheet-backdrop hidden></div>`;
 };
@@ -206,13 +220,13 @@ export const footer = () => `<footer class="site-footer">
   <div class="footer-links">
     <div><h3>Vehicles</h3>${models.map((model) => `<a href="/${model.slug}/">${model.name}</a>`).join("")}<a href="/concepts/">Concepts</a></div>
     <div><h3>Company</h3><a href="/about/">About</a></div>
-    <div><h3>Owners</h3><a href="/faq/">Support and FAQ</a><a href="/assets/manuals/2026-brawley-owners-manual.pdf">2026 Brawley owner's manual</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a></div>
+    <div><h3>Owners</h3><a href="/owners/">Owner resources</a><a href="/faq/">Support and FAQ</a><a href="/assets/manuals/2026-brawley-owners-manual.pdf">2026 Brawley owner's manual</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a></div>
     <div><h3>Connect</h3><a href="/dealers/">Find a dealer</a><a href="/recommend-dealer/">Recommend a Dealer</a><a href="/contact/">Contact</a><a href="/dealer-inquiry/">Become a Dealer</a></div>
   </div>
   <div class="footer-legal">
     <img class="footer-lockup" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" width="231" height="24" loading="lazy" decoding="async" alt="Vanderhall Motor Works">
     <span>© 2026 Vanderhall Motor Works. Hand-built in Provo, Utah.</span>
-    ${missing("legal/price-disclaimer", "Legal review is required before the site-wide price disclaimer can publish.")}
+${missing("legal/price-disclaimer", "Legal review is required before the site-wide price disclaimer can publish.")}
   </div>
 </footer>`;
 

@@ -17,6 +17,7 @@ const directories = [
   "dealer-inquiry",
   "dealers",
   "faq",
+  "owners",
   "recommend-dealer",
   "santarosa",
   "styles",
