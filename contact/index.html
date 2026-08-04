@@ -4,29 +4,24 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="Contact Vanderhall Motor Works.">
+  <meta name="description" content="Request information from Vanderhall Motor Works.">
   <title>Contact | Vanderhall Motor Works</title>
   <link rel="icon" href="/assets/brand/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/assets/brand/favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
   <link rel="manifest" href="/site.webmanifest">
-  <link rel="preload" href="/assets/fonts/archivo-latin-variable.woff2" as="font" type="font/woff2" crossorigin>
   <script>try{const t=localStorage.getItem('vhw.theme');if(t)document.documentElement.dataset.theme=t;const u=localStorage.getItem('vhw.units');if(u==='metric')document.documentElement.classList.add('unit-metric')}catch(e){}</script>
   <link rel="stylesheet" href="/styles/bundle.css">
 </head>
-<body class="">
+<body>
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header" data-header>
     <div class="site-header__inner">
       <a class="brand" href="/"><img src="/assets/brand/vanderhall-lockup-horizontal.svg" alt="Vanderhall home" width="269" height="28"></a>
       <nav class="desktop-nav" aria-label="Primary">
-        <a class="nav-link" href="/vehicles/">Vehicles</a>
-        <a class="nav-link" href="/concepts/">Concepts</a>
-        <a class="nav-link" href="/about/">About</a>
-        <a class="nav-link" href="/faq/">Support</a>
+        <a class="nav-link" href="/vehicles/">Vehicles</a><a class="nav-link" href="/concepts/">Concepts</a><a class="nav-link" href="/owners/">Owners</a><a class="nav-link" href="/faq/">Support</a>
       </nav>
       <div class="site-header__actions">
-        <a class="dealer-link" href="/dealers/" aria-label="Find a dealer"><span aria-hidden="true">⌖</span><span class="dealer-link__text">Find a dealer</span></a>
         <a class="button button--primary header-request" href="/contact/">Request info</a>
         <button class="icon-button desktop-theme" type="button" data-theme-toggle aria-label="Use dark theme"><span aria-hidden="true">◐</span></button>
         <button class="icon-button menu-button" type="button" data-open-menu aria-label="Open menu" aria-expanded="false"><span aria-hidden="true">☰</span></button>
@@ -36,16 +31,15 @@
   <div class="sheet" data-menu-sheet hidden aria-hidden="true">
     <div class="sheet__top"><img class="brand brand--sheet" src="/assets/brand/vanderhall-lockup-horizontal.svg" alt="Vanderhall" width="211" height="22"><button class="icon-button" type="button" data-close-menu aria-label="Close menu">×</button></div>
     <nav class="mobile-nav" aria-label="Mobile primary">
-      <a href="/vehicles/">Vehicles</a><a href="/concepts/">Concepts</a><a href="/about/">About</a><a href="/faq/">Support</a>
-      <div class="mobile-models"><a href="/venice/">Venice</a><a href="/carmel/">Carmel</a><a href="/santarosa/">Santarosa</a><a href="/brawley/">Brawley</a></div>
-      <a href="/dealers/">Find a dealer</a><a class="button button--primary" href="/contact/">Request info</a>
+      <a href="/vehicles/">Vehicles</a><a href="/concepts/">Concepts</a><a href="/owners/">Owners</a><a href="/faq/">Support</a>
+      <a class="button button--primary" href="/contact/">Request info</a>
       <button class="button button--secondary" type="button" data-theme-toggle>Change theme</button>
     </nav>
   </div>
   <div class="sheet-backdrop" data-sheet-backdrop hidden></div>
-  <main id="main"><div class="page contact-page">
-    <header class="page-header section--major"><p class="eyebrow">CONTACT</p><h1>Start the conversation.</h1><p>Tell Vanderhall which vehicle or next step interests you.</p></header>
-    <section class="lead-section section--tight narrow" id="request-info"><form class="lead-form lead-form--full" id="contact-lead" novalidate data-site-form data-form-id="request-info" data-endpoint="">
+  <main id="main"><div class="page">
+    <header class="page-header"><p class="eyebrow">CONTACT</p><h1>Request information</h1><p>Tell Vanderhall which vehicle interests you and how to reach you.</p></header>
+    <section class="section--tight narrow" id="request-info"><form class="lead-form" id="contact-lead" novalidate data-site-form data-form-id="request-info" data-endpoint="">
   <p class="form-key">Fields marked * are required.</p>
   <div class="form-error-summary" role="alert" tabindex="-1" hidden></div>
     <div class="form-grid form-grid--pairs">
@@ -55,72 +49,28 @@
     <div class="field"><label for="contact-lead-email">Email<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="contact-lead-email" name="email" type="email" autocomplete="email" inputmode="email" required aria-required="true"><span class="field__error" id="contact-lead-email-error"></span></div>
     <div class="field"><label for="contact-lead-phone">Phone</label><input id="contact-lead-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel"><span class="field__error" id="contact-lead-phone-error"></span></div>
     <div class="field"><label for="contact-lead-zip">ZIP<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="contact-lead-zip" name="zip" autocomplete="postal-code" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" required aria-required="true"><span class="field__error" id="contact-lead-zip-error"></span></div>
-    <div class="field"><label for="contact-lead-dealer">Dealer<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><select id="contact-lead-dealer" name="dealer" required aria-required="true"><option value="not-sure">Not sure yet, help me choose</option></select><span class="field__error" id="contact-lead-dealer-error"></span>
-  <div class="missing" role="status" data-missing="data/dealer-list">
-    <strong>MISSING: data/dealer-list</strong>
-    <span>Verified dealer names and routing data have not been supplied.</span>
-  </div></div>
     <fieldset class="field-group"><legend>I'm interested in</legend><div class="checkbox-grid"><label class="check"><input type="checkbox" name="interest" value="venice"> <span>Venice</span></label><label class="check"><input type="checkbox" name="interest" value="carmel"> <span>Carmel</span></label><label class="check"><input type="checkbox" name="interest" value="santarosa"> <span>Santarosa</span></label><label class="check"><input type="checkbox" name="interest" value="brawley"> <span>Brawley</span></label><label class="check"><input type="checkbox" name="interest" value="concepts"> <span>Concepts</span></label><label class="check"><input type="checkbox" name="interest" value="not-sure-yet"> <span>Not sure yet</span></label></div></fieldset>
     <div class="field"><label for="contact-lead-timeframe">Timeframe</label><select id="contact-lead-timeframe" name="timeframe"><option value="">Select a timeframe</option><option>Ready now</option><option>1 to 3 months</option><option>3 to 6 months</option><option>Just looking</option></select><span class="field__error" id="contact-lead-timeframe-error"></span></div>
     <div class="field"><label for="contact-lead-message">Message</label><textarea id="contact-lead-message" name="message" rows="4"></textarea><span class="field__error" id="contact-lead-message-error"></span></div>
-    <div class="check check--consent"><input id="contact-lead-consent" type="checkbox" name="consent" required aria-required="true" aria-describedby="contact-lead-consent-copy"><label id="contact-lead-consent-copy" for="contact-lead-consent"><span class="sr-only">Consent required. </span>
-  <div class="missing" role="status" data-missing="form/consent-copy">
-    <strong>MISSING: form/consent-copy</strong>
-    <span>Legal-approved email and SMS consent language is required.</span>
-  </div></label></div>
     
   <div class="honeypot" aria-hidden="true"><label>Company<input name="honeypot" tabindex="-1" autocomplete="off"></label></div>
   <input type="hidden" name="render_timestamp" value="">
   <input type="hidden" name="form_id" value="request-info">
   <input type="hidden" name="page" value="">
-  <div class="form-submit-row"><button class="button button--primary" type="submit" data-submit-label="Send request">Send request</button>
-  <div class="missing" role="status" data-missing="form-endpoint/request-info">
-    <strong>MISSING: form-endpoint/request-info</strong>
-    <span>No submission destination is configured. Your information will not be sent.</span>
-  </div></div>
-  <div class="form-progress" aria-hidden="true"></div>
+  <p class="form-note">This form is not connected yet, so nothing you enter here is sent.</p>
+  <div class="form-submit-row"><button class="button button--primary" type="submit" data-submit-label="Send request">Send request</button></div>
   <p class="form-status" tabindex="-1" aria-live="polite"></p>
   </form></section>
-    <section class="gate-register section--major narrow" aria-label="Open form integration items">
-  <div class="missing" role="status" data-missing="form/dealer-routing">
-    <strong>MISSING: form/dealer-routing</strong>
-    <span>Dealer routing rules have not been supplied.</span>
-  </div>
-  <div class="missing" role="status" data-missing="form/spam-protection">
-    <strong>MISSING: form/spam-protection</strong>
-    <span>Final spam protection depends on the endpoint platform.</span>
-  </div>
-  <div class="missing" role="status" data-missing="form/success-messaging">
-    <strong>MISSING: form/success-messaging</strong>
-    <span>Approved success copy and response timing have not been supplied.</span>
-  </div>
-  <div class="missing" role="status" data-missing="form/email-confirmation">
-    <strong>MISSING: form/email-confirmation</strong>
-    <span>Submitter confirmation behavior has not been approved.</span>
-  </div></section>
   </div></main>
   <footer class="site-footer">
-  <div class="footer-cta">
-    <div><h2>Find the right next step.</h2><p>Connect with Vanderhall or find a dealer.</p></div>
-    <div class="cluster">
-  <a class="button button--inverse" href="/dealers/">Find a dealer</a>
-  <a class="button button--secondary-inverse" href="/contact/">Request info</a></div>
-  </div>
-  <div class="footer-brand"><img src="/assets/brand/vanderhall-seal-192.png" srcset="/assets/brand/vanderhall-seal-192.png 1x, /assets/brand/vanderhall-seal-384.png 2x" width="96" height="96" loading="lazy" decoding="async" alt=""></div>
   <div class="footer-links">
-    <div><h3>Vehicles</h3><a href="/venice/">Venice</a><a href="/carmel/">Carmel</a><a href="/santarosa/">Santarosa</a><a href="/brawley/">Brawley</a><a href="/concepts/">Concepts</a></div>
-    <div><h3>Company</h3><a href="/about/">About</a></div>
-    <div><h3>Owners</h3><a href="/owners/">Owner resources</a><a href="/faq/">Support and FAQ</a><a href="/assets/manuals/2026-brawley-owners-manual.pdf">2026 Brawley owner's manual</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a></div>
-    <div><h3>Connect</h3><a href="/dealers/">Find a dealer</a><a href="/recommend-dealer/">Recommend a Dealer</a><a href="/contact/">Contact</a><a href="/dealer-inquiry/">Become a Dealer</a></div>
+    <div><h2>Vehicles</h2><a href="/venice/">Venice</a><a href="/carmel/">Carmel</a><a href="/santarosa/">Santarosa</a><a href="/brawley/">Brawley</a><a href="/concepts/">Concepts</a></div>
+    <div><h2>Owners</h2><a href="/owners/">Owner resources</a><a href="/faq/">Support</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a></div>
+    <div><h2>Connect</h2><a href="/contact/">Contact</a><a href="/dealers/">Dealers</a><a href="/recommend-dealer/">Recommend a dealer</a><a href="/dealer-inquiry/">Become a dealer</a></div>
   </div>
   <div class="footer-legal">
     <img class="footer-lockup" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" width="231" height="24" loading="lazy" decoding="async" alt="Vanderhall Motor Works">
     <span>© 2026 Vanderhall Motor Works. Hand-built in Provo, Utah.</span>
-
-  <div class="missing" role="status" data-missing="legal/price-disclaimer">
-    <strong>MISSING: legal/price-disclaimer</strong>
-    <span>Legal review is required before the site-wide price disclaimer can publish.</span>
-  </div>
   </div>
 </footer>
   <script>addEventListener('load',()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{const s=document.createElement('script');s.src='/scripts/site.js';document.body.append(s)})),{once:true})</script>

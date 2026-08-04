@@ -25,30 +25,10 @@ body {
 
 .page > * { grid-column: content; }
 .page > .bleed { grid-column: full; }
-.page > .bleed-right { grid-column: content-start / full-end; }
-.page > .bleed-left { grid-column: full-start / content-end; }
 
-.narrow { width: min(100%, var(--w-narrow)); margin-inline: auto; }
-.prose { max-width: var(--w-text); }
+.narrow { max-width: var(--w-narrow); }
 
-.inner-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--grid-gap);
-}
+.section { padding-block: var(--sf-l); }
+.section--tight { padding-block: var(--sf-m); }
 
-.section { padding-block: var(--sf-xl); }
-.section--tight { padding-block: var(--sf-l); }
-.section--major { padding-block: var(--sf-2xl); }
-
-.stack { display: flex; flex-direction: column; gap: var(--s-5); }
-.stack--tight { gap: var(--s-3); }
 .cluster { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3); }
-
-@media (min-width: 768px) {
-  .inner-grid { grid-template-columns: repeat(8, minmax(0, 1fr)); }
-}
-
-@media (min-width: 1024px) {
-  .inner-grid { grid-template-columns: repeat(12, minmax(0, 1fr)); }
-}

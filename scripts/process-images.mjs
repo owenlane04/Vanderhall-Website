@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
@@ -33,6 +33,9 @@ const encode = async (input, output, options = {}) => {
   const sourceMetadata = await sharp(input).metadata();
   let pipeline = sharp(input).rotate();
   if (options.extract) pipeline = pipeline.extract(options.extract);
+  // Legacy concept slides sit on padded canvases. Trimming the uniform border removes the
+  // empty white or black margin so the delivered crop is only the composition itself.
+  if (options.trim) pipeline = pipeline.trim({ threshold: options.trim });
   if (options.width && options.height) {
     pipeline = pipeline.resize({
       width: options.width,
@@ -66,15 +69,12 @@ const source = (group, name) => resolve(legacyRoot, group, `${name}.jpg`);
 const cardSpecs = [
   ["Venice", "venice-exterior-seaside-profile", "venice", "50% 55%"],
   ["Carmel", "carmel-hero-sunset", "carmel", "52% 60%"],
-  ["Santarosa", "santarosa-hero-light-streaks", "santarosa", "52% 50%"],
 ];
 for (const [group, name, slug, focal] of cardSpecs) {
-  await crop(source(group, name), `cards/${slug}`, slug, 800, 500, { transform: `16:10 card, focal ${focal}` });
+  for (const width of [500, 800]) {
+    await crop(source(group, name), `cards/${slug}`, slug, width, Math.round(width * 10 / 16), { transform: `16:10 card, focal ${focal}` });
+  }
 }
-await crop(source("Brawley", "brawley-lifestyle-desert-camp"), "cards/brawley", "brawley", 800, 500, {
-  extract: { left: 0, top: 140, width: 2880, height: 1446 },
-  transform: "16:10 crop after y=140; baked top disclaimer excluded",
-});
 
 const heroes = [
   ["Brawley", "brawley-hero-mountain-pass", "home", "47% 60%"],
@@ -84,7 +84,7 @@ const heroes = [
 for (const [group, name, slug, focal] of heroes) {
   const input = source(group, name);
   const metadata = await sharp(input).metadata();
-  for (const width of [640, 960, 1280, 1920, 2560].filter((value) => value <= metadata.width)) {
+  for (const width of [960, 1280, 1920, 2560].filter((value) => value <= metadata.width)) {
     await crop(input, `heroes/${slug}`, `${slug}-wide`, width, Math.round(width * 9 / 21), { transform: `21:9 hero, focal ${focal}` });
   }
   for (const width of [480, 720, 960].filter((value) => value <= metadata.width)) {
@@ -109,7 +109,6 @@ const featureSpecs = {
     ["santarosa-detail-dashboard", "dashboard"],
   ],
   brawley: [
-    ["brawley-detail-seat-emboss", "seat-emboss"], ["brawley-detail-charging-port", "charging-port"],
     ["brawley-detail-suspension", "suspension"], ["brawley-detail-wheel", "wheel"],
   ],
 };
@@ -123,28 +122,10 @@ for (const [slug, entries] of Object.entries(featureSpecs)) {
   }
 }
 
-await crop(source("Venice", "venice-action-mountain-road"), "features/venice", "mountain-road", 1600, 604, { transform: "native 2.65:1 mid-page bleed" });
-await crop(source("Venice", "venice-exterior-underpass-reflection"), "character/venice", "underpass", 1600, 900, { transform: "16:9 center-band crop, focal 50% 45%" });
-await crop(source("Carmel", "carmel-action-palm-trees"), "features/carmel", "palm-trees", 960, 1200, { transform: "4:5 portrait, focal 50% 55%" });
-await crop(source("Carmel", "carmel-action-night-street"), "character/carmel", "night-street", 1600, 900, { transform: "16:9 crop, focal 40% 50%" });
-await crop(source("Santarosa", "santarosa-action-winding-road"), "features/santarosa", "winding-road", 960, 1200, {
-  extract: { left: 120, top: 0, width: 2192, height: 2740 },
-  transform: "4:5 crop with bottom edge y=2740; baked bottom disclaimer excluded",
-});
-await crop(source("Santarosa", "santarosa-detail-steering-wheel"), "features/santarosa", "steering-wheel", 960, 1200, { transform: "4:5 portrait, focal 50% 40%" });
-await crop(source("Brawley", "brawley-hero-starry-night"), "character/brawley", "starry-night", 1600, 900, {
-  extract: { left: 262, top: 1100, width: 1778, height: 1000 },
-  transform: "16:9 center band y=1100..2100; baked bottom disclaimer excluded",
-});
-await crop(source("Brawley", "brawley-hero-starry-night"), "character/brawley", "starry-night-tall", 960, 1200, {
-  extract: { left: 432, top: 800, width: 1440, height: 1800 },
-  transform: "4:5 crop y=800..2600; baked bottom disclaimer excluded",
-});
-
-const encodeLadder = async (input, directory, base, widths, { extract, transform = "native ratio" } = {}) => {
+const encodeLadder = async (input, directory, base, widths, { extract, trim, transform = "native ratio" } = {}) => {
   for (const width of widths) {
     const output = resolve(outputRoot, `v3/${directory}/${base}-${width}.webp`);
-    await encode(input, output, { width, ...(extract ? { extract } : {}), transform: `${transform}; ${width}w; WebP q80; verified clean` });
+    await encode(input, output, { width, ...(extract ? { extract } : {}), ...(trim ? { trim } : {}), transform: `${transform}; ${width}w; WebP q80; verified clean` });
   }
 };
 
@@ -155,17 +136,21 @@ await encodeLadder(santarosaCover, "heroes/santarosa", "santarosa-tall", [480, 7
 await encodeLadder(brawleyCover, "heroes/brawley", "brawley-wide", [960, 1280, 1920, 2560], { extract: { left: 0, top: 180, width: 2880, height: 1234 }, transform: "crop x=0..2880 y=180..1414; watermark excluded; focal 50% 55%" });
 await encodeLadder(brawleyCover, "heroes/brawley", "brawley-tall", [480, 720, 960], { extract: { left: 1170, top: 0, width: 1131, height: 1414 }, transform: "crop x=1170..2301 y=0..1414; front three-quarter detail; focal 50% 55%" });
 
-const santarosaLightStreaks = source("Santarosa", "santarosa-hero-light-streaks");
-await encodeLadder(santarosaLightStreaks, "character/santarosa", "light-streaks", [1600], { transform: "16:9 full-frame character plate; focal 52% 50%" });
-await encodeLadder(santarosaLightStreaks, "character/santarosa", "light-streaks-tall", [960], { extract: { left: 792, top: 0, width: 1296, height: 1620 }, transform: "4:5 center character crop; focal 52% 50%" });
-
-const chapterSpecs = [
-  [source("Venice", "venice-exterior-seaside-profile"), "venice", null, "full frame"],
-  [source("Carmel", "carmel-lifestyle-beach-reflection"), "carmel", { left: 188, top: 0, width: 2504, height: 1669 }, "3:2 crop x=188..2692"],
-  [source("Santarosa", "santarosa-lifestyle-sunset"), "santarosa", { left: 250, top: 0, width: 2160, height: 1440 }, "3:2 crop with bottom disclaimer excluded"],
-  [source("Brawley", "brawley-lifestyle-desert-camp"), "brawley", { left: 355, top: 140, width: 2169, height: 1446 }, "3:2 crop after y=140; baked top disclaimer excluded"],
-];
-for (const [input, slug, extract, transform] of chapterSpecs) await encodeLadder(input, "vehicles", slug, [800, 960, 1600], { extract, transform });
+// V4 vehicle cards for the two models whose covers changed in V3.
+for (const width of [500, 800]) {
+  await encode(santarosaCover, resolve(outputRoot, `v3/cards/santarosa-${width}.webp`), {
+    extract: { left: 30, top: 277, width: 1900, height: 1188 },
+    width,
+    height: Math.round(width * 10 / 16),
+    transform: "16:10 card crop x=30..1930 y=277..1465 centred on the vehicle; watermarks excluded",
+  });
+  await encode(brawleyCover, resolve(outputRoot, `v3/cards/brawley-${width}.webp`), {
+    extract: { left: 482, top: 220, width: 1900, height: 1188 },
+    width,
+    height: Math.round(width * 10 / 16),
+    transform: "16:10 card crop x=482..2382 y=220..1408 centred on the vehicle; corner watermark excluded",
+  });
+}
 
 const conceptFile = (folder, filename) => resolve(v3ConceptRoot, folder, filename);
 const conceptLadders = [
@@ -196,11 +181,13 @@ const conceptLadders = [
 ];
 for (const [folder, filename, slug, base] of conceptLadders) {
   const metadata = await sharp(conceptFile(folder, filename)).metadata();
-  const widths = [960, 1280, 1920, 2560].filter((width) => width <= metadata.width);
-  await encodeLadder(conceptFile(folder, filename), `concepts/${slug}`, base, widths, { transform: `full-frame ${filename}; no line art, callouts, disclaimer, or legacy UI` });
+  const widths = [960, 1280, 1920].filter((width) => width <= metadata.width);
+  await encodeLadder(conceptFile(folder, filename), `concepts/${slug}`, base, widths, { trim: 12, transform: `${filename}; padded canvas trimmed; no line art, callouts, disclaimer, or legacy UI` });
 }
 
-await encodeLadder(conceptFile("Indio", "indio-beach-slide-scaled.jpg"), "concepts/indio", "hero", [960, 1440, 2560], { transform: "full-frame featured Indio hero" });
+await encodeLadder(conceptFile("Indio", "indio-beach-slide-scaled.jpg"), "concepts/indio", "hero", [960, 1440, 2560], { trim: 12, transform: "Indio hero; padded canvas trimmed" });
+// Explicit crop only: this source carries an alpha channel, and trimming a transparent
+// edge collapses the extract area.
 await encodeLadder(conceptFile("Yuma Defense", "vanderhall-yuma-defense-concept-vehicle.png"), "concepts/yuma-defense", "gallery-2", [960, 1280], { extract: { left: 0, top: 0, width: 1400, height: 650 }, transform: "clean left vehicle band; More Concepts furniture excluded" });
 const conceptMobiles = [
   ["Indio", "indio-slide-2-mobile.jpg", "indio"],
@@ -209,14 +196,14 @@ const conceptMobiles = [
   ["Santarosa R", "vanderhall-santarosa-r-slide-mobile.jpg", "santarosa-r"],
   ["Yuma", "yuma-slide-1-3-mobile-2.jpg", "yuma"],
 ];
-for (const [folder, filename, slug] of conceptMobiles) await encode(conceptFile(folder, filename), resolve(outputRoot, `v3/concepts/${slug}/mobile-704.webp`), { width: 704, transform: `native mobile source ${filename}; verified clean` });
-await encode(conceptFile("Speedster", "santarosa-speedster.jpg"), resolve(outputRoot, "v3/concepts/speedster/gallery-2-704.webp"), { width: 704, transform: "native small gallery plate; verified clean" });
-await encode(conceptFile("Yuma Defense", "yuma-defense-slide-revised-2.jpg"), resolve(outputRoot, "v3/concepts/yuma-defense/gallery-1-704.webp"), { width: 704, transform: "native small gallery plate; verified clean" });
+for (const [folder, filename, slug] of conceptMobiles) await encode(conceptFile(folder, filename), resolve(outputRoot, `v3/concepts/${slug}/mobile-704.webp`), { width: 704, trim: 12, transform: `mobile source ${filename}; padded canvas trimmed; verified clean` });
 
-await encodeLadder(conceptFile("Coachella", "coachella-concept-03.jpg"), "concepts/hub", "coachella", [800, 1200, 1880], { extract: { left: 500, top: 0, width: 1880, height: 806 }, transform: "21:9 hub crop x=500..2380" });
-await encodeLadder(conceptFile("Brawley R", "brawley-r-slide-8.jpg"), "concepts/hub", "brawley-r", [800, 1200, 1880], { extract: { left: 500, top: 0, width: 1880, height: 806 }, transform: "21:9 hub crop x=500..2380" });
+// One uniform 656x445 card per concept for the single hub grid.
 for (const [filename, slug] of [["santarosa-r-concept.jpg", "santarosa-r"], ["speedster-concept.jpg", "speedster"], ["yuma-concept.jpg", "yuma"], ["yuma-defense-concept.jpg", "yuma-defense"], ["laduna-concept-blue-2.jpg", "laduna"], ["balboa-concept-2.jpg", "balboa"]]) {
   await encode(conceptFile("Hub Cards", filename), resolve(outputRoot, `v3/concepts/hub/${slug}-656.webp`), { width: 656, transform: `native 656x445 hub card ${filename}; verified clean` });
+}
+for (const [filename, slug] of [["concept-indio.jpg", "indio"], ["concept-coachella.jpg", "coachella"], ["concept-brawley-r.jpg", "brawley-r"]]) {
+  await encode(resolve(legacyRoot, "Concepts", filename), resolve(outputRoot, `v3/concepts/hub/${slug}-656.webp`), { width: 656, transform: `native 656x445 hub card ${filename}; verified clean` });
 }
 
 for (const [folder, filename, slug] of [
@@ -231,25 +218,9 @@ for (const [folder, filename, slug] of [
   ["Balboa", "balboa-logo.png", "balboa"],
 ]) await encode(conceptFile(folder, filename), resolve(outputRoot, `v3/concepts/${slug}/wordmark.webp`), { transform: `native wordmark ${filename}; WebP q80` });
 
-const studioDir = resolve(assetsRoot, "Brawley Icons");
-const studioFiles = (await readdir(studioDir)).filter((name) => name.toLowerCase().endsWith(".jpg")).sort();
-const colorMap = [["Atomic-Green", "atomic-green"], ["Bosco-Blue", "bosco-blue"], ["Concrete-Grey", "concrete-grey"], ["Emerald-Green", "emerald-green"], ["Ida-Rose", "ida-rose"], ["Ivory-White", "ivory-white"], ["Jean-Grey", "jean-grey"], ["Obsidian-Black", "obsidian-black"], ["Rossa", "rossa"], ["Royal-Blue", "royal-blue"]];
-const angleMap = [["front-side-driver", "front-side-driver"], ["front-side-passenger", "front-side-passenger"], ["side-rear-diver", "side-rear-driver"], ["side-rear-passenger", "side-rear-passenger"], ["side-reverse", "side-reverse"], ["front", "front"], ["rear", "rear"], ["side", "side"]];
-const written = new Set();
-for (const filename of studioFiles) {
-  const color = colorMap.find(([needle]) => filename.includes(needle))?.[1];
-  const angle = angleMap.find(([needle]) => filename.includes(needle))?.[1];
-  if (!color || !angle) throw new Error(`Could not normalize ${filename}`);
-  const output = resolve(outputRoot, `brawley/walkaround/${color}/${angle}.webp`);
-  if (written.has(output)) continue;
-  written.add(output);
-  await encode(resolve(studioDir, filename), output, { width: 1600, transform: "1600w walkaround frame" });
-}
-
-const legacyLifestyle = [["Brawley-EV-desert-01-scaled.jpg", "desert", [640, 960, 1280]], ["Brawley-GTS-EV-interior-scaled.jpg", "interior", [640, 960, 1280]], ["Brawley-GTS-off-road-EV-01.jpg", "off-road", [640, 960, 1280]], ["Brawley-front-view-on-mountain-road-01-scaled.jpg", "mountain-road", [640, 960, 1280]], ["110A3638-HDR.jpg", "mountain", [640, 960, 1280]], ["110A3943-HDR.jpg", "juniper", [640, 960, 1280]], ["Bralwey-steering-wheel-scaled.jpg", "steering", [640, 960, 1280]]];
-for (const [filename, slug, widths] of legacyLifestyle) for (const width of widths) await encode(resolve(assetsRoot, filename), resolve(outputRoot, `brawley/lifestyle/${slug}-${width}.webp`), { width, transform: `${width}w V1 carry-forward` });
-const brawleyLifestyleDir = resolve(outputRoot, "brawley/lifestyle");
-for (const filename of await readdir(brawleyLifestyleDir)) if (filename.startsWith("easter-sunset-")) await rm(resolve(brawleyLifestyleDir, filename));
+await rm(resolve(outputRoot, "brawley"), { recursive: true, force: true });
+const legacyLifestyle = [["Brawley-EV-desert-01-scaled.jpg", "desert"], ["Brawley-GTS-EV-interior-scaled.jpg", "interior"], ["Brawley-front-view-on-mountain-road-01-scaled.jpg", "mountain-road"], ["110A3943-HDR.jpg", "juniper"]];
+for (const [filename, slug] of legacyLifestyle) for (const width of [640, 960, 1280]) await encode(resolve(assetsRoot, filename), resolve(outputRoot, `brawley/lifestyle/${slug}-${width}.webp`), { width, transform: `${width}w V1 carry-forward` });
 
 await mkdir(brandRoot, { recursive: true });
 const logoPdf = resolve(assetsRoot, "vanderhall logos/vanderhall logo with symbols.pdf");
@@ -260,19 +231,13 @@ svg = svg.replace(/width="864pt" height="720pt" viewBox="0 0 864 720"/, 'width="
 await writeFile(resolve(brandRoot, "vanderhall-lockup-horizontal.svg"), svg);
 await writeFile(resolve(brandRoot, "vanderhall-lockup-horizontal-white.svg"), svg.replaceAll(/fill="rgb\([^\"]+\)"/g, 'fill="#FFFFFF"'));
 const shield = svg.replace(/width="585" height="61" viewBox="136 329 585 61"/, 'width="66" height="61" viewBox="136 329 66 61"');
-await writeFile(resolve(brandRoot, "vanderhall-shield.svg"), shield);
 const favicon = shield.replace("</svg>", '<style>path,use{fill:#000000}@media(prefers-color-scheme:dark){path,use{fill:#FFFFFF}}</style></svg>');
 await writeFile(resolve(brandRoot, "favicon.svg"), favicon);
 await rm(rawSvg);
 record(resolve(brandRoot, "vanderhall-lockup-horizontal.svg"), logoPdf, "vector crop viewBox 136 329 585 61");
 record(resolve(brandRoot, "vanderhall-lockup-horizontal-white.svg"), logoPdf, "approved white knockout");
-record(resolve(brandRoot, "vanderhall-shield.svg"), logoPdf, "shield glyph crop");
 record(resolve(brandRoot, "favicon.svg"), logoPdf, "shield glyph with dark-mode fill swap");
 
-const sealSource = resolve(assetsRoot, "vanderhall logos/PNG/round 2 inch vanderhall motor works logo 2.png");
-for (const width of [192, 384]) { const output = resolve(brandRoot, `vanderhall-seal-${width}.png`); await sharp(sealSource).resize({ width, height: width, withoutEnlargement: true }).png().toFile(output); record(output, sealSource, `${width}x${width}`); }
-const scriptSource = resolve(assetsRoot, "vanderhall logos/PNG/brawley logo png.png");
-for (const [filename, width] of [["brawley-script.png", 1600], ["brawley-script@2x.png", 2800]]) { const output = resolve(brandRoot, filename); await sharp(scriptSource).resize({ width, withoutEnlargement: true }).png().toFile(output); record(output, scriptSource, `${width}w, no upscale`); }
 for (const width of [32, 180, 192, 512]) { const output = resolve(brandRoot, width === 32 ? "favicon-32.png" : width === 180 ? "apple-touch-icon.png" : `icon-${width}.png`); await sharp(resolve(brandRoot, "favicon.svg")).resize(width, width, { fit: "contain" }).png().toFile(output); record(output, logoPdf, `${width}x${width} shield raster`); }
 await cp(resolve(brandRoot, "favicon-32.png"), resolve(brandRoot, "favicon.ico"));
 record(resolve(brandRoot, "favicon.ico"), logoPdf, "32px PNG fallback with ICO filename");
@@ -312,4 +277,4 @@ await cp(canonicalBrawleyManual, resolve(manualsOutput, "2026-brawley-owners-man
 record(resolve(manualsOutput, "2026-brawley-owners-manual.pdf"), canonicalBrawleyManual, "existing canonical 2026 owner manual");
 await writeFile(resolve(websiteRoot, "assets/build-manifest.json"), JSON.stringify(manifest, null, 2));
 
-console.log(`Encoded ${manifest.length} traced assets, including ${written.size} walkaround frames.`);
+console.log(`Encoded ${manifest.length} traced assets.`);

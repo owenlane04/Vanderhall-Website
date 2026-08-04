@@ -8,7 +8,6 @@ const output = resolve(root, "public");
 const files = ["404.html", "index.html", "robots.txt", "site.webmanifest", "sitemap.xml"];
 const directories = [
   "404",
-  "about",
   "assets",
   "brawley",
   "carmel",

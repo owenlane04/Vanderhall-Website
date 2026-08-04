@@ -1,5 +1,6 @@
 node_modules/
-work/
+work/*
+!work/missing-data-inventory.md
 public/
 .vercel/
 .DS_Store

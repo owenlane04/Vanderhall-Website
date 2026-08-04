@@ -7,13 +7,10 @@
   --accent: light-dark(#B0552C, #E08A55);
   --accent-quiet: light-dark(#FFF8F4, #23170F);
   --danger: light-dark(#B4231C, #FF9A8F);
-  --success: light-dark(#1E6B3A, #74D69A);
 
   --ink-70: color-mix(in srgb, var(--ink) 70%, transparent);
   --ink-60: color-mix(in srgb, var(--ink) 60%, transparent);
   --ink-50: color-mix(in srgb, var(--ink) 50%, transparent);
-  --ink-40: color-mix(in srgb, var(--ink) 40%, transparent);
-  --ink-30: color-mix(in srgb, var(--ink) 30%, transparent);
   --ink-24: color-mix(in srgb, var(--ink) 24%, transparent);
   --ink-12: color-mix(in srgb, var(--ink) 12%, transparent);
   --ink-06: color-mix(in srgb, var(--ink) 6%, transparent);
@@ -30,13 +27,13 @@
   --text-primary: var(--ink);
   --text-secondary: var(--ink-70);
   --text-tertiary: var(--ink-60);
-  --text-disabled: var(--ink-40);
-  --text-inverse: var(--paper);
 
   --dark-paper: #0E0E10;
   --dark-ink: #F4F4F5;
   --pure-white: #FFFFFF;
   --pure-black: #000000;
+  /* Accent that always sits on a white plate, so it cannot follow the theme. 5.02:1 on white. */
+  --accent-on-white: #B0552C;
   --scrim-strong: rgb(0 0 0 / 0.70);
   --scrim-medium: rgb(0 0 0 / 0.34);
   --scrim-clear: rgb(0 0 0 / 0);
@@ -61,19 +58,14 @@
 
   --lh-display: 1.04;
   --lh-heading: 1.16;
-  --lh-title: 1.30;
   --lh-body: 1.55;
-  --lh-dense: 1.42;
   --lh-caps: 1.20;
 
   --ls-display-xl: -0.022em;
   --ls-display: -0.015em;
   --ls-title: -0.008em;
-  --ls-body: 0em;
-  --ls-caps-lg: 0.06em;
   --ls-caps: 0.10em;
   --ls-caps-tight: 0.14em;
-  --ls-caps-wide: 0.18em;
 
   --s-1: 0.25rem;
   --s-2: 0.5rem;
@@ -99,19 +91,13 @@
   --w-text: 65ch;
   --w-form: 40rem;
   --gutter: clamp(1.25rem, 4vw, 4rem);
-  --grid-cols: 12;
-  --grid-gap: var(--sf-m);
   --header-h: 3.75rem;
 
-  --r-0: 0;
   --r-1: 2px;
   --r-2: 4px;
-  --r-3: 8px;
   --r-pill: 999px;
 
-  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.06), 0 8px 24px rgb(0 0 0 / 0.08);
   --shadow-2: 0 2px 4px rgb(0 0 0 / 0.08), 0 24px 48px rgb(0 0 0 / 0.14);
-  --shadow-none: none;
 
   --frost-bg: color-mix(in srgb, var(--paper) 82%, transparent);
   --frost-blur: blur(20px) saturate(140%);
@@ -123,46 +109,28 @@
   --dur-4: 680ms;
   --ease-std: cubic-bezier(0.40, 0, 0.20, 1);
   --ease-out: cubic-bezier(0.16, 1, 0.30, 1);
-  --ease-in: cubic-bezier(0.70, 0, 0.84, 0);
 
   --focus-w: 2px;
   --focus-offset: 2px;
   --focus-color: var(--accent);
 
-  --ar-hero-wide: 21 / 9;
-  --ar-hero-tall: 4 / 5;
-  --ar-bleed: 16 / 9;
   --ar-feature: 3 / 2;
   --ar-cutout: 16 / 10;
-  --ar-colorway: 16 / 9;
-  --ar-portrait: 4 / 5;
-  --ar-square: 1 / 1;
 
-  --z-base: 0;
   --z-sticky: 10;
   --z-header: 100;
   --z-panel: 200;
   --z-modal: 300;
 
   --hit-target: 2.75rem;
-  --swatch-size: 2.25rem;
   --icon-size: 1.25rem;
-  --logo-size: 1.5rem;
-  --missing-min: 12rem;
-  --panel-max: 32rem;
-  --drag-step: 3.75rem;
-  --page-top: calc(var(--header-h) + var(--sf-l));
 
   --card-pad: clamp(1.25rem, 0.986rem + 1.13vw, 2rem);
   --card-gap: clamp(1.5rem, 1.324rem + 0.75vw, 2rem);
   --form-gap: clamp(1.75rem, 1.574rem + 0.75vw, 2.25rem);
-  --form-section-gap: var(--sf-l);
   --field-h: 3rem;
-  --stack-heading: var(--s-3);
-  --stack-copy: var(--s-4);
-  --stack-cta: var(--s-6);
-  --hero-min: min(88svh, max(35rem, 72svh));
-  --hero-min-mobile: min(92svh, max(30rem, 78svh));
+  --hero-min: min(76svh, max(30rem, 62svh));
+  --hero-min-mobile: min(80svh, max(26rem, 66svh));
 }
 
 @media (min-width: 1024px) {

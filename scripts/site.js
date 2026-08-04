@@ -1,5 +1,4 @@
 const root = document.documentElement;
-const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
 
 const updateThemeLabels = () => {
   const current = root.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
@@ -75,12 +74,6 @@ document.querySelectorAll("[data-spec-table]").forEach((table) => {
     try { localStorage.setItem("vhw.units", metric ? "metric" : "imperial"); } catch (error) {}
     if (live) live.textContent = `Units set to ${metric ? "metric" : "imperial"}.`;
   }));
-  table.querySelector("[data-expand-specs]")?.addEventListener("click", (event) => {
-    const groups = [...table.querySelectorAll("details")];
-    const expand = groups.some((group) => !group.open);
-    groups.forEach((group) => { group.open = expand; });
-    event.currentTarget.textContent = expand ? "Collapse all" : "Expand all";
-  });
 });
 
 const setError = (control, message) => {
@@ -146,104 +139,4 @@ document.querySelectorAll("[data-site-form]").forEach((form) => {
     }
     status.textContent = "Sending";
   });
-});
-
-document.querySelector("[data-dealer-filter]")?.addEventListener("submit", (event) => {
-  event.preventDefault();
-  document.querySelector("[data-missing='dealer-list']")?.focus?.();
-});
-
-document.querySelectorAll("[data-walkaround]").forEach((viewer) => {
-  const stage = viewer.querySelector("[data-walkaround-stage]");
-  const frames = [...viewer.querySelectorAll(".walkaround__frame")];
-  const dots = [...viewer.querySelectorAll(".walkaround__dots span")];
-  const hint = viewer.querySelector("[data-walkaround-hint]");
-  const name = viewer.querySelector("[data-walkaround-name]");
-  const note = viewer.querySelector("[data-colorway-note]");
-  const state = { angle: 0, color: "Atomic Green", complete: true, pointerStart: null };
-  const dragStep = parseFloat(getComputedStyle(root).getPropertyValue("--drag-step"));
-
-  const renderAngle = () => {
-    frames.forEach((frame, index) => frame.classList.toggle("is-active", index === state.angle));
-    dots.forEach((dot, index) => dot.classList.toggle("is-active", index === state.angle));
-    stage.setAttribute("aria-label", state.complete ? `Angle ${state.angle + 1} of 8, ${state.color}` : `Still image, ${state.color}`);
-    hint.classList.add("is-used");
-  };
-  const step = (direction) => {
-    if (!state.complete) return;
-    state.angle = (state.angle + direction + frames.length) % frames.length;
-    renderAngle();
-  };
-  viewer.querySelector("[data-walkaround-prev]").addEventListener("click", () => step(-1));
-  viewer.querySelector("[data-walkaround-next]").addEventListener("click", () => step(1));
-  stage.addEventListener("keydown", (event) => {
-    if (event.key === "ArrowLeft" || event.key === "ArrowRight") { event.preventDefault(); step(event.key === "ArrowRight" ? 1 : -1); }
-  });
-  stage.addEventListener("pointerdown", (event) => {
-    state.pointerStart = event.clientX;
-    stage.setPointerCapture(event.pointerId);
-    stage.classList.add("is-dragging");
-  });
-  stage.addEventListener("pointermove", (event) => {
-    if (state.pointerStart === null || !state.complete) return;
-    const distance = event.clientX - state.pointerStart;
-    if (Math.abs(distance) >= dragStep) {
-      step(distance < 0 ? 1 : -1);
-      state.pointerStart = event.clientX;
-    }
-  });
-  const endPointer = () => { state.pointerStart = null; stage.classList.remove("is-dragging"); };
-  stage.addEventListener("pointerup", endPointer);
-  stage.addEventListener("pointercancel", endPointer);
-
-  const swatches = [...viewer.querySelectorAll(".swatch")];
-  swatches.forEach((swatch, index) => {
-    const select = () => {
-      const color = JSON.parse(swatch.dataset.colorway);
-      state.color = color.name;
-      state.complete = color.complete;
-      name.textContent = color.name;
-      swatches.forEach((item) => { const selected = item === swatch; item.classList.toggle("is-selected", selected); item.setAttribute("aria-checked", String(selected)); });
-      if (color.complete) {
-        const paths = Object.values(color.frames);
-        frames.forEach((frame, frameIndex) => { frame.src = paths[frameIndex]; frame.alt = frameIndex === state.angle ? `Vanderhall Brawley in ${color.name}` : ""; });
-        note.textContent = "Jean Grey and Concrete Grey have partial studio sets and display as still images.";
-      } else {
-        state.angle = 0;
-        frames[0].src = color.still;
-        frames[0].alt = `Vanderhall Brawley in ${color.name}`;
-        frames.slice(1).forEach((frame) => { frame.alt = ""; });
-        note.textContent = `${color.name} has a partial studio set, so a still image is shown.`;
-      }
-      renderAngle();
-    };
-    swatch.addEventListener("click", select);
-    swatch.addEventListener("keydown", (event) => {
-      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-      event.preventDefault();
-      const nextIndex = event.key === "Home" ? 0 : event.key === "End" ? swatches.length - 1 : (index + (event.key === "ArrowRight" ? 1 : -1) + swatches.length) % swatches.length;
-      swatches[nextIndex].focus();
-      swatches[nextIndex].click();
-    });
-  });
-
-  const preloadQueue = swatches.slice(1);
-  const schedule = (callback) => {
-    if ("requestIdleCallback" in window) requestIdleCallback(callback, { timeout: 4000 });
-    else setTimeout(callback, reducedMotion.matches ? 0 : 1200);
-  };
-  const preloadNext = () => {
-    const swatch = preloadQueue.shift();
-    if (!swatch) return;
-    const color = JSON.parse(swatch.dataset.colorway);
-    const paths = color.complete ? Object.values(color.frames) : [color.still];
-    paths.forEach((path) => { const image = new Image(); image.src = path; });
-    schedule(preloadNext);
-  };
-  const observer = new IntersectionObserver((entries) => {
-    if (!entries.some((entry) => entry.isIntersecting)) return;
-    observer.disconnect();
-    schedule(preloadNext);
-  }, { rootMargin: "20%" });
-  observer.observe(viewer);
 });
