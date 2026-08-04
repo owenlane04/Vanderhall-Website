@@ -1,0 +1,169 @@
+/* Vanderhall Design Tokens V1. This file is the only source of raw design values. */
+:root {
+  color-scheme: light dark;
+
+  --paper: light-dark(#FFFFFF, #0E0E10);
+  --ink: light-dark(#111214, #F4F4F5);
+  --accent: light-dark(#B0552C, #E08A55);
+  --accent-quiet: light-dark(#FFF8F4, #23170F);
+  --danger: light-dark(#B4231C, #FF9A8F);
+  --success: light-dark(#1E6B3A, #74D69A);
+
+  --ink-70: color-mix(in srgb, var(--ink) 70%, transparent);
+  --ink-60: color-mix(in srgb, var(--ink) 60%, transparent);
+  --ink-50: color-mix(in srgb, var(--ink) 50%, transparent);
+  --ink-40: color-mix(in srgb, var(--ink) 40%, transparent);
+  --ink-30: color-mix(in srgb, var(--ink) 30%, transparent);
+  --ink-24: color-mix(in srgb, var(--ink) 24%, transparent);
+  --ink-12: color-mix(in srgb, var(--ink) 12%, transparent);
+  --ink-06: color-mix(in srgb, var(--ink) 6%, transparent);
+  --ink-03: color-mix(in srgb, var(--ink) 3%, transparent);
+
+  --surface-1: var(--ink-03);
+  --surface-2: var(--ink-06);
+  --surface-hover: var(--ink-06);
+  --line: var(--ink-12);
+  --line-strong: var(--ink-50);
+  --line-faint: var(--ink-06);
+  --hairline: 1px;
+
+  --text-primary: var(--ink);
+  --text-secondary: var(--ink-70);
+  --text-tertiary: var(--ink-60);
+  --text-disabled: var(--ink-40);
+  --text-inverse: var(--paper);
+
+  --dark-paper: #0E0E10;
+  --dark-ink: #F4F4F5;
+  --pure-white: #FFFFFF;
+  --pure-black: #000000;
+  --scrim-strong: rgb(0 0 0 / 0.70);
+  --scrim-medium: rgb(0 0 0 / 0.34);
+  --scrim-clear: rgb(0 0 0 / 0);
+
+  --font-sans: "Archivo", "Archivo Fallback", -apple-system, BlinkMacSystemFont,
+               "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --wt-regular: 400;
+  --wt-medium: 500;
+  --wt-bold: 700;
+
+  --fs-display-xl: clamp(2.5rem, 1.444rem + 4.51vw, 5.5rem);
+  --fs-display-l: clamp(2rem, 1.296rem + 3vw, 4rem);
+  --fs-display-m: clamp(1.625rem, 1.317rem + 1.31vw, 2.5rem);
+  --fs-display-s: clamp(1.3125rem, 1.158rem + 0.66vw, 1.75rem);
+  --fs-title: clamp(1.125rem, 1.059rem + 0.28vw, 1.3125rem);
+  --fs-body-lg: 1.125rem;
+  --fs-body: 1rem;
+  --fs-body-sm: 0.9375rem;
+  --fs-caption: 0.8125rem;
+  --fs-nav: 0.875rem;
+  --fs-eyebrow: 0.75rem;
+
+  --lh-display: 1.04;
+  --lh-heading: 1.16;
+  --lh-title: 1.30;
+  --lh-body: 1.55;
+  --lh-dense: 1.42;
+  --lh-caps: 1.20;
+
+  --ls-display-xl: -0.022em;
+  --ls-display: -0.015em;
+  --ls-title: -0.008em;
+  --ls-body: 0em;
+  --ls-caps-lg: 0.06em;
+  --ls-caps: 0.10em;
+  --ls-caps-tight: 0.14em;
+  --ls-caps-wide: 0.18em;
+
+  --s-1: 0.25rem;
+  --s-2: 0.5rem;
+  --s-3: 0.75rem;
+  --s-4: 1rem;
+  --s-5: 1.5rem;
+  --s-6: 2rem;
+  --s-7: 2.5rem;
+  --s-8: 3rem;
+  --s-9: 4rem;
+  --s-10: 5rem;
+
+  --sf-xs: clamp(0.75rem, 0.662rem + 0.38vw, 1rem);
+  --sf-s: clamp(1rem, 0.824rem + 0.75vw, 1.5rem);
+  --sf-m: clamp(1.5rem, 1.148rem + 1.5vw, 2.5rem);
+  --sf-l: clamp(2.5rem, 1.62rem + 3.76vw, 5rem);
+  --sf-xl: clamp(3.5rem, 1.916rem + 6.76vw, 8rem);
+  --sf-2xl: clamp(5rem, 2.711rem + 9.77vw, 11.5rem);
+
+  --w-page: 1440px;
+  --w-content: 1200px;
+  --w-narrow: 800px;
+  --w-text: 68ch;
+  --gutter: clamp(1.25rem, 4vw, 4rem);
+  --grid-cols: 12;
+  --grid-gap: var(--sf-m);
+  --header-h: 3.75rem;
+
+  --r-0: 0;
+  --r-1: 2px;
+  --r-2: 4px;
+  --r-3: 8px;
+  --r-pill: 999px;
+
+  --shadow-1: 0 1px 2px rgb(0 0 0 / 0.06), 0 8px 24px rgb(0 0 0 / 0.08);
+  --shadow-2: 0 2px 4px rgb(0 0 0 / 0.08), 0 24px 48px rgb(0 0 0 / 0.14);
+  --shadow-none: none;
+
+  --frost-bg: color-mix(in srgb, var(--paper) 82%, transparent);
+  --frost-blur: blur(20px) saturate(140%);
+  --frost-bg-solid: var(--paper);
+
+  --dur-1: 120ms;
+  --dur-2: 220ms;
+  --dur-3: 380ms;
+  --dur-4: 680ms;
+  --ease-std: cubic-bezier(0.40, 0, 0.20, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.30, 1);
+  --ease-in: cubic-bezier(0.70, 0, 0.84, 0);
+
+  --focus-w: 2px;
+  --focus-offset: 2px;
+  --focus-color: var(--accent);
+
+  --ar-hero-wide: 21 / 9;
+  --ar-hero-tall: 4 / 5;
+  --ar-bleed: 16 / 9;
+  --ar-feature: 3 / 2;
+  --ar-cutout: 16 / 10;
+  --ar-colorway: 16 / 9;
+  --ar-portrait: 4 / 5;
+  --ar-square: 1 / 1;
+
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-header: 100;
+  --z-panel: 200;
+  --z-modal: 300;
+
+  --hit-target: 2.75rem;
+  --swatch-size: 2.25rem;
+  --icon-size: 1.25rem;
+  --logo-size: 1.5rem;
+  --missing-min: 12rem;
+  --panel-max: 32rem;
+  --drag-step: 3.75rem;
+  --page-top: calc(var(--header-h) + var(--sf-l));
+}
+
+@media (min-width: 1024px) {
+  :root { --header-h: 4.75rem; }
+}
+
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --dur-1: 1ms; --dur-2: 1ms; --dur-3: 1ms; --dur-4: 1ms; }
+}
+
+@supports not (backdrop-filter: blur(1px)) {
+  :root { --frost-bg: var(--frost-bg-solid); }
+}
