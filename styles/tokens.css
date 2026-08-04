@@ -96,7 +96,8 @@
   --w-page: 1440px;
   --w-content: 1200px;
   --w-narrow: 800px;
-  --w-text: 68ch;
+  --w-text: 65ch;
+  --w-form: 40rem;
   --gutter: clamp(1.25rem, 4vw, 4rem);
   --grid-cols: 12;
   --grid-gap: var(--sf-m);
@@ -151,6 +152,17 @@
   --panel-max: 32rem;
   --drag-step: 3.75rem;
   --page-top: calc(var(--header-h) + var(--sf-l));
+
+  --card-pad: clamp(1.25rem, 0.986rem + 1.13vw, 2rem);
+  --card-gap: clamp(1.5rem, 1.324rem + 0.75vw, 2rem);
+  --form-gap: clamp(1.75rem, 1.574rem + 0.75vw, 2.25rem);
+  --form-section-gap: var(--sf-l);
+  --field-h: 3rem;
+  --stack-heading: var(--s-3);
+  --stack-copy: var(--s-4);
+  --stack-cta: var(--s-6);
+  --hero-min: min(88svh, max(35rem, 72svh));
+  --hero-min-mobile: min(92svh, max(30rem, 78svh));
 }
 
 @media (min-width: 1024px) {

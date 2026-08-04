@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const output = resolve(root, "public");
 
-const files = ["404.html", "index.html", "robots.txt"];
+const files = ["404.html", "index.html", "robots.txt", "site.webmanifest", "sitemap.xml"];
 const directories = [
   "404",
   "about",
@@ -14,8 +14,10 @@ const directories = [
   "carmel",
   "concepts",
   "contact",
+  "dealer-inquiry",
   "dealers",
   "faq",
+  "recommend-dealer",
   "santarosa",
   "styles",
   "vehicles",

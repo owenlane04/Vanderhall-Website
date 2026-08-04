@@ -139,7 +139,7 @@ document.querySelectorAll("[data-spec-table]").forEach((table) => {
 
 const setError = (control, message) => {
   control.setAttribute("aria-invalid", "true");
-  const error = control.closest(".field")?.querySelector(".field__error");
+  const error = control.closest(".field, .field-group")?.querySelector(".field__error");
   if (error) {
     error.textContent = message;
     if (!error.id) error.id = `${control.id}-error`;
@@ -152,9 +152,11 @@ const clearErrors = (form) => {
   form.querySelectorAll(".field__error").forEach((error) => { error.textContent = ""; });
 };
 
-document.querySelectorAll("[data-lead-form]").forEach((form) => {
-  const renderedAt = form.querySelector("[name='renderedAt']");
+document.querySelectorAll("[data-site-form]").forEach((form) => {
+  const renderedAt = form.querySelector("[name='render_timestamp']");
   if (renderedAt) renderedAt.value = String(Date.now());
+  const pageField = form.querySelector("[name='page']");
+  if (pageField) pageField.value = location.pathname;
   const modelParam = new URLSearchParams(location.search).get("model");
   if (modelParam) {
     const interest = form.querySelector(`[name='interest'][value='${CSS.escape(modelParam)}']`);
@@ -168,40 +170,35 @@ document.querySelectorAll("[data-lead-form]").forEach((form) => {
     event.preventDefault();
     clearErrors(form);
     const failures = [];
-    [...form.elements].filter((control) => control.matches("input[required], select[required], textarea[required]") && control.type !== "checkbox").forEach((control) => {
+    const seenGroups = new Set();
+    [...form.elements].filter((control) => control.matches("input[required], select[required], textarea[required]")).forEach((control) => {
+      if ((control.type === "radio" || control.type === "checkbox") && seenGroups.has(control.name)) return;
+      if (control.type === "radio" || control.type === "checkbox") seenGroups.add(control.name);
       if (!control.validity.valid) {
-        const message = control.validity.patternMismatch ? "Enter a valid 5-digit ZIP." : control.validity.typeMismatch ? "Enter a valid email address." : "This field is required.";
+        const message = control.validity.patternMismatch ? "Enter the requested format." : control.validity.typeMismatch ? `Enter a valid ${control.type === "url" ? "URL" : "email address"}.` : "This field is required.";
         setError(control, message);
         failures.push([control, message]);
       }
     });
-    const interestGroup = form.querySelector("[data-required-checkbox-group]");
-    if (interestGroup && !interestGroup.querySelector("input:checked")) {
-      const first = interestGroup.querySelector("input");
-      const error = interestGroup.querySelector(".field__error");
-      error.textContent = "Choose at least one vehicle or topic.";
-      first.setAttribute("aria-invalid", "true");
-      failures.push([first, error.textContent]);
-    }
-    const consent = form.querySelector("[name='consent']");
-    if (consent && !consent.checked) {
-      consent.setAttribute("aria-invalid", "true");
-      failures.push([consent, "Consent is required once legal wording is supplied."]);
-    }
-    const honeypot = form.querySelector("[name='company']");
+    const honeypot = form.querySelector("[name='honeypot']");
     const elapsed = Date.now() - Number(renderedAt?.value || 0);
     if (honeypot?.value || elapsed < 2000) failures.push([form.querySelector("button[type='submit']"), "Please wait a moment and try again."]);
     const summary = form.querySelector(".form-error-summary");
     if (failures.length) {
       summary.hidden = false;
       summary.innerHTML = `<strong>Please correct ${failures.length} ${failures.length === 1 ? "item" : "items"}.</strong><ul>${failures.map(([control, message]) => `<li><a href="#${control.id || form.id}">${message}</a></li>`).join("")}</ul>`;
-      failures[0][0].focus();
+      summary.querySelectorAll("a").forEach((anchor, index) => anchor.addEventListener("click", (clickEvent) => { clickEvent.preventDefault(); failures[index][0].focus(); }));
+      summary.focus();
       return;
     }
     summary.hidden = true;
     const status = form.querySelector(".form-status");
-    status.textContent = "Form validated. Submission is disabled until a verified destination and legal consent copy are supplied.";
-    status.focus?.();
+    if (!form.dataset.endpoint) {
+      status.textContent = "This form is not connected yet. Your information was not sent.";
+      status.focus();
+      return;
+    }
+    status.textContent = "Sending";
   });
 });
 

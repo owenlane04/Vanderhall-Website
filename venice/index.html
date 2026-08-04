@@ -6,18 +6,19 @@
   <meta name="color-scheme" content="light dark">
   <meta name="description" content="Three-wheel gas roadster.">
   <title>Venice | Vanderhall Motor Works</title>
-  <link rel="icon" href="data:,">
+  <link rel="icon" href="/assets/brand/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/assets/brand/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
   <link rel="preload" href="/assets/fonts/archivo-latin-variable.woff2" as="font" type="font/woff2" crossorigin>
   <script>try{const t=localStorage.getItem('vhw.theme');if(t)document.documentElement.dataset.theme=t;const u=localStorage.getItem('vhw.units');if(u==='metric')document.documentElement.classList.add('unit-metric')}catch(e){}</script>
-  <link rel="stylesheet" href="/styles/tokens.css">
-  <link rel="stylesheet" href="/styles/layout.css">
-  <link rel="stylesheet" href="/styles/site.css">
+  <link rel="stylesheet" href="/styles/bundle.css">
 </head>
 <body class="">
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header" data-header>
     <div class="site-header__inner">
-      <a class="wordmark" href="/"><span>VANDERHALL</span><small>MOTOR WORKS</small></a>
+      <a class="brand" href="/"><img src="/assets/brand/vanderhall-lockup-horizontal.svg" alt="Vanderhall home" width="269" height="28"></a>
       <nav class="desktop-nav" aria-label="Primary">
         <a class="nav-link is-current" href="/vehicles/" data-vehicles-trigger aria-haspopup="true" aria-expanded="false">Vehicles</a>
         <a class="nav-link" href="/concepts/">Concepts</a>
@@ -35,37 +36,34 @@
       <div class="mega-panel__grid">
         <a class="mega-model" href="/venice/">
           <span class="mega-model__media">
-  <div class="missing" role="status" data-missing="nav-thumb/venice">
-    <strong>MISSING: nav-thumb/venice</strong>
-    <span>Required source material has not been supplied.</span>
-  </div></span>
+  <img class="" src="/assets/images/v2/cards/venice/venice-800.webp" style="--media-focal:50% 55%"
+    width="800" height="500" alt=""
+    loading="lazy" fetchpriority="low" decoding="async"></span>
           <strong>Venice</strong><span>gas · 3-wheel</span>
         </a><a class="mega-model" href="/carmel/">
           <span class="mega-model__media">
-  <div class="missing" role="status" data-missing="nav-thumb/carmel">
-    <strong>MISSING: nav-thumb/carmel</strong>
-    <span>Required source material has not been supplied.</span>
-  </div></span>
+  <img class="" src="/assets/images/v2/cards/carmel/carmel-800.webp" style="--media-focal:52% 60%"
+    width="800" height="500" alt=""
+    loading="lazy" fetchpriority="low" decoding="async"></span>
           <strong>Carmel</strong><span>gas · 3-wheel</span>
         </a><a class="mega-model" href="/santarosa/">
           <span class="mega-model__media">
-  <div class="missing" role="status" data-missing="nav-thumb/santarosa">
-    <strong>MISSING: nav-thumb/santarosa</strong>
-    <span>Required source material has not been supplied.</span>
-  </div></span>
+  <img class="" src="/assets/images/v2/cards/santarosa/santarosa-800.webp" style="--media-focal:52% 50%"
+    width="800" height="500" alt=""
+    loading="lazy" fetchpriority="low" decoding="async"></span>
           <strong>Santarosa</strong><span>electric · 3-wheel</span>
         </a><a class="mega-model" href="/brawley/">
           <span class="mega-model__media">
-  <img class="" src="/assets/images/brawley/walkaround/ivory-white/side.webp"
-    width="800" height="451" alt=""
-    loading="lazy" decoding="async"></span>
+  <img class="" src="/assets/images/v2/cards/brawley/brawley-800.webp" style="--media-focal:45% 55%"
+    width="800" height="500" alt=""
+    loading="lazy" fetchpriority="low" decoding="async"></span>
           <strong>Brawley</strong><span>electric · 4x4</span>
         </a>
       </div>
     </div>
   </header>
   <div class="sheet" data-menu-sheet hidden aria-hidden="true">
-    <div class="sheet__top"><span class="wordmark"><span>VANDERHALL</span><small>MOTOR WORKS</small></span><button class="icon-button" type="button" data-close-menu aria-label="Close menu">×</button></div>
+    <div class="sheet__top"><img class="brand brand--sheet" src="/assets/brand/vanderhall-lockup-horizontal.svg" alt="Vanderhall" width="211" height="22"><button class="icon-button" type="button" data-close-menu aria-label="Close menu">×</button></div>
     <nav class="mobile-nav" aria-label="Mobile primary">
       <a href="/vehicles/">Vehicles</a><a href="/concepts/">Concepts</a><a href="/about/">About</a><a href="/faq/">Support</a>
       <div class="mobile-models"><a href="/venice/">Venice</a><a href="/carmel/">Carmel</a><a href="/santarosa/">Santarosa</a><a href="/brawley/">Brawley</a></div>
@@ -75,238 +73,181 @@
   </div>
   <div class="sheet sheet--lead" data-lead-sheet hidden aria-hidden="true">
     <div class="sheet__top"><div><p class="eyebrow">REQUEST INFO</p><h2>Start the conversation.</h2></div><button class="icon-button" type="button" data-close-lead aria-label="Close request form">×</button></div>
-    <form class="lead-form lead-form--panel" id="panel-lead" action="/contact/#form-destination-missing" method="get" novalidate data-lead-form data-endpoint-missing="true">
-    <div class="form-error-summary" role="alert" tabindex="-1" hidden></div>
-    <div class="form-grid">
-      <div class="field">
-        <label for="panel-lead-first">First name</label>
-        <input id="panel-lead-first" name="firstName" autocomplete="given-name" required>
-        <span class="field__error" id="panel-lead-first-error"></span>
-      </div>
-      <div class="field">
-        <label for="panel-lead-last">Last name</label>
-        <input id="panel-lead-last" name="lastName" autocomplete="family-name" required>
-        <span class="field__error" id="panel-lead-last-error"></span>
-      </div>
-      <div class="field">
-        <label for="panel-lead-email">Email</label>
-        <input id="panel-lead-email" name="email" type="email" autocomplete="email" inputmode="email" required>
-        <span class="field__error" id="panel-lead-email-error"></span>
-      </div>
-      <div class="field">
-        <label for="panel-lead-phone">Phone <span class="optional">Optional</span></label>
-        <input id="panel-lead-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel">
-        <span class="field__error" id="panel-lead-phone-error"></span>
-      </div>
-      <div class="field">
-        <label for="panel-lead-zip">ZIP</label>
-        <input id="panel-lead-zip" name="zip" autocomplete="postal-code" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" required>
-        <span class="field__error" id="panel-lead-zip-error"></span>
-      </div>
-      <div class="field">
-        <label for="panel-lead-dealer">Dealer</label>
-        <select id="panel-lead-dealer" name="dealer" required>
-          <option value="not-sure">Not sure yet, help me choose</option>
-        </select>
-        
-  <div class="missing" role="status" data-missing="dealer-list/select">
-    <strong>MISSING: dealer-list/select</strong>
-    <span>Dealer names and routing data have not been supplied.</span>
-  </div>
-      </div>
+    <form class="lead-form lead-form--panel" id="panel-lead" novalidate data-site-form data-form-id="request-info" data-endpoint="">
+  <p class="form-key">Fields marked * are required.</p>
+  <div class="form-error-summary" role="alert" tabindex="-1" hidden></div>
+    <div class="form-grid form-grid--pairs">
+      <div class="field"><label for="panel-lead-first">First name<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="panel-lead-first" name="first_name" autocomplete="given-name" required aria-required="true"><span class="field__error" id="panel-lead-first-error"></span></div>
+      <div class="field"><label for="panel-lead-last">Last name<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="panel-lead-last" name="last_name" autocomplete="family-name" required aria-required="true"><span class="field__error" id="panel-lead-last-error"></span></div>
     </div>
-    <fieldset class="field-group" data-required-checkbox-group>
-      <legend>I'm interested in</legend>
-      <div class="checkbox-grid">
-        <label class="check"><input type="checkbox" name="interest" value="venice"> <span>Venice</span></label><label class="check"><input type="checkbox" name="interest" value="carmel"> <span>Carmel</span></label><label class="check"><input type="checkbox" name="interest" value="santarosa"> <span>Santarosa</span></label><label class="check"><input type="checkbox" name="interest" value="brawley"> <span>Brawley</span></label><label class="check"><input type="checkbox" name="interest" value="concepts"> <span>Concepts</span></label><label class="check"><input type="checkbox" name="interest" value="not-sure-yet"> <span>Not sure yet</span></label>
-      </div>
-      <span class="field__error"></span>
-    </fieldset>
-    <details class="form-more">
-      <summary>More details</summary>
-      <div class="form-grid form-grid--more">
-        <div class="field">
-          <label for="panel-lead-timeframe">Timeframe <span class="optional">Optional</span></label>
-          <select id="panel-lead-timeframe" name="timeframe">
-            <option value="">Select a timeframe</option>
-            <option>Ready now</option><option>1 to 3 months</option><option>3 to 6 months</option><option>Just looking</option>
-          </select>
-        </div>
-        <div class="field field--wide">
-          <label for="panel-lead-message">Message <span class="optional">Optional</span></label>
-          <textarea id="panel-lead-message" name="message" rows="3"></textarea>
-        </div>
-      </div>
-    </details>
-    <div class="honeypot" aria-hidden="true"><label>Company<input name="company" tabindex="-1" autocomplete="off"></label></div>
-    <input type="hidden" name="renderedAt" value="">
-    <div class="check check--consent"><input id="panel-lead-consent" type="checkbox" name="consent" required aria-label="Consent checkbox. Legal-approved wording is missing."><label for="panel-lead-consent">
-  <div class="missing" role="status" data-missing="legal-consent-copy">
-    <strong>MISSING: legal-consent-copy</strong>
+    <div class="field"><label for="panel-lead-email">Email<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="panel-lead-email" name="email" type="email" autocomplete="email" inputmode="email" required aria-required="true"><span class="field__error" id="panel-lead-email-error"></span></div>
+    <div class="field"><label for="panel-lead-phone">Phone</label><input id="panel-lead-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel"><span class="field__error" id="panel-lead-phone-error"></span></div>
+    <div class="field"><label for="panel-lead-zip">ZIP<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="panel-lead-zip" name="zip" autocomplete="postal-code" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" required aria-required="true"><span class="field__error" id="panel-lead-zip-error"></span></div>
+    <div class="field"><label for="panel-lead-dealer">Dealer<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><select id="panel-lead-dealer" name="dealer" required aria-required="true"><option value="not-sure">Not sure yet, help me choose</option></select><span class="field__error" id="panel-lead-dealer-error"></span>
+  <div class="missing" role="status" data-missing="data/dealer-list">
+    <strong>MISSING: data/dealer-list</strong>
+    <span>Verified dealer names and routing data have not been supplied.</span>
+  </div></div>
+    <fieldset class="field-group"><legend>I'm interested in</legend><div class="checkbox-grid"><label class="check"><input type="checkbox" name="interest" value="venice"> <span>Venice</span></label><label class="check"><input type="checkbox" name="interest" value="carmel"> <span>Carmel</span></label><label class="check"><input type="checkbox" name="interest" value="santarosa"> <span>Santarosa</span></label><label class="check"><input type="checkbox" name="interest" value="brawley"> <span>Brawley</span></label><label class="check"><input type="checkbox" name="interest" value="concepts"> <span>Concepts</span></label><label class="check"><input type="checkbox" name="interest" value="not-sure-yet"> <span>Not sure yet</span></label></div></fieldset>
+    <div class="field"><label for="panel-lead-timeframe">Timeframe</label><select id="panel-lead-timeframe" name="timeframe"><option value="">Select a timeframe</option><option>Ready now</option><option>1 to 3 months</option><option>3 to 6 months</option><option>Just looking</option></select><span class="field__error" id="panel-lead-timeframe-error"></span></div>
+    <div class="field"><label for="panel-lead-message">Message</label><textarea id="panel-lead-message" name="message" rows="4"></textarea><span class="field__error" id="panel-lead-message-error"></span></div>
+    <div class="check check--consent"><input id="panel-lead-consent" type="checkbox" name="consent" required aria-required="true" aria-describedby="panel-lead-consent-copy"><label id="panel-lead-consent-copy" for="panel-lead-consent"><span class="sr-only">Consent required. </span>
+  <div class="missing" role="status" data-missing="form/consent-copy">
+    <strong>MISSING: form/consent-copy</strong>
     <span>Legal-approved email and SMS consent language is required.</span>
   </div></label></div>
     
-  <div class="missing" role="status" data-missing="form-destination">
-    <strong>MISSING: form-destination</strong>
-    <span>CRM, email routing, or form service has not been configured.</span>
-  </div>
-    <button class="button button--primary" type="submit">Send request</button>
-    <div class="form-progress" aria-hidden="true"></div>
-    <p class="form-status" aria-live="polite"></p>
+  <div class="honeypot" aria-hidden="true"><label>Company<input name="honeypot" tabindex="-1" autocomplete="off"></label></div>
+  <input type="hidden" name="render_timestamp" value="">
+  <input type="hidden" name="form_id" value="request-info">
+  <input type="hidden" name="page" value="">
+  <div class="form-submit-row"><button class="button button--primary" type="submit" data-submit-label="Send request">Send request</button>
+  <div class="missing" role="status" data-missing="form-endpoint/request-info">
+    <strong>MISSING: form-endpoint/request-info</strong>
+    <span>No submission destination is configured. Your information will not be sent.</span>
+  </div></div>
+  <div class="form-progress" aria-hidden="true"></div>
+  <p class="form-status" tabindex="-1" aria-live="polite"></p>
   </form>
   </div>
   <div class="sheet-backdrop" data-sheet-backdrop hidden></div>
   <main id="main"><div class="page model-page">
-    <section class="model-hero bleed model-hero--missing">
-    <div class="hero__media">
-  <div class="missing" role="status" data-missing="hero-wide/venice">
-    <strong>MISSING: hero-wide/venice</strong>
-    <span>Required source material has not been supplied.</span>
-  </div></div>
+    <section class="hero model-hero bleed" style="--hero-focal:45% 55%">
+    <div class="hero__media"><picture><source media="(max-width: 767px)" srcset="/assets/images/v2/heroes/venice/venice-tall-480.webp 480w, /assets/images/v2/heroes/venice/venice-tall-720.webp 720w, /assets/images/v2/heroes/venice/venice-tall-960.webp 960w" sizes="100vw"><img class="hero__image" src="/assets/images/v2/heroes/venice/venice-wide-1920.webp" srcset="/assets/images/v2/heroes/venice/venice-wide-960.webp 960w, /assets/images/v2/heroes/venice/venice-wide-1920.webp 1920w, /assets/images/v2/heroes/venice/venice-wide-2560.webp 2560w" sizes="100vw" width="1920" height="823" alt="Silver Vanderhall Venice side view with motion light streaks" loading="eager" fetchpriority="high" decoding="async"></picture></div>
     <div class="hero__scrim" aria-hidden="true"></div>
     <div class="hero__content">
       <p class="eyebrow">gas · 3-wheel</p>
       <h1>Venice</h1>
       <p class="hero__descriptor">Three-wheel gas roadster.</p>
       <div class="price price--hero">
-  <div class="missing" role="status" data-missing="from-msrp/venice">
-    <strong>MISSING: from-msrp/venice</strong>
+  <div class="missing" role="status" data-missing="data/msrp">
+    <strong>MISSING: data/msrp</strong>
     <span>Verified current MSRP is required before any price can render.</span>
   </div></div>
-      <div class="cluster">
+      <div class="hero__actions">
   <a class="button button--inverse" href="/contact/?model=venice">Request info</a><a class="button button--ghost-inverse" href="#specifications">See specs</a></div>
     </div>
   </section>
     <section class="stat-band bleed" aria-label="Venice highlights">
     <div class="stat-band__cell">
       
-  <div class="missing" role="status" data-missing="stat/venice/power">
-    <strong>MISSING: stat/venice/power</strong>
+  <div class="missing" role="status" data-missing="data/venice-carmel-specs">
+    <strong>MISSING: data/venice-carmel-specs</strong>
     <span>Required source material has not been supplied.</span>
   </div>
       <p class="stat-band__label">Power</p>
     </div><div class="stat-band__cell">
       
-  <div class="missing" role="status" data-missing="stat/venice/weight">
-    <strong>MISSING: stat/venice/weight</strong>
+  <div class="missing" role="status" data-missing="data/curb-weights">
+    <strong>MISSING: data/curb-weights</strong>
     <span>Required source material has not been supplied.</span>
   </div>
       <p class="stat-band__label">Weight</p>
     </div><div class="stat-band__cell">
       
-  <div class="missing" role="status" data-missing="stat/venice/signature">
-    <strong>MISSING: stat/venice/signature</strong>
+  <div class="missing" role="status" data-missing="data/venice-carmel-specs">
+    <strong>MISSING: data/venice-carmel-specs</strong>
     <span>Required source material has not been supplied.</span>
   </div>
       <p class="stat-band__label">Signature</p>
     </div>
   </section>
     <section class="statement section--major narrow"><h2>Venice is a three-wheel gas roadster.</h2><p>Three-wheel gas roadster.</p></section>
-    <section class="features section--major">
-  <div class="missing" role="status" data-missing="feature-photography-and-copy/venice">
-    <strong>MISSING: feature-photography-and-copy/venice</strong>
-    <span>Feature sections are withheld until verified photography and copy are supplied.</span>
-  </div></section>
+    <section class="features section--major"><article class="feature">
+  <div class="feature__media">
+  <img class="feature__image" src="/assets/images/v2/features/venice/motion-1280.webp" srcset="/assets/images/v2/features/venice/motion-640.webp 640w, /assets/images/v2/features/venice/motion-960.webp 960w, /assets/images/v2/features/venice/motion-1280.webp 1280w" sizes="(min-width: 1024px) 50vw, 100vw"
+    width="1280" height="853" alt="Venice driving through a tunnel"
+    loading="lazy" fetchpriority="low" decoding="async"></div>
+  <div class="feature__copy"><p class="eyebrow">IN VIEW</p><h3>Venice driving through a tunnel</h3><p>Three-wheel gas roadster.</p></div>
+</article><article class="feature feature--reverse">
+  <div class="feature__media">
+  <img class="feature__image" src="/assets/images/v2/features/venice/forest-road-1280.webp" srcset="/assets/images/v2/features/venice/forest-road-640.webp 640w, /assets/images/v2/features/venice/forest-road-960.webp 960w, /assets/images/v2/features/venice/forest-road-1280.webp 1280w" sizes="(min-width: 1024px) 50vw, 100vw"
+    width="1280" height="853" alt="Venice on a forest road"
+    loading="lazy" fetchpriority="low" decoding="async"></div>
+  <div class="feature__copy"><p class="eyebrow">IN VIEW</p><h3>Venice on a forest road</h3><p>Three-wheel gas roadster.</p></div>
+</article><article class="feature">
+  <div class="feature__media">
+  <img class="feature__image" src="/assets/images/v2/features/venice/mountain-lake-1280.webp" srcset="/assets/images/v2/features/venice/mountain-lake-640.webp 640w, /assets/images/v2/features/venice/mountain-lake-960.webp 960w, /assets/images/v2/features/venice/mountain-lake-1280.webp 1280w" sizes="(min-width: 1024px) 50vw, 100vw"
+    width="1280" height="853" alt="Venice parked at a mountain lake"
+    loading="lazy" fetchpriority="low" decoding="async"></div>
+  <div class="feature__copy"><p class="eyebrow">IN VIEW</p><h3>Venice parked at a mountain lake</h3><p>Three-wheel gas roadster.</p></div>
+</article><article class="feature feature--reverse">
+  <div class="feature__media">
+  <img class="feature__image" src="/assets/images/v2/features/venice/seats-1280.webp" srcset="/assets/images/v2/features/venice/seats-640.webp 640w, /assets/images/v2/features/venice/seats-960.webp 960w, /assets/images/v2/features/venice/seats-1280.webp 1280w" sizes="(min-width: 1024px) 50vw, 100vw"
+    width="1280" height="853" alt="Venice seats in white and tan"
+    loading="lazy" fetchpriority="low" decoding="async"></div>
+  <div class="feature__copy"><p class="eyebrow">IN VIEW</p><h3>Venice seats in white and tan</h3><p>Three-wheel gas roadster.</p></div>
+</article><article class="feature">
+  <div class="feature__media">
+  <img class="feature__image" src="/assets/images/v2/features/venice/speedometer-1280.webp" srcset="/assets/images/v2/features/venice/speedometer-640.webp 640w, /assets/images/v2/features/venice/speedometer-960.webp 960w, /assets/images/v2/features/venice/speedometer-1280.webp 1280w" sizes="(min-width: 1024px) 50vw, 100vw"
+    width="1280" height="853" alt="Venice speedometer detail"
+    loading="lazy" fetchpriority="low" decoding="async"></div>
+  <div class="feature__copy"><p class="eyebrow">IN VIEW</p><h3>Venice speedometer detail</h3><p>Three-wheel gas roadster.</p></div>
+</article><article class="feature feature--reverse">
+  <div class="feature__media">
+  <img class="feature__image" src="/assets/images/v2/features/venice/steering-wheel-1280.webp" srcset="/assets/images/v2/features/venice/steering-wheel-640.webp 640w, /assets/images/v2/features/venice/steering-wheel-960.webp 960w, /assets/images/v2/features/venice/steering-wheel-1280.webp 1280w" sizes="(min-width: 1024px) 50vw, 100vw"
+    width="1280" height="853" alt="Venice steering wheel detail"
+    loading="lazy" fetchpriority="low" decoding="async"></div>
+  <div class="feature__copy"><p class="eyebrow">IN VIEW</p><h3>Venice steering wheel detail</h3><p>Three-wheel gas roadster.</p></div>
+</article><article class="feature feature--bleed">
+  <div class="feature__media">
+  <img class="feature__image" src="/assets/images/v2/features/venice/mountain-road-1600.webp" sizes="(min-width: 1024px) 50vw, 100vw"
+    width="1280" height="853" alt="Venice on a mountain road"
+    loading="lazy" fetchpriority="low" decoding="async"></div>
+  <div class="feature__copy"><p class="eyebrow">ON THE ROAD</p><h3>Venice on a mountain road</h3><p>Three-wheel gas roadster.</p></div>
+</article></section>
     <section class="section--major">
-  <div class="missing" role="status" data-missing="colorway-matrix/venice">
-    <strong>MISSING: colorway-matrix/venice</strong>
+  <div class="missing" role="status" data-missing="data/colorway-mapping">
+    <strong>MISSING: data/colorway-mapping</strong>
     <span>Verified model colorway mapping and photography are required.</span>
   </div></section>
-    <section class="section--major">
-  <div class="missing" role="status" data-missing="dark-character/venice">
-    <strong>MISSING: dark-character/venice</strong>
-    <span>Required source material has not been supplied.</span>
-  </div></section>
+    <section class="character bleed"><picture><img src="/assets/images/v2/character/venice/underpass-1600.webp" width="1600" height="900" loading="lazy" decoding="async" alt="Venice reflected under a concrete underpass"></picture><div class="character__scrim"></div><p>Venice is a three-wheel gas roadster.</p></section>
     <section class="section--major narrow" id="specifications"><div class="section-heading"><p class="eyebrow">DETAILS</p><h2>Specifications</h2><p>Every published value is selectable HTML text.</p></div>
-  <div class="missing" role="status" data-missing="spec-data/venice">
-    <strong>MISSING: spec-data/venice</strong>
+  <div class="missing" role="status" data-missing="data/venice-carmel-specs">
+    <strong>MISSING: data/venice-carmel-specs</strong>
     <span>Verified text specifications have not been supplied.</span>
   </div></section>
-    <section class="lead-section section--major narrow"><p class="eyebrow">REQUEST INFO</p><h2>Talk with Vanderhall.</h2><form class="lead-form lead-form--compact" id="venice-lead" action="/contact/#form-destination-missing" method="get" novalidate data-lead-form data-endpoint-missing="true">
-    <div class="form-error-summary" role="alert" tabindex="-1" hidden></div>
-    <div class="form-grid">
-      <div class="field">
-        <label for="venice-lead-first">First name</label>
-        <input id="venice-lead-first" name="firstName" autocomplete="given-name" required>
-        <span class="field__error" id="venice-lead-first-error"></span>
-      </div>
-      <div class="field">
-        <label for="venice-lead-last">Last name</label>
-        <input id="venice-lead-last" name="lastName" autocomplete="family-name" required>
-        <span class="field__error" id="venice-lead-last-error"></span>
-      </div>
-      <div class="field">
-        <label for="venice-lead-email">Email</label>
-        <input id="venice-lead-email" name="email" type="email" autocomplete="email" inputmode="email" required>
-        <span class="field__error" id="venice-lead-email-error"></span>
-      </div>
-      <div class="field">
-        <label for="venice-lead-phone">Phone <span class="optional">Optional</span></label>
-        <input id="venice-lead-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel">
-        <span class="field__error" id="venice-lead-phone-error"></span>
-      </div>
-      <div class="field">
-        <label for="venice-lead-zip">ZIP</label>
-        <input id="venice-lead-zip" name="zip" autocomplete="postal-code" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" required>
-        <span class="field__error" id="venice-lead-zip-error"></span>
-      </div>
-      <div class="field">
-        <label for="venice-lead-dealer">Dealer</label>
-        <select id="venice-lead-dealer" name="dealer" required>
-          <option value="not-sure">Not sure yet, help me choose</option>
-        </select>
-        
-  <div class="missing" role="status" data-missing="dealer-list/select">
-    <strong>MISSING: dealer-list/select</strong>
-    <span>Dealer names and routing data have not been supplied.</span>
-  </div>
-      </div>
+    <section class="lead-section section--major narrow"><p class="eyebrow">REQUEST INFO</p><h2>Talk with Vanderhall.</h2><form class="lead-form lead-form--compact" id="venice-lead" novalidate data-site-form data-form-id="request-info" data-endpoint="">
+  <p class="form-key">Fields marked * are required.</p>
+  <div class="form-error-summary" role="alert" tabindex="-1" hidden></div>
+    <div class="form-grid form-grid--pairs">
+      <div class="field"><label for="venice-lead-first">First name<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="venice-lead-first" name="first_name" autocomplete="given-name" required aria-required="true"><span class="field__error" id="venice-lead-first-error"></span></div>
+      <div class="field"><label for="venice-lead-last">Last name<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="venice-lead-last" name="last_name" autocomplete="family-name" required aria-required="true"><span class="field__error" id="venice-lead-last-error"></span></div>
     </div>
-    <fieldset class="field-group" data-required-checkbox-group>
-      <legend>I'm interested in</legend>
-      <div class="checkbox-grid">
-        <label class="check"><input type="checkbox" name="interest" value="venice" checked> <span>Venice</span></label><label class="check"><input type="checkbox" name="interest" value="carmel"> <span>Carmel</span></label><label class="check"><input type="checkbox" name="interest" value="santarosa"> <span>Santarosa</span></label><label class="check"><input type="checkbox" name="interest" value="brawley"> <span>Brawley</span></label><label class="check"><input type="checkbox" name="interest" value="concepts"> <span>Concepts</span></label><label class="check"><input type="checkbox" name="interest" value="not-sure-yet"> <span>Not sure yet</span></label>
-      </div>
-      <span class="field__error"></span>
-    </fieldset>
-    <details class="form-more">
-      <summary>More details</summary>
-      <div class="form-grid form-grid--more">
-        <div class="field">
-          <label for="venice-lead-timeframe">Timeframe <span class="optional">Optional</span></label>
-          <select id="venice-lead-timeframe" name="timeframe">
-            <option value="">Select a timeframe</option>
-            <option>Ready now</option><option>1 to 3 months</option><option>3 to 6 months</option><option>Just looking</option>
-          </select>
-        </div>
-        <div class="field field--wide">
-          <label for="venice-lead-message">Message <span class="optional">Optional</span></label>
-          <textarea id="venice-lead-message" name="message" rows="3"></textarea>
-        </div>
-      </div>
-    </details>
-    <div class="honeypot" aria-hidden="true"><label>Company<input name="company" tabindex="-1" autocomplete="off"></label></div>
-    <input type="hidden" name="renderedAt" value="">
-    <div class="check check--consent"><input id="venice-lead-consent" type="checkbox" name="consent" required aria-label="Consent checkbox. Legal-approved wording is missing."><label for="venice-lead-consent">
-  <div class="missing" role="status" data-missing="legal-consent-copy">
-    <strong>MISSING: legal-consent-copy</strong>
+    <div class="field"><label for="venice-lead-email">Email<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="venice-lead-email" name="email" type="email" autocomplete="email" inputmode="email" required aria-required="true"><span class="field__error" id="venice-lead-email-error"></span></div>
+    <div class="field"><label for="venice-lead-phone">Phone</label><input id="venice-lead-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel"><span class="field__error" id="venice-lead-phone-error"></span></div>
+    <div class="field"><label for="venice-lead-zip">ZIP<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="venice-lead-zip" name="zip" autocomplete="postal-code" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" required aria-required="true"><span class="field__error" id="venice-lead-zip-error"></span></div>
+    <div class="field"><label for="venice-lead-dealer">Dealer<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><select id="venice-lead-dealer" name="dealer" required aria-required="true"><option value="not-sure">Not sure yet, help me choose</option></select><span class="field__error" id="venice-lead-dealer-error"></span>
+  <div class="missing" role="status" data-missing="data/dealer-list">
+    <strong>MISSING: data/dealer-list</strong>
+    <span>Verified dealer names and routing data have not been supplied.</span>
+  </div></div>
+    <fieldset class="field-group"><legend>I'm interested in</legend><div class="checkbox-grid"><label class="check"><input type="checkbox" name="interest" value="venice" checked> <span>Venice</span></label><label class="check"><input type="checkbox" name="interest" value="carmel"> <span>Carmel</span></label><label class="check"><input type="checkbox" name="interest" value="santarosa"> <span>Santarosa</span></label><label class="check"><input type="checkbox" name="interest" value="brawley"> <span>Brawley</span></label><label class="check"><input type="checkbox" name="interest" value="concepts"> <span>Concepts</span></label><label class="check"><input type="checkbox" name="interest" value="not-sure-yet"> <span>Not sure yet</span></label></div></fieldset>
+    <div class="field"><label for="venice-lead-timeframe">Timeframe</label><select id="venice-lead-timeframe" name="timeframe"><option value="">Select a timeframe</option><option>Ready now</option><option>1 to 3 months</option><option>3 to 6 months</option><option>Just looking</option></select><span class="field__error" id="venice-lead-timeframe-error"></span></div>
+    <div class="field"><label for="venice-lead-message">Message</label><textarea id="venice-lead-message" name="message" rows="4"></textarea><span class="field__error" id="venice-lead-message-error"></span></div>
+    <div class="check check--consent"><input id="venice-lead-consent" type="checkbox" name="consent" required aria-required="true" aria-describedby="venice-lead-consent-copy"><label id="venice-lead-consent-copy" for="venice-lead-consent"><span class="sr-only">Consent required. </span>
+  <div class="missing" role="status" data-missing="form/consent-copy">
+    <strong>MISSING: form/consent-copy</strong>
     <span>Legal-approved email and SMS consent language is required.</span>
   </div></label></div>
     
-  <div class="missing" role="status" data-missing="form-destination">
-    <strong>MISSING: form-destination</strong>
-    <span>CRM, email routing, or form service has not been configured.</span>
-  </div>
-    <button class="button button--primary" type="submit">Send request</button>
-    <div class="form-progress" aria-hidden="true"></div>
-    <p class="form-status" aria-live="polite"></p>
+  <div class="honeypot" aria-hidden="true"><label>Company<input name="honeypot" tabindex="-1" autocomplete="off"></label></div>
+  <input type="hidden" name="render_timestamp" value="">
+  <input type="hidden" name="form_id" value="request-info">
+  <input type="hidden" name="page" value="">
+  <div class="form-submit-row"><button class="button button--primary" type="submit" data-submit-label="Send request">Send request</button>
+  <div class="missing" role="status" data-missing="form-endpoint/request-info">
+    <strong>MISSING: form-endpoint/request-info</strong>
+    <span>No submission destination is configured. Your information will not be sent.</span>
+  </div></div>
+  <div class="form-progress" aria-hidden="true"></div>
+  <p class="form-status" tabindex="-1" aria-live="polite"></p>
   </form></section>
     <section class="related section--major"><div class="section-heading"><p class="eyebrow">KEEP EXPLORING</p><h2>Related vehicles</h2></div><div class="related-grid"><article class="model-card model-card--related" data-filter="gas 3-wheel">
     <div class="model-card__well">
-  <div class="missing" role="status" data-missing="card-cutout/carmel">
-    <strong>MISSING: card-cutout/carmel</strong>
-    <span>Required source material has not been supplied.</span>
-  </div></div>
+  <img class="model-card__image" src="/assets/images/v2/cards/carmel/carmel-800.webp" style="--media-focal:52% 60%"
+    width="800" height="500" alt="Red Vanderhall Carmel three-quarter front at sunset"
+    loading="lazy" fetchpriority="low" decoding="async"></div>
     <div class="model-card__body">
       <div class="chip-row">
         <span class="chip">gas · 3-wheel</span>
@@ -315,8 +256,8 @@
       <h3 class="model-card__title"><a class="model-card__link" href="/carmel/">Carmel</a></h3>
       <p class="model-card__descriptor">Three-wheel gas roadster.</p>
       <div class="price price--card">
-  <div class="missing" role="status" data-missing="from-msrp/carmel">
-    <strong>MISSING: from-msrp/carmel</strong>
+  <div class="missing" role="status" data-missing="data/msrp">
+    <strong>MISSING: data/msrp</strong>
     <span>Verified current MSRP is required before any price can render.</span>
   </div></div>
       <div class="model-card__actions">
@@ -327,10 +268,9 @@
     </div>
   </article><article class="model-card model-card--related" data-filter="electric 3-wheel">
     <div class="model-card__well">
-  <div class="missing" role="status" data-missing="card-cutout/santarosa">
-    <strong>MISSING: card-cutout/santarosa</strong>
-    <span>Required source material has not been supplied.</span>
-  </div></div>
+  <img class="model-card__image" src="/assets/images/v2/cards/santarosa/santarosa-800.webp" style="--media-focal:52% 50%"
+    width="800" height="500" alt="Red Vanderhall Santarosa side profile with light streaks"
+    loading="lazy" fetchpriority="low" decoding="async"></div>
     <div class="model-card__body">
       <div class="chip-row">
         <span class="chip">electric · 3-wheel</span>
@@ -339,8 +279,8 @@
       <h3 class="model-card__title"><a class="model-card__link" href="/santarosa/">Santarosa</a></h3>
       <p class="model-card__descriptor">Three-wheel electric autocycle.</p>
       <div class="price price--card">
-  <div class="missing" role="status" data-missing="from-msrp/santarosa">
-    <strong>MISSING: from-msrp/santarosa</strong>
+  <div class="missing" role="status" data-missing="data/msrp">
+    <strong>MISSING: data/msrp</strong>
     <span>Verified current MSRP is required before any price can render.</span>
   </div></div>
       <div class="model-card__actions">
@@ -358,17 +298,19 @@
   <a class="button button--inverse" href="/dealers/">Find a dealer</a>
   <a class="button button--secondary-inverse" href="/contact/">Request info</a></div>
   </div>
+  <div class="footer-brand"><img src="/assets/brand/vanderhall-seal-192.png" srcset="/assets/brand/vanderhall-seal-192.png 1x, /assets/brand/vanderhall-seal-384.png 2x" width="96" height="96" loading="lazy" decoding="async" alt=""></div>
   <div class="footer-links">
     <div><h3>Vehicles</h3><a href="/venice/">Venice</a><a href="/carmel/">Carmel</a><a href="/santarosa/">Santarosa</a><a href="/brawley/">Brawley</a><a href="/concepts/">Concepts</a></div>
     <div><h3>Company</h3><a href="/about/">About</a></div>
     <div><h3>Owners</h3><a href="/faq/">Support and FAQ</a><a href="/assets/manuals/2026-brawley-owners-manual.pdf">2026 Brawley owner's manual</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a></div>
-    <div><h3>Connect</h3><a href="/dealers/">Find a dealer</a><a href="/contact/">Contact</a></div>
+    <div><h3>Connect</h3><a href="/dealers/">Find a dealer</a><a href="/recommend-dealer/">Recommend a Dealer</a><a href="/contact/">Contact</a><a href="/dealer-inquiry/">Become a Dealer</a></div>
   </div>
   <div class="footer-legal">
+    <img class="footer-lockup" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" width="231" height="24" loading="lazy" decoding="async" alt="Vanderhall Motor Works">
     <span>© 2026 Vanderhall Motor Works. Hand-built in Provo, Utah.</span>
     
-  <div class="missing" role="status" data-missing="legal-price-disclaimer">
-    <strong>MISSING: legal-price-disclaimer</strong>
+  <div class="missing" role="status" data-missing="legal/price-disclaimer">
+    <strong>MISSING: legal/price-disclaimer</strong>
     <span>Legal review is required before the site-wide price disclaimer can publish.</span>
   </div>
   </div>

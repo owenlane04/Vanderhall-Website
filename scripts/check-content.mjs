@@ -25,9 +25,9 @@ for (const path of textFiles) {
   if (extname(path) === ".html") {
     const h1Count = (text.match(/<h1(?:\s|>)/g) || []).length;
     if (h1Count !== 1) failures.push(`${path.replace(root, "")}: expected one h1, found ${h1Count}`);
-    if (/\.(?:jpe?g|png)(?:["'\s?])/i.test(text)) failures.push(`${path.replace(root, "")}: references a source raster format`);
+    if (/\.jpe?g(?:["'\s?])/i.test(text) || /(?:src|href)="(?!\/assets\/brand\/)[^"]+\.png/i.test(text)) failures.push(`${path.replace(root, "")}: references a source photo raster format`);
   }
-  if (extname(path) === ".css" && !path.endsWith("tokens.css") && /#[0-9a-f]{3,8}\b/i.test(text)) failures.push(`${path.replace(root, "")}: raw hex value outside tokens.css`);
+  if (extname(path) === ".css" && !path.endsWith("tokens.css") && !path.endsWith("bundle.css") && /#[0-9a-f]{3,8}\b/i.test(text)) failures.push(`${path.replace(root, "")}: raw hex value outside tokens.css`);
 }
 
 const sourceRasters = files.filter((path) => /\.(?:jpe?g)$/i.test(path));
