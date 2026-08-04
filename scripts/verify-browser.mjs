@@ -69,8 +69,11 @@ for (const route of routes) {
 const probeContext = await browser.newContext();
 const probePage = await probeContext.newPage();
 const aboutResponse = await probePage.goto(`${base}/about/`, { waitUntil: "load" });
-report.interactions.aboutRemoved = aboutResponse?.status() === 404;
-if (!report.interactions.aboutRemoved) failures.push("/about/ still resolves in the static output");
+// Locally the route simply does not exist; in production the vercel.json redirect sends it home.
+const aboutLanded = new URL(probePage.url()).pathname;
+report.interactions.about = { status: aboutResponse?.status(), landedOn: aboutLanded };
+report.interactions.aboutRemoved = aboutResponse?.status() === 404 || aboutLanded === "/";
+if (!report.interactions.aboutRemoved) failures.push(`/about/ still resolves: ${aboutResponse?.status()} at ${aboutLanded}`);
 await probeContext.close();
 
 for (const route of ["/", "/vehicles/", "/brawley/", "/santarosa/", "/contact/", "/recommend-dealer/", "/dealer-inquiry/", "/concepts/", "/concepts/indio/", "/owners/", "/dealers/", "/faq/"]) {
