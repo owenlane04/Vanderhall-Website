@@ -3,7 +3,7 @@ import { dirname, extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const ignored = new Set(["node_modules", ".git", "work"]);
+const ignored = new Set(["node_modules", ".git", "work", "public", ".vercel"]);
 
 const walk = async (directory) => {
   const entries = await readdir(directory, { withFileTypes: true });

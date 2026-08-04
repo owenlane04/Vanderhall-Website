@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "images": "node scripts/process-images.mjs",
-    "build": "node src/build.mjs",
+    "build": "node src/build.mjs && node scripts/prepare-vercel.mjs",
     "check:links": "node scripts/check-links.mjs",
     "check:content": "node scripts/check-content.mjs",
     "check": "npm run check:links && npm run check:content",

@@ -1,3 +1,5 @@
 node_modules/
 work/
+public/
+.vercel/
 .DS_Store
