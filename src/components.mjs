@@ -31,7 +31,9 @@ export const buttonLink = (label, href, variant = "primary") => `<a class="butto
 
 export const textLink = (label, href) => `<a class="text-link" href="${href}">${escapeHtml(label)}<span aria-hidden="true"> →</span></a>`;
 
-export const pageHeader = (eyebrowText, title, intro) => `<header class="page-header">${eyebrow(eyebrowText)}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(intro)}</p></header>`;
+// On the single-purpose form pages the header takes the form's own column, so the page reads as one
+// document instead of a heading on the left with a form floating in the middle of it.
+export const pageHeader = (eyebrowText, title, intro, className = "") => `<header class="page-header${className ? ` ${className}` : ""}">${eyebrow(eyebrowText)}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(intro)}</p></header>`;
 
 export const sectionHeading = (eyebrowText, title, intro = "") => `<div class="section-heading">${eyebrow(eyebrowText)}<h2>${escapeHtml(title)}</h2>${intro ? `<p>${escapeHtml(intro)}</p>` : ""}</div>`;
 
@@ -61,12 +63,17 @@ const splitMedia = (image, { eager = false, sizes = SPLIT_SIZES } = {}) => {
 // page. The homepage passes one photograph and the vehicles page passes three, which is the
 // only difference between the short version of this scroll and the fuller one.
 export const vehicleSection = (model, { index, copy, eager = false, level = 3, withSupport = false } = {}) => {
+  // Each frame is a link to the model page, so the photograph answers a hover the way the concept
+  // cards already do. It is removed from the tab order and hidden from assistive technology,
+  // because the text link below says the same thing and should stay the one stop per section.
+  const href = `/${model.slug}/`;
+  const linked = (inner, className) => `<a class="${className}" href="${href}" tabindex="-1" aria-hidden="true">${inner}</a>`;
   const support = withSupport
-    ? model.images.support.map((image) => `<div class="vehicle-section__support">${splitMedia(image, { sizes: "(min-width: 768px) 22vw, 46vw" })}</div>`).join("")
+    ? model.images.support.map((image) => linked(splitMedia(image, { sizes: "(min-width: 768px) 22vw, 46vw" }), "vehicle-section__support")).join("")
     : "";
   return `<section class="vehicle-section${index % 2 === 1 ? " vehicle-section--reverse" : ""}">
     <div class="vehicle-section__media">
-      <div class="vehicle-section__lead">${splitMedia(model.images.lead, { eager })}</div>
+      ${linked(splitMedia(model.images.lead, { eager }), "vehicle-section__lead")}
       ${support ? `<div class="vehicle-section__row">${support}</div>` : ""}
     </div>
     <div class="vehicle-section__body">
@@ -94,12 +101,74 @@ export const photoScroll = (items) => `<div class="photo-scroll">${items.map((it
 
 // Says where you are and what you can do, which is the job the deleted related-vehicles grid
 // was doing badly. Pure CSS sticky, no JavaScript.
-export const modelBar = (model) => `<div class="model-bar bleed">
+export const modelBar = (model, { name = model.name, label, href } = {}) => `<div class="model-bar bleed">
     <div class="model-bar__inner">
-      <span class="model-bar__name">${model.name}</span>
-      <a class="model-bar__action" href="/dealers/?model=${model.slug}">Request info<span aria-hidden="true"> →</span></a>
+      <span class="model-bar__name">${escapeHtml(name)}</span>
+      <a class="model-bar__action" href="${href || model.cta?.href || `/dealers/?model=${model.slug}`}">${escapeHtml(label || model.cta?.label || "Request info")}<span aria-hidden="true"> →</span></a>
     </div>
   </div>`;
+
+// One bordered card per destination, replacing the V5 row of bare headings under a hairline.
+// The same component carried four destinations of different weight and read as crammed, which is
+// the complaint. The whole card is the target and the heading stays its accessible name.
+export const pathways = (items) => `<div class="pathways">${items.map(({ title, body, label, href }) => `<div class="pathway">
+      <h2 class="pathway__title"><a class="pathway__link" href="${href}">${escapeHtml(title)}</a></h2>
+      <p>${escapeHtml(body)}</p>
+      <span class="pathway__cue">${escapeHtml(label)}<span aria-hidden="true"> →</span></span>
+    </div>`).join("")}</div>`;
+
+// The price is HTML text, never an image and never fetched, and the disclaimer is always visible
+// rather than hidden behind a tooltip or a modal.
+export const price = ({ label, value }, disclaimer, delivery) => `<p class="price">
+    <span class="price__label">${escapeHtml(label)}</span>
+    <span class="price__value">${escapeHtml(value)}<sup class="price__mark" aria-hidden="true">*</sup></span>
+    ${delivery ? `<span class="price__delivery">${escapeHtml(delivery)}</span>` : ""}
+    <span class="price__disclaimer">${escapeHtml(disclaimer)}</span>
+  </p>`;
+
+// Four figures already published in the specification table below, on the same unit toggle, so
+// the page never states a number the table does not.
+export const figureBand = (figures) => `<div class="gts-figures">${figures.map((figure) => `<div class="gts-figure">
+      <span class="gts-figure__value"><span data-unit="imp">${figure.imp}</span><span data-unit="met">${figure.met}</span></span>
+      <span class="gts-figure__label">${escapeHtml(figure.label)}</span>
+    </div>`).join("")}</div>`;
+
+// The studio walkaround. Eight frames of one paint colour stacked in a fixed stage, with the
+// other eight colours' frames declared on their swatches. Controls ship hidden and swatches ship
+// disabled, so the no-JavaScript page shows a real photograph and a legible price list instead of
+// dead controls; the island removes both on init.
+export const walkaround = (gts) => {
+  const initial = gts.paint.find((option) => option.slug === gts.defaultPaint);
+  const { width, height } = sizeOf(initial.frames[0].split(",")[0].trim().split(/\s+/)[0]);
+  const frameSizes = "(min-width: 1280px) 1140px, 92vw";
+  const frame = (index, [angle, phrase]) => {
+    const srcset = initial.frames[index];
+    const src = srcset.split(",").at(-1).trim().split(/\s+/)[0];
+    return `<img class="walkaround__frame${index === 0 ? " is-active" : ""}" src="${src}" srcset="${srcset}" sizes="${frameSizes}" width="${width}" height="${height}" alt="${index === 0 ? escapeHtml(`Brawley GTS in ${initial.name}, ${phrase}`) : ""}"${index === 0 ? ' loading="eager" fetchpriority="high"' : ' loading="lazy"'} decoding="async"${index === 0 ? "" : ' aria-hidden="true"'} data-angle="${angle}">`;
+  };
+  const swatch = (option) => `<button class="swatch${option.slug === initial.slug ? " is-selected" : ""}" type="button" role="radio" aria-checked="${option.slug === initial.slug}" tabindex="${option.slug === initial.slug ? "0" : "-1"}" disabled aria-label="${escapeHtml(`${option.name}, ${option.tierLabel} paint, ${option.tierPrice}`)}" style="--swatch-color:${option.hex}" data-paint="${option.slug}" data-paint-name="${escapeHtml(option.name)}" data-tier-label="${escapeHtml(option.tierLabel)}" data-tier-price="${option.tierPrice}" data-complete="${option.complete}" ${option.complete ? "data-frames" : "data-still"}="${option.frames.join(", ")}"><span aria-hidden="true"></span></button>`;
+  return `<section class="walkaround" data-walkaround data-paint="${initial.slug}">
+    ${sectionHeading("PAINT", "Choose a color. Take a look around.")}
+    <div class="walkaround__stage" tabindex="0" role="group" aria-roledescription="360 viewer" aria-label="${escapeHtml(`Brawley GTS 360 viewer, ${initial.name}`)}" data-walkaround-stage>
+      ${gts.angles.map((angle, index) => frame(index, angle)).join("")}
+    </div>
+    <div class="walkaround__controls" data-walkaround-controls hidden>
+      <button class="icon-button" type="button" data-walkaround-prev aria-label="Previous angle"><span aria-hidden="true">←</span></button>
+      <div class="walkaround__dots" aria-hidden="true">${gts.angles.map((_, index) => `<span${index === 0 ? ' class="is-active"' : ""}></span>`).join("")}</div>
+      <button class="icon-button" type="button" data-walkaround-next aria-label="Next angle"><span aria-hidden="true">→</span></button>
+    </div>
+    <p class="walkaround__hint" data-walkaround-hint>DRAG TO ROTATE</p>
+    <p class="walkaround__caption" data-walkaround-caption><strong data-paint-name>${escapeHtml(initial.name)}</strong><span data-paint-tier>${escapeHtml(initial.tierLabel)} paint, ${initial.tierPrice}</span></p>
+    <div class="sr-only" aria-live="polite" data-walkaround-live></div>
+    <div class="swatch-tiers" role="radiogroup" aria-label="Paint">
+      ${gts.tiers.map((tier) => `<div class="swatch-tier">
+        <p class="swatch-tier__label">${escapeHtml(tier.label)} color<span aria-hidden="true"> · </span><span class="sr-only">, </span>${tier.price}</p>
+        <div class="swatches">${gts.paint.filter((option) => option.tier === tier.key).map(swatch).join("")}</div>
+      </div>`).join("")}
+    </div>
+    <p class="walkaround__note" data-walkaround-note>Jean Grey has a partial studio set, so it is shown as a single still image.</p>
+  </section>`;
+};
 
 export const hero = ({ src, srcset, tallSrcset, alt, focal, align = "", content }) => `<section class="hero bleed${align === "end" ? " hero--content-end" : ""}" style="--hero-focal:${focal}">
     <div class="hero__media"><picture>${tallSrcset ? `<source media="(max-width: 767px)" srcset="${tallSrcset}" sizes="100vw">` : ""}<img class="hero__image" src="${src}" srcset="${srcset}" sizes="100vw" width="1920" height="823" alt="${escapeHtml(alt)}" loading="eager" fetchpriority="high" decoding="async"></picture></div>
@@ -140,7 +209,7 @@ const formOpen = (id, formId) => `<form class="lead-form" id="${id}" novalidate 
   <div class="form-error-summary" role="alert" tabindex="-1" hidden></div>`;
 
 export const leadForm = (id = "contact-lead") => {
-  const interests = ["Venice", "Carmel", "Santarosa", "Brawley", "Concepts", "Not sure yet"];
+  const interests = [...models.map((model) => model.name), "Concepts", "Not sure yet"];
   return `${formOpen(id, "request-info")}
     <div class="form-grid form-grid--pairs">
       <div class="field">${label(`${id}-first`, "First name", true)}<input id="${id}-first" name="first_name" autocomplete="given-name" required aria-required="true">${error(`${id}-first`)}</div>
@@ -210,7 +279,7 @@ export const internationalDealerForm = (id = "international-dealer-form") => `${
 // Dealers is both the inquiry destination and a navigation item: the header button is the
 // action, the navigation item is the place.
 const navItems = [
-  ["Vehicles", "/vehicles/", ["/vehicles", "/venice", "/carmel", "/santarosa", "/brawley"]],
+  ["Vehicles", "/vehicles/", ["/vehicles", ...models.map((model) => `/${model.slug}`)]],
   ["Concepts", "/concepts/", ["/concepts"]],
   ["Owners", "/owners/", ["/owners"]],
   ["Dealers", "/dealers/", ["/dealers"]],

@@ -14,13 +14,21 @@ component until the required source arrives.
 
 | Item | Affected routes | Required source |
 |---|---|---|
-| From MSRP for Venice, Carmel, Santarosa, Brawley | `/`, `/vehicles/`, all four model pages | Vanderhall current pricing, in writing. Press figures are stale and were never usable. |
-| Price disclaimer language | anywhere a price would appear | Legal-approved disclaimer text. Two drafts exist in `Plans/V1-design-system.md` section 5.9 and both need review. |
+| From MSRP for Venice, Carmel, Santarosa | `/`, `/vehicles/`, those three model pages | Vanderhall current pricing, in writing. Press figures are stale and were never usable. |
 | Reservation language for Santarosa | `/santarosa/` | Legal-approved reservation wording, if reservations are still the intended step. |
+| Paint tier pricing for models other than Brawley GTS | the other three model pages | Vanderhall's current tier structure per model. |
 
-Effect on the site: no price component exists anywhere. V5 also removed the status chips
-along with the vehicle cards that carried them, so the two verified status facts are recorded
-below rather than shown.
+Resolved in V6, on `/brawley/gts/` only:
+
+| Item | Value published | Source |
+|---|---|---|
+| Brawley GTS MSRP | `$49,950` | vanderhallusa.com Brawley GTS configurator, read 2026-08-05, approved by Owen in chat the same day |
+| Brawley GTS paint tiers | Standard `$0`, Specialty `$750`, Metallic `$1,050` | Same page and approval. Tier membership was read from the live configurator's own grouping. |
+| Price disclaimer language | The manufacturer's own sentence, verbatim | Same page and approval. This replaces the two unreviewed drafts in `Plans/V1-design-system.md` section 5.9, which are now superseded and should not be used. |
+
+Effect on the site: exactly one route publishes a price. A build check fails if a dollar
+amount appears on any other page, or if any amount other than those four appears on
+`/brawley/gts/`. The other three vehicles still ship with no price component of any kind.
 
 ## Specifications
 
@@ -29,7 +37,9 @@ below rather than shown.
 | Venice and Carmel specifications (power, torque, 0 to 60, weight, dimensions) | `/venice/`, `/carmel/` | Vanderhall spec sheets as text. Nothing verified exists today. |
 | Curb weight for all four vehicles | all four model pages | Vanderhall engineering data. |
 | Remainder of the Santarosa and Brawley spec tables (chassis, wheels, brakes, interior, technology) | `/santarosa/`, `/brawley/` | Vanderhall spec sheets as text. |
-| Colorway mapping and paint values per model and trim | all four model pages | Which colorways apply to which vehicle and trim, plus paint chips or sampled values. |
+| Colorway mapping and paint values for Venice, Carmel, Santarosa | those three model pages | Which colorways apply to which vehicle and trim, plus paint chips or sampled values. Brawley GTS is resolved: nine colors ship on `/brawley/gts/` with sampled swatch values and studio frames. |
+| The four missing Jean Grey studio angles | `/brawley/gts/` | A studio shoot covering side, side-rear-driver, side-rear-passenger, and rear in Jean Grey. Until then that color is shown as a single still and the viewer says so. |
+| Whether Concrete Grey is still offered | `/brawley/gts/` | Vanderhall's current color list. It has studio frames for the four angles Jean Grey lacks but no page on the current Vanderhall site, so V6 does not ship it. |
 
 Effect on the site: Venice and Carmel ship with no specification section at all. Santarosa
 and Brawley show only the rows that are verified, with no note about what is absent.
@@ -66,9 +76,18 @@ rather than shown with placeholder legal text. No endpoint gate blocks are rende
 
 | Item | Affected routes | Required source |
 |---|---|---|
-| Site-wide safety boilerplate (helmet, seatbelt, training) | `/brawley/` and any vehicle page | Legal-approved language. The V3 site shipped a helmet and training notice that was never approved; V4 removed it. This is the highest-priority item on this list for a vehicle site. |
+| Safety notice for Venice, Carmel, and Santarosa | those three model pages | Vanderhall's own safety language for those vehicles. The Brawley notice is specific to an off-road vehicle and must not be copied across. Now the highest-priority item on this list. |
 | Licensing and endorsement guidance | no public home since V5 retired `/faq/` | Legal-approved answer on helmet requirements and motorcycle endorsements. |
 | Privacy policy, terms, accessibility statement | footer | Approved documents. No footer links to them exist today. |
+
+Resolved in V6, on `/brawley/gts/` only: the off-road safety notice, published verbatim in four
+paragraphs as the manufacturer writes it on vanderhallusa.com, read 2026-08-05 and approved by
+Owen in chat the same day. This closes the gap that had been the highest-priority row on this
+list since V4 removed an unapproved version. It is published only where it was sourced.
+
+| Media provenance | Note |
+|---|---|
+| `Assets/Brawley Icons` studio set | 74 frames, no rights manifest, predating the V2 curation and its `candidate - verify rights` labeling. Owen approved use for V6 on the basis that these are Vanderhall's own studio renders and the same frames the current Vanderhall site serves on its own configurator. Worth a written confirmation from Vanderhall alongside the rest of the media library. |
 
 ## Brand and media
 
@@ -99,7 +118,7 @@ them deliberately instead of rediscovering them.
 | Vanderhall was founded in 2010 | `/faq/` | "Founded in 2010" is now "since 2010" in the hero, which is a continuity claim rather than a founding claim. |
 | The Laguna entered production in 2016 | `/faq/` | Nothing else on the site states this. Laguna survives only as a 2016 owner's manual row on `/owners/`. |
 | Provo is the headquarters | `/faq/` | The site elsewhere says hand-built in Provo, which is manufacturing. Only the FAQ called it headquarters. |
-| Brawley is now delivering | vehicle card status chip | V5 removed the card grid and its status chips. Still verified, just not shown. |
+| Brawley is now delivering | Republished in V6 | Appears on `/brawley/gts/` as "Now delivering in select regions.", the manufacturer's own wording, read from the live site 2026-08-05. |
 | Santarosa is at reservation stage | vehicle card status chip | Same. Note the reservation wording itself was never legally approved, which is a separate open item under Pricing. |
 
 Owen confirmed on 2026-08-04 that losing the five FAQ answers is acceptable.

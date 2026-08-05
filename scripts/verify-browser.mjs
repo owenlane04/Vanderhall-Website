@@ -15,7 +15,7 @@ const report = { routes: [], accessibility: {}, heroes: {}, zoom200: {}, forms: 
 const failures = [];
 const conceptSlugs = ["indio", "coachella", "brawley-r", "santarosa-r", "speedster", "yuma", "yuma-defense", "laduna", "balboa"];
 const conceptRoutes = conceptSlugs.map((slug) => `/concepts/${slug}/`);
-const routes = ["/", "/vehicles/", "/venice/", "/carmel/", "/santarosa/", "/brawley/", "/concepts/", ...conceptRoutes, "/dealers/", "/recommend-dealer/", "/dealer-inquiry/", "/owners/", "/404/"];
+const routes = ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/santarosa/", "/carmel/", "/venice/", "/concepts/", ...conceptRoutes, "/dealers/", "/recommend-dealer/", "/dealer-inquiry/", "/owners/", "/404/"];
 
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 const page = await context.newPage();
@@ -85,7 +85,7 @@ for (const [route, destination] of [["/about/", "/"], ["/contact/", "/dealers/"]
 }
 await probeContext.close();
 
-for (const route of ["/", "/vehicles/", "/brawley/", "/santarosa/", "/venice/", "/recommend-dealer/", "/dealer-inquiry/", "/concepts/", "/concepts/indio/", "/owners/", "/dealers/", "/404/"]) {
+for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/santarosa/", "/venice/", "/recommend-dealer/", "/dealer-inquiry/", "/concepts/", "/concepts/indio/", "/owners/", "/dealers/", "/404/"]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   await page.addScriptTag({ content: axe.source });
   const result = await page.evaluate(async () => axe.run(document, { resultTypes: ["violations"] }));
@@ -154,15 +154,19 @@ report.interactions.vehicleSections = {
   supportFrames: await page.locator(".vehicle-section__support img").count(),
   modelLinks: await page.locator(".vehicle-section__body a").evaluateAll((anchors) => anchors.map((anchor) => new URL(anchor.href).pathname)),
   hasSpecsOrPrices: await page.locator(".spec-table, .price").count(),
+  // The photographs became links in V6. They must stay out of the tab order, so each section
+  // still offers exactly one stop, the text link beneath the copy.
+  focusableMedia: await page.locator('.vehicle-section__lead:not([tabindex="-1"]), .vehicle-section__support:not([tabindex="-1"])').count(),
 };
 const sectionShape = report.interactions.vehicleSections;
 if (sectionShape.sections !== 4 || sectionShape.leadFrames !== 4 || sectionShape.supportFrames !== 8 || sectionShape.hasSpecsOrPrices !== 0) failures.push("Vehicles section structure failed");
-if (JSON.stringify(sectionShape.modelLinks) !== JSON.stringify(["/venice/", "/carmel/", "/santarosa/", "/brawley/"])) failures.push(`Vehicles sections must link to each model once in order, got ${sectionShape.modelLinks.join(", ")}`);
+if (JSON.stringify(sectionShape.modelLinks) !== JSON.stringify(["/brawley/", "/santarosa/", "/carmel/", "/venice/"])) failures.push(`Vehicles sections must link to each model once in order, got ${sectionShape.modelLinks.join(", ")}`);
+if (sectionShape.focusableMedia !== 0) failures.push(`${sectionShape.focusableMedia} vehicle media links are still in the tab order`);
 
 // Model pages: a photo module carries a photograph, a label, and a description, and the sticky
 // bar names the model and offers one action.
 report.interactions.photoScroll = {};
-for (const [route, expected] of [["/venice/", 6], ["/carmel/", 6], ["/santarosa/", 5], ["/brawley/", 6]]) {
+for (const [route, expected, barAction] of [["/brawley/", 6, "/brawley/gts/"], ["/santarosa/", 5, "/dealers/"], ["/carmel/", 6, "/dealers/"], ["/venice/", 6, "/dealers/"]]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   const shape = await page.evaluate(() => ({
     modules: document.querySelectorAll(".photo-module").length,
@@ -174,7 +178,7 @@ for (const [route, expected] of [["/venice/", 6], ["/carmel/", 6], ["/santarosa/
   }));
   report.interactions.photoScroll[route] = shape;
   if (shape.modules !== expected || shape.withLabel !== expected || shape.withDescription !== expected) failures.push(`Photo scroll failed on ${route}: ${JSON.stringify(shape)}`);
-  if (shape.stickyBar !== "sticky" || !shape.barAction?.startsWith("/dealers/")) failures.push(`Sticky model bar failed on ${route}`);
+  if (shape.stickyBar !== "sticky" || !shape.barAction?.startsWith(barAction)) failures.push(`Sticky model bar failed on ${route}: expected ${barAction}, got ${shape.barAction}`);
   if (shape.relatedGrids !== 0) failures.push(`${route} still pushes the visitor to other models`);
 }
 
@@ -247,18 +251,77 @@ report.interactions.formValidation = formStatus === "This form is not connected 
 if (!report.interactions.formValidation) failures.push("Lead form validation flow failed");
 
 report.interactions.modelPrefill = {};
-for (const value of ["venice", "carmel", "santarosa", "brawley", "concepts", "not-sure-yet"]) {
+for (const value of ["brawley", "santarosa", "carmel", "venice", "concepts", "not-sure-yet"]) {
   await page.goto(`${base}/dealers/?model=${value}`, { waitUntil: "networkidle" });
   const checked = await page.locator(`[name='interest'][value='${value}']`).isChecked();
   report.interactions.modelPrefill[value] = checked;
   if (!checked) failures.push(`Dealers model prefill failed for ${value}`);
 }
 
+// The studio walkaround. Every claim here is about behaviour a visitor can feel: the frame
+// changes, the announcement follows it, choosing paint keeps the angle, and the partial colour
+// says so instead of pretending to rotate.
+await page.setViewportSize({ width: 1280, height: 900 });
+await page.goto(`${base}/brawley/gts/`, { waitUntil: "networkidle" });
+const viewer = page.locator("[data-walkaround]");
+const activeFrame = () => page.locator(".walkaround__frame.is-active").first().getAttribute("src");
+const liveText = () => page.locator("[data-walkaround-live]").innerText();
+
+report.interactions.walkaround = {
+  frames: await page.locator(".walkaround__frame").count(),
+  swatches: await page.locator(".swatch").count(),
+  // Enabled by the island: they ship hidden and disabled so the page works without JavaScript.
+  controlsVisible: await page.locator("[data-walkaround-controls]").isVisible(),
+  enabledSwatches: await page.locator(".swatch:not([disabled])").count(),
+  eagerFrames: await page.locator('.walkaround__frame[loading="eager"]').count(),
+  lazyFrames: await page.locator('.walkaround__frame[loading="lazy"]').count(),
+  highPriority: await page.locator('.walkaround__frame[fetchpriority="high"]').count(),
+  roleDescription: await page.locator("[data-walkaround-stage]").getAttribute("aria-roledescription"),
+  startFrame: await activeFrame(),
+};
+const walk = report.interactions.walkaround;
+if (walk.frames !== 8 || walk.swatches !== 9) failures.push(`Walkaround shape failed: ${JSON.stringify(walk)}`);
+if (!walk.controlsVisible || walk.enabledSwatches !== 9) failures.push("Walkaround controls or swatches were not enabled by the island");
+if (walk.eagerFrames !== 1 || walk.lazyFrames !== 7 || walk.highPriority !== 1) failures.push(`Walkaround loading strategy failed: ${JSON.stringify(walk)}`);
+if (walk.roleDescription !== "360 viewer") failures.push("Walkaround stage is missing its 360 role description");
+
+await page.locator("[data-walkaround-next]").click();
+walk.afterNext = await activeFrame();
+walk.afterNextLive = await liveText();
+if (walk.afterNext === walk.startFrame || !walk.afterNextLive.includes("angle 2 of 8")) failures.push(`Walkaround next did not advance: ${walk.afterNextLive}`);
+
+await page.locator("[data-walkaround-stage]").focus();
+await page.keyboard.press("ArrowRight");
+walk.afterArrow = await liveText();
+if (!walk.afterArrow.includes("angle 3 of 8")) failures.push(`Walkaround keyboard step failed: ${walk.afterArrow}`);
+
+// A colour change keeps the angle, so choosing paint does not throw away the chosen view.
+await page.locator('.swatch[data-paint="rossa"]').click();
+walk.afterPaint = await activeFrame();
+walk.afterPaintLive = await liveText();
+if (!walk.afterPaint.includes("/rossa/") || !walk.afterPaint.includes("side-960") && !walk.afterPaint.includes("side-1600")) failures.push(`Paint change lost the angle: ${walk.afterPaint}`);
+if (!walk.afterPaintLive.startsWith("Rossa, angle 3 of 8")) failures.push(`Paint change announcement failed: ${walk.afterPaintLive}`);
+
+// Jean Grey has four of the eight studio angles, so it is a still and reports itself as one.
+await page.locator('.swatch[data-paint="jean-grey"]').click();
+walk.stillLive = await liveText();
+await page.locator("[data-walkaround-next]").click();
+walk.stillAfterNext = await liveText();
+if (walk.stillLive !== "Jean Grey, still image." || walk.stillAfterNext !== walk.stillLive) failures.push(`Partial colour must not rotate: ${walk.stillLive} then ${walk.stillAfterNext}`);
+
+// Leaving the still restores the angle the visitor had been looking at.
+await page.locator('.swatch[data-paint="ivory-white"]').click();
+walk.restoredLive = await liveText();
+if (!walk.restoredLive.startsWith("Ivory White, angle 3 of 8")) failures.push(`Angle was not restored after the still: ${walk.restoredLive}`);
+walk.selectedCount = await page.locator(".swatch.is-selected").count();
+walk.checkedCount = await page.locator('.swatch[aria-checked="true"]').count();
+if (walk.selectedCount !== 1 || walk.checkedCount !== 1) failures.push("Exactly one paint option must be selected at a time");
+
 // Screenshots are the human review surface, so reset persisted units and theme first.
 await page.goto(`${base}/`, { waitUntil: "load" });
 await page.evaluate(() => { localStorage.clear(); document.documentElement.classList.remove("unit-metric"); delete document.documentElement.dataset.theme; });
 
-for (const [route, name] of [["/", "home"], ["/vehicles/", "vehicles"], ["/venice/", "venice"], ["/carmel/", "carmel"], ["/santarosa/", "santarosa"], ["/brawley/", "brawley"], ["/concepts/", "concepts"], ["/concepts/indio/", "indio"], ["/concepts/brawley-r/", "brawley-r"], ["/concepts/balboa/", "balboa"], ["/concepts/yuma/", "yuma"], ["/owners/", "owners"], ["/dealers/", "dealers"], ["/recommend-dealer/", "recommend-dealer"]]) {
+for (const [route, name] of [["/", "home"], ["/vehicles/", "vehicles"], ["/venice/", "venice"], ["/carmel/", "carmel"], ["/santarosa/", "santarosa"], ["/brawley/", "brawley"], ["/brawley/gts/", "brawley-gts"], ["/concepts/", "concepts"], ["/concepts/indio/", "indio"], ["/concepts/brawley-r/", "brawley-r"], ["/concepts/balboa/", "balboa"], ["/concepts/yuma/", "yuma"], ["/owners/", "owners"], ["/dealers/", "dealers"], ["/recommend-dealer/", "recommend-dealer"]]) {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   await loadLazyMedia(page);
@@ -290,6 +353,15 @@ report.reducedMotion = await page.evaluate(() => ({
 }));
 if (report.reducedMotion.duration1 !== "1ms" || report.reducedMotion.scrollBehavior !== "auto") failures.push("Reduced motion override failed");
 if (report.reducedMotion.revealAnimation !== "none" || report.reducedMotion.heroTimeline !== "none") failures.push(`Reduced motion must remove the scroll-driven animations, got ${report.reducedMotion.revealAnimation} and ${report.reducedMotion.heroTimeline}`);
+
+// The V6 additions have to answer reduced motion too: the frame cross-fade and the hover zoom.
+await page.goto(`${base}/brawley/gts/`, { waitUntil: "networkidle" });
+report.reducedMotion.gts = await page.evaluate(() => ({
+  frameTransition: getComputedStyle(document.querySelectorAll(".walkaround__frame")[1]).transitionDuration,
+  figuresAnimation: getComputedStyle(document.querySelector(".gts-figures")).animationName,
+}));
+if (report.reducedMotion.gts.frameTransition !== "0.001s" || report.reducedMotion.gts.figuresAnimation !== "none") failures.push(`Reduced motion did not clear the purchase page motion: ${JSON.stringify(report.reducedMotion.gts)}`);
+await page.goto(`${base}/`, { waitUntil: "networkidle" });
 
 // The motion itself, checked in a context that asks for it. Scroll-driven reveals must be
 // attached to a view() timeline and must resolve to fully visible once the block has entered.
@@ -327,6 +399,30 @@ report.noJs = {
   forms: {},
 };
 if (report.noJs.status !== 200 || report.noJs.bodyLength < 500 || report.noJs.visibleImperialValues === 0 || report.noJs.navLinks === 0) failures.push("No-JS verification failed");
+// The purchase page without JavaScript: a real photograph, the price, the disclaimer, and a
+// plain reservation link. Controls hidden, swatches disabled, nothing dead on the screen.
+await noJsPage.goto(`${base}/brawley/gts/`, { waitUntil: "load" });
+report.noJs.gts = await noJsPage.evaluate(() => {
+  const frame = document.querySelector(".walkaround__frame");
+  const reserve = [...document.querySelectorAll("a")].find((anchor) => anchor.href.includes("dealer.vanderhallusa.com"));
+  const text = document.body.innerText;
+  return {
+    frameLoaded: Boolean(frame?.naturalWidth),
+    frameVisible: Boolean(frame?.getClientRects().length),
+    controlsHidden: document.querySelector("[data-walkaround-controls]")?.hidden === true,
+    disabledSwatches: document.querySelectorAll(".swatch[disabled]").length,
+    reserveIsPlainLink: Boolean(reserve) && reserve.tagName === "A",
+    hasPrice: text.includes("$49,950"),
+    hasTiers: ["$0", "$750", "$1,050"].every((amount) => text.includes(amount)),
+    hasDisclaimer: text.includes("Manufacturer's Suggested Retail Price"),
+    hasSafety: text.includes("Refer to the relevant owner's manual"),
+  };
+});
+const gtsNoJs = report.noJs.gts;
+if (!gtsNoJs.frameLoaded || !gtsNoJs.frameVisible) failures.push("No-JS purchase page does not render a studio frame");
+if (!gtsNoJs.controlsHidden || gtsNoJs.disabledSwatches !== 9) failures.push("No-JS purchase page shows controls it cannot drive");
+if (!gtsNoJs.reserveIsPlainLink || !gtsNoJs.hasPrice || !gtsNoJs.hasTiers || !gtsNoJs.hasDisclaimer || !gtsNoJs.hasSafety) failures.push(`No-JS purchase page is missing price, disclosure, or the order link: ${JSON.stringify(gtsNoJs)}`);
+
 await noJsPage.goto(`${base}/`, { waitUntil: "load" });
 report.noJs.vehiclesHref = await noJsPage.getByRole("link", { name: "Vehicles", exact: true }).first().getAttribute("href");
 if (report.noJs.vehiclesHref !== "/vehicles/") failures.push("No-JS Vehicles navigation is not a plain link");

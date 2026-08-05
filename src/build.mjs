@@ -2,17 +2,20 @@ import { cp, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { concepts } from "./data/concepts.mjs";
-import { models } from "./data/models.mjs";
+import { modelBySlug, models } from "./data/models.mjs";
 import {
   buttonLink,
   conceptCard,
   eyebrow,
+  figureBand,
   hero,
   internationalDealerForm,
   leadForm,
   modelBar,
   pageHeader,
+  pathways,
   photoScroll,
+  price,
   recommendDealerForm,
   sectionHeading,
   shell,
@@ -20,6 +23,7 @@ import {
   specTable,
   textLink,
   vehicleSection,
+  walkaround,
 } from "./components.mjs";
 
 const sourceRoot = dirname(fileURLToPath(import.meta.url));
@@ -27,18 +31,69 @@ const websiteRoot = resolve(sourceRoot, "..");
 
 const modelPage = (model) => {
   const hasSpecs = model.specGroups.length > 0;
+  const cta = model.cta || { label: "Request info", href: `/dealers/?model=${model.slug}` };
   const heroContent = `${eyebrow(`${model.powertrain.fuel} · ${model.powertrain.layout}`)}
       <h1>${model.name}</h1>
       <p class="hero__descriptor">${model.descriptor}</p>
-      <div class="hero__actions">${buttonLink("Request info", `/dealers/?model=${model.slug}`, "inverse")}${hasSpecs ? '<a class="button button--ghost-inverse" href="#specifications">Specifications</a>' : ""}</div>`;
+      <div class="hero__actions">${buttonLink(cta.label, cta.href, "inverse")}${hasSpecs ? '<a class="button button--ghost-inverse" href="#specifications">Specifications</a>' : ""}</div>`;
   const body = `<div class="page">
     ${hero({ src: model.images.hero, srcset: model.images.heroSrcset, tallSrcset: model.images.heroTallSrcset, alt: model.images.heroAlt, focal: model.images.focal, align: model.images.heroAlign, content: heroContent })}
     ${modelBar(model)}
     <section class="section--tight narrow"><p class="lede">${model.overview}</p></section>
     <section class="section">${sectionHeading("IN DETAIL", `A closer look at ${model.name}.`)}${photoScroll(model.images.modules)}</section>
-    ${hasSpecs ? `<section class="section narrow" id="specifications">${sectionHeading("SPECIFICATIONS", "Published figures")}${specTable(model)}</section>` : ""}
+    ${hasSpecs ? `<section class="section narrow centered" id="specifications">${sectionHeading("SPECIFICATIONS", "Published figures")}${specTable(model)}</section>` : ""}
   </div>`;
   return shell({ title: model.name, description: model.descriptor, path: `/${model.slug}`, body });
+};
+
+// The purchase page. /brawley/ stays the editorial page, six photographs each carrying one true
+// sentence, and this is the transaction: the studio walkaround, the paint tiers, the price, and
+// the two ways to act on it. Splitting them keeps the configurator from burying the photo essay.
+const brawleyGtsPage = (model) => {
+  const gts = model.gts;
+  const actions = (variant) => `<div class="cluster">${buttonLink("Order yours now", gts.reserveUrl, variant)}${textLink("Request info", `/dealers/?model=${model.slug}`)}</div>`;
+  const scene = {
+    src: `/assets/images/brawley/lifestyle/${gts.scene.name}-1280.webp`,
+    srcset: [640, 800, 960, 1280].map((width) => `/assets/images/brawley/lifestyle/${gts.scene.name}-${width}.webp ${width}w`).join(", "),
+  };
+  const body = `<div class="page">
+    ${modelBar(model, { name: gts.name, label: "Order yours now", href: gts.reserveUrl })}
+    <section class="section--tight">
+      <div class="gts-open">
+        <div class="gts-open__row">
+          <div class="gts-open__intro">
+            ${eyebrow("ELECTRIC OFF-ROAD UTV")}
+            <h1>${gts.name}</h1>
+            <p class="gts-open__descriptor">${gts.descriptor}</p>
+          </div>
+          ${price(gts.price, gts.priceDisclaimer, gts.delivery)}
+        </div>
+        ${actions("primary")}
+      </div>
+    </section>
+    <section class="section--tight">${walkaround(gts)}</section>
+    <section class="section--tight">${figureBand(gts.figures)}<p class="gts-note">${gts.specDisclaimer}</p></section>
+    <section class="section--tight"><figure class="gts-scene"><img src="${scene.src}" srcset="${scene.srcset}" sizes="(min-width: 1280px) 1200px, 92vw" width="${sizeOf(scene.src).width}" height="${sizeOf(scene.src).height}" alt="${gts.scene.alt}" loading="lazy" decoding="async"><figcaption>${gts.scene.label}</figcaption></figure></section>
+    <section class="section narrow centered" id="specifications">${sectionHeading("SPECIFICATIONS", "Published figures")}${specTable(model)}</section>
+    <section class="section--tight narrow centered">
+      ${sectionHeading("ORDER", `Reserve your ${gts.name}.`, "Order through the Vanderhall reservation system, or ask Vanderhall to connect you with a dealer.")}
+      ${actions("primary")}
+    </section>
+    <section class="section--tight narrow centered">
+      <div class="disclosures">
+        ${eyebrow("DISCLOSURES")}
+        <p>${gts.priceDisclaimer}</p>
+        <p>${gts.specDisclaimer}</p>
+        ${gts.safety.map((paragraph) => `<p>${paragraph}</p>`).join("")}
+      </div>
+    </section>
+  </div>`;
+  return shell({
+    title: gts.name,
+    description: `${gts.name} pricing and paint colors. ${gts.price.value} MSRP, quad-motor 4WD, 488 lb-ft of torque, and up to 140 mi of range.`,
+    path: "/brawley/gts",
+    body,
+  });
 };
 
 const homePage = () => {
@@ -48,7 +103,7 @@ const homePage = () => {
       <p class="hero__descriptor">Three-wheel gas roadsters and electric vehicles, built by Vanderhall since 2010.</p>
       <div class="hero__actions">${buttonLink("Explore vehicles", "/vehicles/", "inverse")}</div>`;
   const body = `<div class="page">
-    ${hero({ src: "/assets/images/v3/heroes/home/home-wide-1920.webp", srcset: "/assets/images/v3/heroes/home/home-wide-960.webp 960w, /assets/images/v3/heroes/home/home-wide-1280.webp 1280w, /assets/images/v3/heroes/home/home-wide-1920.webp 1920w, /assets/images/v3/heroes/home/home-wide-2560.webp 2560w", tallSrcset: "/assets/images/v3/heroes/home/home-tall-480.webp 480w, /assets/images/v3/heroes/home/home-tall-720.webp 720w, /assets/images/v3/heroes/home/home-tall-960.webp 960w", alt: "Tan Vanderhall Brawley climbing a rock ledge above a mountain lake", focal: "50% 50%", content: heroContent })}
+    ${hero({ src: "/assets/images/v3/heroes/home/home-wide-1920.webp", srcset: "/assets/images/v3/heroes/home/home-wide-960.webp 960w, /assets/images/v3/heroes/home/home-wide-1280.webp 1280w, /assets/images/v3/heroes/home/home-wide-1920.webp 1920w, /assets/images/v3/heroes/home/home-wide-2560.webp 2560w", tallSrcset: "/assets/images/v3/heroes/home/home-tall-480.webp 480w, /assets/images/v3/heroes/home/home-tall-720.webp 720w, /assets/images/v3/heroes/home/home-tall-800.webp 800w, /assets/images/v3/heroes/home/home-tall-960.webp 960w", alt: "Tan Vanderhall Brawley climbing a rock ledge above a mountain lake", focal: "50% 50%", content: heroContent })}
     <section class="section" id="vehicles">
       ${sectionHeading("VEHICLES", "Gas and electric, built in Provo.")}
       <!-- Every section here sits below the hero, so none of them competes with it for
@@ -59,10 +114,10 @@ const homePage = () => {
       <div class="split__body">${sectionHeading("CONCEPTS", "Design studies")}<p>Nine Vanderhall concept vehicles. They are not offered for sale.</p><div class="cluster">${buttonLink("View concepts", "/concepts/", "secondary")}</div></div>
       <a class="split__media" href="/concepts/"><img src="${indio.hero.src}" srcset="${indio.hero.srcset}" width="${sizeOf(indio.hero.src).width}" height="${sizeOf(indio.hero.src).height}" sizes="(min-width: 768px) 45vw, 92vw" alt="${indio.hero.alt}" loading="lazy" decoding="async"></a>
     </section>
-    <section class="section row-links">
-      <div><h2>Owner resources</h2><p>Vanderhall owner's manuals by model and year.</p>${textLink("View owner resources", "/owners/")}</div>
-      <div><h2>Talk with Vanderhall</h2><p>Tell Vanderhall where you are and which vehicle interests you.</p>${textLink("Request info", "/dealers/")}</div>
-    </section>
+    <section class="section">${pathways([
+      { title: "Owner resources", body: "Vanderhall owner's manuals by model and year.", label: "View owner resources", href: "/owners/" },
+      { title: "Talk with Vanderhall", body: "Tell Vanderhall where you are and which vehicle interests you.", label: "Request info", href: "/dealers/" },
+    ])}</section>
   </div>`;
   return shell({ title: "Home", description: "Vanderhall Motor Works builds three-wheel gas roadsters and electric vehicles in Provo, Utah.", path: "/", body });
 };
@@ -109,26 +164,26 @@ const conceptPage = (concept) => {
 
 const dealersPage = () => {
   const body = `<div class="page">
-    ${pageHeader("DEALERS", "Find your dealer.", "Vanderhall vehicles are sold through a dealer network. Tell Vanderhall where you are and which vehicle interests you, and someone will connect you with a dealer.")}
-    <section class="section--tight narrow" id="request-info">
+    ${pageHeader("DEALERS", "Find your dealer.", "Vanderhall vehicles are sold through a dealer network. Tell Vanderhall where you are and which vehicle interests you, and someone will connect you with a dealer.", "form-shell")}
+    <section class="section--tight form-shell" id="request-info">
       <h2 class="form-heading">Request information</h2>
       ${leadForm()}
     </section>
-    <section class="section--tight row-links">
-      <div><h2>Know a dealer</h2><p>Recommend a dealer in your area for the Vanderhall network.</p>${textLink("Recommend a dealer", "/recommend-dealer/")}</div>
-      <div><h2>Selling Vanderhall</h2><p>Inquire about becoming an international Vanderhall dealer.</p>${textLink("Become a dealer", "/dealer-inquiry/")}</div>
-    </section>
+    <section class="section--tight">${pathways([
+      { title: "Know a dealer", body: "Recommend a dealer in your area for the Vanderhall network.", label: "Recommend a dealer", href: "/recommend-dealer/" },
+      { title: "Selling Vanderhall", body: "Inquire about becoming an international Vanderhall dealer.", label: "Become a dealer", href: "/dealer-inquiry/" },
+    ])}</section>
   </div>`;
   return shell({ title: "Dealers", description: "Request information from Vanderhall, recommend a dealer, or apply to become one.", path: "/dealers", body });
 };
 
 const recommendDealerPage = () => {
-  const body = `<div class="page">${pageHeader("DEALER NETWORK", "Recommend a dealer", "Share a dealer candidate with Vanderhall.")}<section class="section--tight form-shell">${recommendDealerForm()}</section></div>`;
+  const body = `<div class="page">${pageHeader("DEALER NETWORK", "Recommend a dealer", "Share a dealer candidate with Vanderhall.", "form-shell")}<section class="section--tight form-shell">${recommendDealerForm()}</section></div>`;
   return shell({ title: "Recommend a dealer", description: "Recommend a local dealer to Vanderhall.", path: "/recommend-dealer", body });
 };
 
 const dealerInquiryPage = () => {
-  const body = `<div class="page">${pageHeader("INTERNATIONAL DEALERS", "Become a dealer", "Complete every section to prepare an international dealer inquiry.")}<section class="section--tight form-shell">${internationalDealerForm()}</section></div>`;
+  const body = `<div class="page">${pageHeader("INTERNATIONAL DEALERS", "Become a dealer", "Complete every section to prepare an international dealer inquiry.", "form-shell")}<section class="section--tight form-shell">${internationalDealerForm()}</section></div>`;
   return shell({ title: "Become a dealer", description: "International Vanderhall dealer inquiry.", path: "/dealer-inquiry", body });
 };
 
@@ -181,6 +236,7 @@ const routes = [
   "",
   "vehicles",
   ...models.map((model) => model.slug),
+  "brawley/gts",
   "concepts",
   ...concepts.map((concept) => `concepts/${concept.slug}`),
   "owners",
@@ -201,6 +257,7 @@ const pages = new Map([
   ["404/index.html", notFoundPage()],
   ["404.html", notFoundPage()],
   ...models.map((model) => [`${model.slug}/index.html`, modelPage(model)]),
+  ["brawley/gts/index.html", brawleyGtsPage(modelBySlug.brawley)],
 ]);
 
 for (const [relativePath, html] of pages) {

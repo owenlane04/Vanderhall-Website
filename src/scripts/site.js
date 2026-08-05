@@ -76,6 +76,147 @@ document.querySelectorAll("[data-spec-table]").forEach((table) => {
   }));
 });
 
+// Studio walkaround. Restored from V3, with the idle preload of every colour dropped: it pulled
+// several megabytes nobody had asked for. Frame URLs are read from the swatches rather than built
+// from a template, so the HTML is the one source for both this island and the build's check that
+// no delivered frame goes unreferenced.
+document.querySelectorAll("[data-walkaround]").forEach((viewer) => {
+  const stage = viewer.querySelector("[data-walkaround-stage]");
+  const frames = [...viewer.querySelectorAll(".walkaround__frame")];
+  const dots = [...viewer.querySelectorAll(".walkaround__dots span")];
+  const hint = viewer.querySelector("[data-walkaround-hint]");
+  const live = viewer.querySelector("[data-walkaround-live]");
+  const captionName = viewer.querySelector("[data-paint-name]");
+  const captionTier = viewer.querySelector("[data-paint-tier]");
+  const swatches = [...viewer.querySelectorAll(".swatch")];
+  const controls = viewer.querySelector("[data-walkaround-controls]");
+  const phrases = frames.map((frame) => frame.dataset.angle.replaceAll("-", " "));
+  const state = { angle: 0, lastFullAngle: 0, paint: swatches.find((swatch) => swatch.classList.contains("is-selected")) };
+
+  // The controls ship hidden and the swatches disabled, so a page without JavaScript shows a real
+  // photograph rather than dead controls. Both are enabled only once this island is running.
+  controls.hidden = false;
+  swatches.forEach((swatch) => swatch.removeAttribute("disabled"));
+  stage.dataset.ready = "true";
+  viewer.dataset.ready = "true";
+
+  const complete = () => state.paint.dataset.complete === "true";
+  const announce = () => {
+    const name = state.paint.dataset.paintName;
+    if (live) live.textContent = complete() ? `${name}, angle ${state.angle + 1} of ${frames.length}.` : `${name}, still image.`;
+  };
+
+  const render = () => {
+    frames.forEach((frame, index) => {
+      const active = index === state.angle;
+      frame.classList.toggle("is-active", active);
+      if (active) {
+        frame.removeAttribute("aria-hidden");
+        frame.alt = `Brawley GTS in ${state.paint.dataset.paintName}, ${phrases[index]}`;
+      } else {
+        frame.setAttribute("aria-hidden", "true");
+        frame.alt = "";
+      }
+    });
+    dots.forEach((dot, index) => dot.classList.toggle("is-active", index === state.angle));
+    stage.setAttribute("aria-label", complete()
+      ? `Brawley GTS 360 viewer, ${state.paint.dataset.paintName}, angle ${state.angle + 1} of ${frames.length}`
+      : `Brawley GTS, ${state.paint.dataset.paintName}, still image`);
+    announce();
+  };
+
+  const step = (direction) => {
+    if (!complete()) return;
+    state.angle = (state.angle + direction + frames.length) % frames.length;
+    state.lastFullAngle = state.angle;
+    hint?.classList.add("is-used");
+    render();
+  };
+
+  viewer.querySelector("[data-walkaround-prev]").addEventListener("click", () => step(-1));
+  viewer.querySelector("[data-walkaround-next]").addEventListener("click", () => step(1));
+  stage.addEventListener("keydown", (event) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    step(event.key === "ArrowRight" ? 1 : -1);
+  });
+
+  // Pointer capture, so the gesture survives leaving the stage. The threshold scales with the
+  // stage, which keeps a full-width drag at a little over one rotation at any size.
+  let origin = null;
+  stage.addEventListener("pointerdown", (event) => {
+    origin = event.clientX;
+    stage.setPointerCapture(event.pointerId);
+    stage.classList.add("is-dragging");
+  });
+  stage.addEventListener("pointermove", (event) => {
+    if (origin === null || !complete()) return;
+    const threshold = Math.min(120, Math.max(32, stage.clientWidth / 10));
+    const distance = event.clientX - origin;
+    if (Math.abs(distance) < threshold) return;
+    step(distance < 0 ? 1 : -1);
+    origin = event.clientX;
+  });
+  const endDrag = () => { origin = null; stage.classList.remove("is-dragging"); };
+  stage.addEventListener("pointerup", endDrag);
+  stage.addEventListener("pointercancel", endDrag);
+
+  const framesOf = (swatch) => (swatch.dataset.frames || swatch.dataset.still || "")
+    .split(",")
+    .map((entry) => entry.trim())
+    .reduce((sets, entry, index) => {
+      const slot = Math.floor(index / 2);
+      sets[slot] = sets[slot] ? `${sets[slot]}, ${entry}` : entry;
+      return sets;
+    }, []);
+
+  const select = (swatch) => {
+    const sets = framesOf(swatch);
+    state.paint = swatch;
+    viewer.dataset.paint = swatch.dataset.paint;
+    swatches.forEach((item) => {
+      const selected = item === swatch;
+      item.classList.toggle("is-selected", selected);
+      item.setAttribute("aria-checked", String(selected));
+      item.tabIndex = selected ? 0 : -1;
+    });
+    captionName.textContent = swatch.dataset.paintName;
+    captionTier.textContent = `${swatch.dataset.tierLabel} paint, ${swatch.dataset.tierPrice}`;
+    if (swatch.dataset.complete === "true") {
+      // The angle is kept across a colour change, so choosing paint does not throw away the view
+      // the visitor had chosen.
+      state.angle = state.lastFullAngle;
+      frames.forEach((frame, index) => {
+        frame.srcset = sets[index];
+        frame.src = sets[index].split(",").at(-1).trim().split(/\s+/)[0];
+      });
+    } else {
+      state.angle = 0;
+      frames[0].srcset = sets[0];
+      frames[0].src = sets[0].split(",").at(-1).trim().split(/\s+/)[0];
+    }
+    render();
+  };
+
+  swatches.forEach((swatch, index) => {
+    swatch.addEventListener("click", () => select(swatch));
+    // Warming the frames on intent means a deliberate choice usually has its images already
+    // decoded, without fetching all nine colours up front.
+    const warm = () => framesOf(swatch).forEach((set) => { const image = new Image(); image.srcset = set; });
+    swatch.addEventListener("pointerenter", warm, { once: true });
+    swatch.addEventListener("focus", warm, { once: true });
+    swatch.addEventListener("keydown", (event) => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      const next = event.key === "Home" ? 0
+        : event.key === "End" ? swatches.length - 1
+        : (index + (event.key === "ArrowRight" ? 1 : -1) + swatches.length) % swatches.length;
+      swatches[next].focus();
+      select(swatches[next]);
+    });
+  });
+});
+
 const setError = (control, message) => {
   control.setAttribute("aria-invalid", "true");
   const error = control.closest(".field, .field-group")?.querySelector(".field__error");

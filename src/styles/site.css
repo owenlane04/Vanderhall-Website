@@ -197,6 +197,7 @@ p { color: var(--text-secondary); }
 .page-header { display: flex; flex-direction: column; gap: var(--s-4); padding-block: var(--sf-l) var(--sf-m); }
 .page-header h1 { max-width: var(--w-narrow); }
 .page-header > p { max-width: var(--w-text); font-size: var(--fs-body-lg); }
+.page-header.form-shell { padding-bottom: var(--sf-s); }
 .section-heading { display: flex; flex-direction: column; gap: var(--s-3); margin-bottom: var(--sf-m); }
 .section-heading p { max-width: var(--w-text); }
 
@@ -223,7 +224,8 @@ p { color: var(--text-secondary); }
    heading size its level would otherwise imply. */
 .vehicle-section__body :is(h2, h3) { font-size: var(--fs-display-m); line-height: var(--lh-heading); letter-spacing: var(--ls-display); }
 .vehicle-section__media { display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; }
-.vehicle-section__lead, .vehicle-section__support { overflow: hidden; border-radius: var(--r-2); background: var(--surface-1); }
+/* Both frames are links to the model page, so they are blocks rather than inline anchors. */
+.vehicle-section__lead, .vehicle-section__support { display: block; overflow: hidden; border-radius: var(--r-2); background: var(--surface-1); }
 .vehicle-section__lead { aspect-ratio: var(--ar-feature); }
 .vehicle-section__row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-3); }
 .vehicle-section__support { aspect-ratio: var(--ar-feature); }
@@ -269,12 +271,21 @@ p { color: var(--text-secondary); }
 .split__body .section-heading { margin-bottom: 0; }
 .split__media { display: block; aspect-ratio: var(--ar-cutout); overflow: hidden; border-radius: var(--r-2); }
 .split__media img { width: 100%; height: 100%; object-fit: cover; }
-.row-links { display: grid; grid-template-columns: 1fr; gap: var(--sf-m); border-top: var(--hairline) solid var(--line); }
-.row-links > div { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-3); }
-.row-links h2 { font-size: var(--fs-display-s); }
+/* Pathway cards. The V5 treatment was a bare heading, a line, and a link under a hairline, which
+   carried four destinations of different weight in the same weightless way. A bordered card gives
+   each one edges and makes the whole card the target. */
+.pathways { display: grid; grid-template-columns: 1fr; gap: var(--card-gap); }
+.pathway { position: relative; display: flex; min-width: 0; flex-direction: column; gap: var(--s-3); border: var(--hairline) solid var(--line); border-radius: var(--r-2); padding: var(--card-pad); background: var(--paper); transition: border-color var(--dur-2) var(--ease-std), background var(--dur-2) var(--ease-std); }
+.pathway__title { font-size: var(--fs-display-s); }
+.pathway__link { text-decoration: none; }
+.pathway__link::after { content: ""; position: absolute; inset: 0; }
+.pathway p { flex: 1; max-width: var(--w-text); }
+.pathway__cue { color: var(--text-primary); font-size: var(--fs-body-sm); font-weight: var(--wt-medium); }
+.pathway__cue span { display: inline-block; transition: transform var(--dur-2) var(--ease-out); }
 
-/* Specifications */
-.spec-table { display: flex; max-width: var(--w-narrow); flex-direction: column; gap: var(--sf-s); }
+/* Specifications. The width constraint lives on the .narrow section only: declaring it twice
+   meant a change to one silently failed to move the other. */
+.spec-table { display: flex; flex-direction: column; gap: var(--sf-s); }
 .spec-toolbar { display: flex; justify-content: flex-end; border-bottom: var(--hairline) solid var(--line); padding-bottom: var(--s-3); }
 .unit-toggle { display: flex; gap: var(--s-1); border: var(--hairline) solid var(--line-strong); border-radius: var(--r-pill); padding: var(--s-1); }
 .unit-toggle label { position: relative; display: inline-flex; min-height: var(--hit-target); align-items: center; border-radius: var(--r-pill); padding-inline: var(--s-3); font-size: var(--fs-caption); font-weight: var(--wt-medium); text-transform: uppercase; cursor: pointer; }
@@ -289,9 +300,9 @@ p { color: var(--text-secondary); }
 .spec-row > span { color: var(--text-secondary); }
 .spec-row strong { font-weight: var(--wt-medium); font-variant-numeric: tabular-nums; }
 
-/* Forms */
-.form-shell { max-width: var(--w-form); }
-.lead-form { display: flex; width: min(100%, var(--w-form)); flex-direction: column; gap: var(--form-gap); }
+/* Forms. Centred in their column for the same reason the specification band is. */
+.form-shell { width: min(100%, var(--w-form)); margin-inline: auto; }
+.lead-form { display: flex; width: min(100%, var(--w-form)); flex-direction: column; gap: var(--form-gap); margin-inline: auto; }
 .form-grid { display: grid; grid-template-columns: 1fr; gap: var(--form-gap) var(--s-4); }
 .field, .field-group { display: flex; min-width: 0; flex-direction: column; gap: var(--s-2); }
 .field label, .field-group legend { color: var(--text-primary); font-size: var(--fs-body-sm); font-weight: var(--wt-medium); }
@@ -322,6 +333,73 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 .input-suffix input { grid-area: 1 / 1 / 2 / 3; padding-right: var(--s-10); }
 .input-suffix span { z-index: 1; grid-area: 1 / 2; padding-right: var(--s-3); color: var(--text-tertiary); font-size: var(--fs-caption); }
 .form-submit-row { display: flex; flex-direction: column; align-items: flex-start; }
+
+/* Brawley GTS purchase page */
+.gts-open { display: flex; flex-direction: column; gap: var(--sf-s); }
+.gts-open__row { display: flex; flex-direction: column; gap: var(--sf-s); }
+.gts-open__intro { display: flex; flex-direction: column; gap: var(--s-4); }
+.gts-open__descriptor { max-width: var(--w-text); font-size: var(--fs-body-lg); }
+
+/* One component, one string, always visible: never a tooltip, never behind a hover. */
+.price { display: flex; flex-direction: column; gap: var(--s-1); }
+.price__label { color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); line-height: var(--lh-caps); text-transform: uppercase; }
+.price__value { color: var(--text-primary); font-size: var(--fs-display-s); font-weight: var(--wt-medium); font-variant-numeric: tabular-nums; line-height: var(--lh-heading); }
+.price__mark { color: var(--text-tertiary); font-size: var(--fs-caption); }
+.price__delivery { color: var(--text-secondary); font-size: var(--fs-body-sm); }
+.price__disclaimer { max-width: 48ch; color: var(--text-tertiary); font-size: var(--fs-caption); }
+
+/* The walkaround. The stage is a white plate in both themes, because the frames are studio shots
+   on white and anything else would show as a rectangle behind the vehicle. */
+.walkaround { display: flex; flex-direction: column; gap: var(--s-5); }
+.walkaround__stage { position: relative; overflow: hidden; border: var(--hairline) solid var(--line); border-radius: var(--r-2); background: var(--pure-white); touch-action: pan-y; }
+.walkaround__stage[data-ready] { cursor: grab; }
+.walkaround__stage.is-dragging { cursor: grabbing; }
+.walkaround__frame { width: 100%; height: auto; }
+/* The first frame stays in flow and sizes the stage. The rest overlay it from the top left rather
+   than stretching to inset: 0, so none of them can be distorted by the stage box. */
+.walkaround__frame:not(:first-of-type) { position: absolute; top: 0; left: 0; opacity: 0; transition: opacity var(--dur-2) var(--ease-std); }
+.walkaround__frame:not(:first-of-type).is-active { opacity: 1; }
+.walkaround__frame:first-of-type { transition: opacity var(--dur-2) var(--ease-std); }
+.walkaround__frame:first-of-type:not(.is-active) { opacity: 0; }
+/* Below the stage rather than on it. Inside the frame it landed over the wheels on a phone, where
+   the studio white leaves almost no clear ground. */
+.walkaround__hint { color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); text-align: center; text-transform: uppercase; transition: opacity var(--dur-3) var(--ease-std); }
+.walkaround__hint.is-used { opacity: 0; }
+.walkaround__controls { display: flex; align-items: center; justify-content: center; gap: var(--s-5); }
+.walkaround__dots { display: flex; align-items: center; gap: var(--s-2); }
+.walkaround__dots span { width: var(--s-2); height: var(--s-2); border-radius: var(--r-pill); background: var(--ink-24); transition: background var(--dur-1) var(--ease-std); }
+.walkaround__dots span.is-active { background: var(--accent); }
+.walkaround__caption { display: flex; flex-direction: column; gap: var(--s-1); text-align: center; }
+.walkaround__caption strong { color: var(--text-primary); font-size: var(--fs-title); font-weight: var(--wt-medium); }
+.walkaround__caption span { color: var(--text-tertiary); font-size: var(--fs-caption); font-variant-numeric: tabular-nums; }
+/* The partial-set note is only true of one colour, so once the island is running it appears when
+   that colour is chosen rather than standing on the page apologising in advance. Without
+   JavaScript there is no selection to react to, so it stays visible and stays honest. */
+.walkaround__note { color: var(--text-tertiary); font-size: var(--fs-caption); text-align: center; }
+.walkaround[data-ready] .walkaround__note { display: none; }
+.walkaround[data-ready][data-paint="jean-grey"] .walkaround__note { display: block; }
+
+.swatch-tiers { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: center; gap: var(--s-5) var(--sf-m); }
+.swatch-tier { display: flex; flex-direction: column; align-items: center; gap: var(--s-3); }
+.swatch-tier__label { color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); line-height: var(--lh-caps); text-transform: uppercase; font-variant-numeric: tabular-nums; }
+.swatches { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--s-2); }
+.swatch { display: grid; width: var(--hit-target); height: var(--hit-target); place-items: center; border: 0; border-radius: var(--r-pill); padding: 0; background: transparent; }
+.swatch:not([disabled]) { cursor: pointer; }
+.swatch > span { width: var(--s-6); height: var(--s-6); border-radius: var(--r-pill); background: var(--swatch-color); box-shadow: inset 0 0 0 var(--hairline) var(--ink-24); transition: transform var(--dur-2) var(--ease-out); }
+.swatch.is-selected > span { outline: var(--focus-w) solid var(--ink); outline-offset: var(--s-1); }
+
+.gts-figures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sf-s); border-block: var(--hairline) solid var(--line); padding-block: var(--sf-s); }
+.gts-figure { display: flex; min-width: 0; flex-direction: column; gap: var(--s-1); }
+.gts-figure__value { font-size: var(--fs-display-s); font-weight: var(--wt-medium); font-variant-numeric: tabular-nums; line-height: var(--lh-heading); }
+.gts-figure__label { color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); line-height: var(--lh-caps); text-transform: uppercase; }
+.gts-note { max-width: var(--w-text); margin-top: var(--s-4); color: var(--text-tertiary); font-size: var(--fs-caption); }
+
+.gts-scene { margin: 0; }
+.gts-scene img { width: 100%; height: auto; border-radius: var(--r-2); }
+.gts-scene figcaption { margin-top: var(--s-3); color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); text-transform: uppercase; }
+
+.disclosures { display: flex; flex-direction: column; gap: var(--s-4); border-top: var(--hairline) solid var(--line); padding-top: var(--sf-s); }
+.disclosures p { max-width: var(--w-text); color: var(--text-tertiary); font-size: var(--fs-caption); }
 
 /* Concept detail */
 .concept-header .wordmark { align-self: flex-start; }
@@ -383,9 +461,12 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
   .hero--content-end .hero__content { align-items: flex-end; }
   .hero--content-end .hero__content > * { width: min(100%, 34rem); text-align: left; }
   .form-grid--pairs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .spec-row { grid-template-columns: 40% 60%; gap: var(--s-4); }
+  /* Fractions, not percentages: 40% + 60% + a gap totals more than the row, so every row
+     overflowed its own bottom border by one gap and the values started a gap late. */
+  .spec-row { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: var(--s-4); }
   .split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sf-l); }
-  .row-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pathways { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gts-figures { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-5); }
   .footer-links { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .vehicle-section { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sf-l); }
   .vehicle-section--reverse .vehicle-section__media { grid-area: 1 / 2; }
@@ -398,10 +479,26 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
   .desktop-theme { display: inline-flex; }
   .menu-button { display: none; }
   .card-grid--concepts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .row-links--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .photo-module { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: var(--sf-m); }
   .photo-module--reverse .photo-module__media { grid-area: 1 / 2; }
   .photo-module--reverse .photo-module__body { grid-area: 1 / 1; }
+  /* The name and the price sit on one line, the price against the right edge, so the two things a
+     visitor came for are the first two things they read. */
+  .gts-open__row { flex-direction: row; align-items: flex-end; justify-content: space-between; gap: var(--sf-m); }
+  .gts-open__row .price { align-items: flex-end; text-align: right; }
+}
+
+/* Hover response. Gated on a fine pointer with real hover, so a phone never holds a hover state
+   after a tap. Every transform matches the scale the concept cards already use. */
+@media (hover: hover) and (pointer: fine) {
+  .vehicle-section__lead img,
+  .vehicle-section__support img { transition: transform var(--dur-4) var(--ease-out); }
+  .vehicle-section__lead:hover img,
+  .vehicle-section__support:hover img { transform: scale(1.03); }
+  .pathway:hover { border-color: var(--ink-24); background: var(--surface-1); }
+  .pathway:hover .pathway__title { text-decoration: underline; text-underline-offset: var(--s-2); }
+  .pathway:hover .pathway__cue span { transform: translateX(var(--s-1)); }
+  .swatch:not([disabled]):hover > span { transform: scale(1.12); }
 }
 
 /* Scroll motion. Driven entirely by CSS scroll-progress timelines, so there is still no
@@ -418,10 +515,14 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
     .vehicle-section,
     .photo-module,
     .card-grid--concepts .card,
+    .pathways .pathway,
     .split__media,
     .split__body,
     .section-heading,
     .spec-table,
+    .gts-figures,
+    .gts-scene,
+    .disclosures,
     .resource-group {
       animation: rise-in var(--ease-out) both;
       animation-timeline: view();
@@ -429,9 +530,18 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
     }
 
     /* Rows of cards enter together, so a small stagger across the row keeps it from reading
-       as one block snapping into place. */
+       as one block snapping into place. The supporting frames and the pathway pair get the same
+       treatment, for the same reason. */
     .card-grid--concepts .card:nth-child(3n + 2) { animation-range: entry 6% entry 61%; }
     .card-grid--concepts .card:nth-child(3n) { animation-range: entry 12% entry 67%; }
+    .pathways .pathway:nth-child(2n) { animation-range: entry 8% entry 63%; }
+
+    .vehicle-section__row .vehicle-section__support {
+      animation: rise-in var(--ease-out) both;
+      animation-timeline: view();
+      animation-range: entry 4% entry 59%;
+    }
+    .vehicle-section__row .vehicle-section__support:nth-child(2) { animation-range: entry 12% entry 67%; }
 
     /* The photograph drifts against the scroll. Held to a few percent, and pre-scaled so the
        frame stays covered at the extremes. */
@@ -450,7 +560,11 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: var(--dur-1) !important; transition-duration: var(--dur-1) !important; }
-  .card:hover .card__media img { transform: none; }
+  .card:hover .card__media img,
+  .vehicle-section__lead:hover img,
+  .vehicle-section__support:hover img,
+  .swatch:hover > span,
+  .pathway:hover .pathway__cue span { transform: none; }
   /* Scroll-driven animations advance with scroll position rather than time, so clearing the
      duration is not enough: the timeline itself has to go. */
   *, *::before, *::after { animation-timeline: auto !important; animation-name: none !important; }

@@ -26,7 +26,16 @@ body {
 .page > * { grid-column: content; }
 .page > .bleed { grid-column: full; }
 
-.narrow { max-width: var(--w-narrow); }
+/* A definite width rather than a max-width, because auto margins on a grid item turn off stretch
+   and the box collapses to its own max-content. That is what shrank the centred form to 409px. */
+.narrow { width: min(100%, var(--w-narrow)); }
+
+/* Centring is applied deliberately rather than to every narrow block. A max-width alone left an
+   800px band flush left in a 1200px column, which is what made the specification figures read as
+   pushed to one side. But a model page's opening line belongs on the same left edge as the
+   headings and photographs around it: centred, it floats. So the tables, the order block, and the
+   forms centre, and running copy stays where its neighbours are. Text inside stays left aligned. */
+.centered { margin-inline: auto; }
 
 .section { padding-block: var(--sf-l); }
 .section--tight { padding-block: var(--sf-m); }

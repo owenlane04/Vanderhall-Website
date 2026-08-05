@@ -38,8 +38,8 @@
   </div>
   <div class="sheet-backdrop" data-sheet-backdrop hidden></div>
   <main id="main"><div class="page">
-    <header class="page-header"><p class="eyebrow">DEALERS</p><h1>Find your dealer.</h1><p>Vanderhall vehicles are sold through a dealer network. Tell Vanderhall where you are and which vehicle interests you, and someone will connect you with a dealer.</p></header>
-    <section class="section--tight narrow" id="request-info">
+    <header class="page-header form-shell"><p class="eyebrow">DEALERS</p><h1>Find your dealer.</h1><p>Vanderhall vehicles are sold through a dealer network. Tell Vanderhall where you are and which vehicle interests you, and someone will connect you with a dealer.</p></header>
+    <section class="section--tight form-shell" id="request-info">
       <h2 class="form-heading">Request information</h2>
       <form class="lead-form" id="contact-lead" novalidate data-site-form data-form-id="request-info" data-endpoint="">
   <p class="form-key">Fields marked * are required.</p>
@@ -51,7 +51,7 @@
     <div class="field"><label for="contact-lead-email">Email<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="contact-lead-email" name="email" type="email" autocomplete="email" inputmode="email" required aria-required="true"><span class="field__error" id="contact-lead-email-error"></span></div>
     <div class="field"><label for="contact-lead-phone">Phone</label><input id="contact-lead-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel"><span class="field__error" id="contact-lead-phone-error"></span></div>
     <div class="field"><label for="contact-lead-zip">ZIP<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="contact-lead-zip" name="zip" autocomplete="postal-code" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" required aria-required="true"><span class="field__error" id="contact-lead-zip-error"></span></div>
-    <fieldset class="field-group"><legend>I'm interested in</legend><div class="checkbox-grid"><label class="check"><input type="checkbox" name="interest" value="venice"> <span>Venice</span></label><label class="check"><input type="checkbox" name="interest" value="carmel"> <span>Carmel</span></label><label class="check"><input type="checkbox" name="interest" value="santarosa"> <span>Santarosa</span></label><label class="check"><input type="checkbox" name="interest" value="brawley"> <span>Brawley</span></label><label class="check"><input type="checkbox" name="interest" value="concepts"> <span>Concepts</span></label><label class="check"><input type="checkbox" name="interest" value="not-sure-yet"> <span>Not sure yet</span></label></div></fieldset>
+    <fieldset class="field-group"><legend>I'm interested in</legend><div class="checkbox-grid"><label class="check"><input type="checkbox" name="interest" value="brawley"> <span>Brawley</span></label><label class="check"><input type="checkbox" name="interest" value="santarosa"> <span>Santarosa</span></label><label class="check"><input type="checkbox" name="interest" value="carmel"> <span>Carmel</span></label><label class="check"><input type="checkbox" name="interest" value="venice"> <span>Venice</span></label><label class="check"><input type="checkbox" name="interest" value="concepts"> <span>Concepts</span></label><label class="check"><input type="checkbox" name="interest" value="not-sure-yet"> <span>Not sure yet</span></label></div></fieldset>
     <div class="field"><label for="contact-lead-timeframe">Timeframe</label><select id="contact-lead-timeframe" name="timeframe"><option value="">Select a timeframe</option><option>Ready now</option><option>1 to 3 months</option><option>3 to 6 months</option><option>Just looking</option></select><span class="field__error" id="contact-lead-timeframe-error"></span></div>
     <div class="field"><label for="contact-lead-message">Message</label><textarea id="contact-lead-message" name="message" rows="4"></textarea><span class="field__error" id="contact-lead-message-error"></span></div>
     
@@ -64,14 +64,19 @@
   <p class="form-note">This form is not connected yet, so nothing you enter here is sent.</p>
   </form>
     </section>
-    <section class="section--tight row-links">
-      <div><h2>Know a dealer</h2><p>Recommend a dealer in your area for the Vanderhall network.</p><a class="text-link" href="/recommend-dealer/">Recommend a dealer<span aria-hidden="true"> →</span></a></div>
-      <div><h2>Selling Vanderhall</h2><p>Inquire about becoming an international Vanderhall dealer.</p><a class="text-link" href="/dealer-inquiry/">Become a dealer<span aria-hidden="true"> →</span></a></div>
-    </section>
+    <section class="section--tight"><div class="pathways"><div class="pathway">
+      <h2 class="pathway__title"><a class="pathway__link" href="/recommend-dealer/">Know a dealer</a></h2>
+      <p>Recommend a dealer in your area for the Vanderhall network.</p>
+      <span class="pathway__cue">Recommend a dealer<span aria-hidden="true"> →</span></span>
+    </div><div class="pathway">
+      <h2 class="pathway__title"><a class="pathway__link" href="/dealer-inquiry/">Selling Vanderhall</a></h2>
+      <p>Inquire about becoming an international Vanderhall dealer.</p>
+      <span class="pathway__cue">Become a dealer<span aria-hidden="true"> →</span></span>
+    </div></div></section>
   </div></main>
   <footer class="site-footer">
   <div class="footer-links">
-    <div><h2>Vehicles</h2><a href="/venice/">Venice</a><a href="/carmel/">Carmel</a><a href="/santarosa/">Santarosa</a><a href="/brawley/">Brawley</a><a href="/concepts/">Concepts</a></div>
+    <div><h2>Vehicles</h2><a href="/brawley/">Brawley</a><a href="/santarosa/">Santarosa</a><a href="/carmel/">Carmel</a><a href="/venice/">Venice</a><a href="/concepts/">Concepts</a></div>
     <div><h2>Owners</h2><a href="/owners/">Owner resources</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a></div>
     <div><h2>Connect</h2><a href="/dealers/">Dealers</a><a href="/recommend-dealer/">Recommend a dealer</a><a href="/dealer-inquiry/">Become a dealer</a></div>
   </div>

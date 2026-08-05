@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
@@ -121,7 +121,7 @@ for (const [group, name, slug, focal] of heroes) {
   for (const width of [960, 1280, 1920, 2560].filter((value) => value <= metadata.width)) {
     await crop(input, `heroes/${slug}`, `${slug}-wide`, width, Math.round(width * 9 / 21), { transform: `21:9 hero, focal ${focal}` });
   }
-  for (const width of [480, 720, 960].filter((value) => value <= metadata.width)) {
+  for (const width of [480, 720, 800, 960].filter((value) => value <= metadata.width)) {
     await crop(input, `heroes/${slug}`, `${slug}-tall`, width, Math.round(width * 5 / 4), { transform: `4:5 mobile hero, focal ${focal}` });
   }
 }
@@ -156,7 +156,9 @@ const featureSpecs = {
 for (const [slug, entries] of Object.entries(featureSpecs)) {
   const group = slug[0].toUpperCase() + slug.slice(1);
   for (const [name, delivered, extract] of entries) {
-    for (const width of [640, 960, 1280]) {
+    // An 800 rung sits between 640 and 960 because the jump was making a mid-density phone
+     // fetch 960 for a slot that needed about 700. Same WebP q80, fewer wasted bytes.
+    for (const width of [640, 800, 960, 1280]) {
       const metadata = await sharp(source(group, name)).metadata();
       if (width > metadata.width) continue;
       await crop(source(group, name), `features/${slug}`, delivered, width, Math.round(width * 2 / 3), extract
@@ -178,14 +180,14 @@ const encodeLadder = async (input, directory, base, widths, { extract, trim, tra
 // across the bottom left, so both windows stop above it at y=1480 of 1620.
 const homeCover = resolve(v3Root, "Vehicle Cover Candidates/Brawley/brawley-lakeside.jpg");
 await encodeLadder(homeCover, "heroes/home", "home-wide", [960, 1280, 1920, 2560], { extract: { left: 0, top: 246, width: 2880, height: 1234 }, transform: "21:9 crop x=0..2880 y=246..1480; safety paragraph excluded; focal 50% 50%" });
-await encodeLadder(homeCover, "heroes/home", "home-tall", [480, 720, 960], { extract: { left: 1120, top: 0, width: 1184, height: 1480 }, transform: "4:5 crop x=1120..2304 y=0..1480 centred on the vehicle; safety paragraph excluded" });
+await encodeLadder(homeCover, "heroes/home", "home-tall", [480, 720, 800, 960], { extract: { left: 1120, top: 0, width: 1184, height: 1480 }, transform: "4:5 crop x=1120..2304 y=0..1480 centred on the vehicle; safety paragraph excluded" });
 
 const santarosaCover = resolve(v3Root, "Vehicle Cover Candidates/Santarosa/santarosa-hangar.jpg");
 const brawleyCover = resolve(v3Root, "Vehicle Cover Candidates/Brawley/brawley-desert-three-quarter.jpg");
 await encodeLadder(santarosaCover, "heroes/santarosa", "santarosa-wide", [960, 1280, 1920, 2560], { extract: { left: 0, top: 300, width: 2880, height: 1234 }, transform: "crop x=0..2880 y=300..1534; focal 34% 49%" });
-await encodeLadder(santarosaCover, "heroes/santarosa", "santarosa-tall", [480, 720, 960], { extract: { left: 285, top: 0, width: 1410, height: 1762 }, transform: "crop x=285..1695 y=0..1762; focal 34% 49%" });
+await encodeLadder(santarosaCover, "heroes/santarosa", "santarosa-tall", [480, 720, 800, 960], { extract: { left: 285, top: 0, width: 1410, height: 1762 }, transform: "crop x=285..1695 y=0..1762; focal 34% 49%" });
 await encodeLadder(brawleyCover, "heroes/brawley", "brawley-wide", [960, 1280, 1920, 2560], { extract: { left: 0, top: 180, width: 2880, height: 1234 }, transform: "crop x=0..2880 y=180..1414; watermark excluded; focal 50% 55%" });
-await encodeLadder(brawleyCover, "heroes/brawley", "brawley-tall", [480, 720, 960], { extract: { left: 1170, top: 0, width: 1131, height: 1414 }, transform: "crop x=1170..2301 y=0..1414; front three-quarter detail; focal 50% 55%" });
+await encodeLadder(brawleyCover, "heroes/brawley", "brawley-tall", [480, 720, 800, 960], { extract: { left: 1170, top: 0, width: 1131, height: 1414 }, transform: "crop x=1170..2301 y=0..1414; front three-quarter detail; focal 50% 55%" });
 
 const conceptFile = (folder, filename) => resolve(v3ConceptRoot, folder, filename);
 const conceptLadders = [
@@ -311,7 +313,7 @@ const legacyLifestyle = [
   ["110A3943-HDR.jpg", "juniper"],
 ];
 for (const [filename, slug, extract, note] of legacyLifestyle) {
-  for (const width of [640, 960, 1280]) {
+  for (const width of [640, 800, 960, 1280]) {
     await encode(resolve(assetsRoot, filename), resolve(outputRoot, `brawley/lifestyle/${slug}-${width}.webp`), {
       width,
       height: Math.round(width * 2 / 3),
@@ -320,6 +322,60 @@ for (const [filename, slug, extract, note] of legacyLifestyle) {
     });
   }
 }
+
+// Brawley GTS studio set, for the V6 walkaround viewer. Restored from V3 with three changes.
+// Concrete Grey is dropped, because Vanderhall does not offer it and no reliable mapping exists.
+// Jean Grey carries only four of the eight angles, so it is delivered as one front still and the
+// viewer says so rather than spinning through gaps. And each frame ships at two rungs instead of
+// one: at 1600 alone a phone pulled about 545 KB before it could show a single car.
+//
+// Frames are delivered at the native 16:9 with no crop. Measured across every shipped frame, the
+// union of the vehicles' ink spans x=38..2836 of 2880 and y=75..1497 of 1623, so a tighter
+// uniform window would recover about a tenth of the height, none of the width, and would risk
+// clipping a shadow. A camera that does not move between angles matters more than a tight frame.
+const studioDir = resolve(assetsRoot, "Brawley Icons");
+const studioFiles = (await readdir(studioDir)).filter((name) => name.toLowerCase().endsWith(".jpg")).sort();
+// Needles are matched longest first, so "front" cannot claim a "front-side-driver" file. The
+// source filenames spell one angle "diver"; that typo is normalized here rather than carried.
+const STUDIO_ANGLES = [
+  ["front-side-driver", "front-side-driver"],
+  ["front-side-passenger", "front-side-passenger"],
+  ["side-rear-diver", "side-rear-driver"],
+  ["side-rear-passenger", "side-rear-passenger"],
+  ["side-reverse", "side-reverse"],
+  ["front", "front"],
+  ["rear", "rear"],
+  ["side", "side"],
+];
+const STUDIO_COLORS = [
+  ["Atomic-Green", "atomic-green"],
+  ["Bosco-Blue", "bosco-blue"],
+  ["Emerald-Green", "emerald-green"],
+  ["Ida-Rose", "ida-rose"],
+  ["Ivory-White", "ivory-white"],
+  ["Jean-Grey", "jean-grey"],
+  ["Obsidian-Black", "obsidian-black"],
+  ["Rossa", "rossa"],
+  ["Royal-Blue", "royal-blue"],
+];
+const STUDIO_STILL_ONLY = { "jean-grey": "front" };
+const STUDIO_WIDTHS = [960, 1600];
+const studioWritten = new Set();
+for (const filename of studioFiles) {
+  if (filename.includes("Concrete-Grey")) continue;
+  const color = STUDIO_COLORS.find(([needle]) => filename.includes(needle))?.[1];
+  const angle = STUDIO_ANGLES.find(([needle]) => filename.includes(needle))?.[1];
+  if (!color || !angle) throw new Error(`Could not normalize studio frame ${filename}`);
+  if (STUDIO_STILL_ONLY[color] && STUDIO_STILL_ONLY[color] !== angle) continue;
+  for (const width of STUDIO_WIDTHS) {
+    const output = resolve(outputRoot, `brawley/walkaround/${color}/${angle}-${width}.webp`);
+    // Two sources per slot differ only by a "(1)" suffix, so the first write wins.
+    if (studioWritten.has(output)) continue;
+    studioWritten.add(output);
+    await encode(resolve(studioDir, filename), output, { width, transform: `${width}w studio walkaround frame, ${color} ${angle}; native 16:9, no crop; white studio background` });
+  }
+}
+console.log(`Delivered ${studioWritten.size} walkaround frames.`);
 
 await mkdir(brandRoot, { recursive: true });
 const logoPdf = resolve(assetsRoot, "vanderhall logos/vanderhall logo with symbols.pdf");
