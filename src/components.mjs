@@ -323,7 +323,70 @@ export const footer = () => `<footer class="site-footer">
   </div>
 </footer>`;
 
-export const shell = ({ title, description, path, body }) => `<!doctype html>
+// Structured data. Every value here is already published as visible text on the page that carries
+// it, so the markup can never say something the visitor cannot read for themselves. JSON.stringify
+// escapes the payload, and the one sequence that could still close the script early is neutralised.
+export const jsonLd = (data) => `<script type="application/ld+json">${JSON.stringify(data).replaceAll("</", "<\\/")}</script>`;
+
+const SITE_URL = "https://vanderhall-website.vercel.app";
+
+export const organizationSchema = () => jsonLd({
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": `${SITE_URL}/#organization`,
+      name: "Vanderhall Motor Works",
+      url: `${SITE_URL}/`,
+      logo: `${SITE_URL}/assets/brand/vanderhall-lockup-horizontal.svg`,
+      // Provo and 2010 are the two company facts the site publishes, in the homepage hero.
+      foundingDate: "2010",
+      address: { "@type": "PostalAddress", addressLocality: "Provo", addressRegion: "UT", addressCountry: "US" },
+    },
+    {
+      "@type": "WebSite",
+      "@id": `${SITE_URL}/#website`,
+      url: `${SITE_URL}/`,
+      name: "Vanderhall Motor Works",
+      publisher: { "@id": `${SITE_URL}/#organization` },
+      inLanguage: "en-US",
+    },
+  ],
+});
+
+// The price, the currency, and every figure below are the approved values, and the reservation URL
+// is the same one the page's own buttons use. Availability is InStock because Vanderhall's own page
+// says the vehicle is now delivering; the regional caveat stays in the visible copy.
+export const productSchema = (model) => {
+  const gts = model.gts;
+  const frame = gts.paint.find((option) => option.slug === gts.defaultPaint).frames[0].split(",").at(-1).trim().split(/\s+/)[0];
+  return jsonLd({
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: `Vanderhall ${gts.name}`,
+    sku: "brawley-gts",
+    description: gts.descriptor,
+    url: `${SITE_URL}/brawley/gts/`,
+    image: `${SITE_URL}${frame}`,
+    brand: { "@type": "Brand", name: "Vanderhall Motor Works" },
+    manufacturer: { "@id": `${SITE_URL}/#organization` },
+    offers: {
+      "@type": "Offer",
+      url: gts.reserveUrl,
+      priceCurrency: "USD",
+      price: gts.price.value.replace(/[$,]/g, ""),
+      availability: "https://schema.org/InStock",
+      seller: { "@type": "Organization", name: "Vanderhall Motor Works" },
+    },
+    additionalProperty: gts.figures.map((figure) => ({
+      "@type": "PropertyValue",
+      name: figure.label.charAt(0) + figure.label.slice(1).toLowerCase(),
+      value: figure.imp,
+    })),
+  });
+};
+
+export const shell = ({ title, description, path, body, schema = "" }) => `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -336,7 +399,9 @@ export const shell = ({ title, description, path, body }) => `<!doctype html>
   <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
   <link rel="manifest" href="/site.webmanifest">
   <script>try{const t=localStorage.getItem('vhw.theme');if(t)document.documentElement.dataset.theme=t;const u=localStorage.getItem('vhw.units');if(u==='metric')document.documentElement.classList.add('unit-metric')}catch(e){}</script>
+  <link rel="canonical" href="${SITE_URL}${path === "/" ? "/" : `${path}/`}">
   <link rel="stylesheet" href="/styles/bundle.css">
+  ${schema}
 </head>
 <body>
   ${header(path)}

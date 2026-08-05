@@ -96,7 +96,10 @@ for (const slug of MODEL_SLUGS) {
   const html = pageBySuffix(`/${slug}/index.html`);
   const found = (html.match(/<figure class="photo-module/g) || []).length;
   if (found !== MODULE_COUNTS[slug]) failures.push(`/${slug}/ must present ${MODULE_COUNTS[slug]} photo modules, found ${found}`);
-  if (!html.includes('class="model-bar')) failures.push(`/${slug}/ is missing the sticky model bar`);
+  // The sticky bar is only carried where it offers something the header button does not, which
+  // means Brawley and the purchase page. On the other three it repeated Request info.
+  const wantsBar = slug === "brawley";
+  if (html.includes('class="model-bar') !== wantsBar) failures.push(`/${slug}/ ${wantsBar ? "is missing" : "must not carry"} the sticky model bar`);
   if (!html.includes(`A closer look at ${slug[0].toUpperCase() + slug.slice(1)}.`)) failures.push(`/${slug}/ is missing its in-detail heading`);
   // Every module needs a label and a description, or the scroll is padding rather than content.
   const labels = (html.match(/photo-module__body">\s*<p class="eyebrow">/g) || []).length;
@@ -153,6 +156,7 @@ for (const required of [
 }
 // Brawley is the one model with a page beyond the inquiry form, so its bar and hero point there.
 if (!pageBySuffix("/brawley/index.html").includes('class="model-bar__action" href="/brawley/gts/"')) failures.push("/brawley/ model bar must lead to the purchase page");
+if (!gtsHtml.includes('class="model-bar__action" href="https://dealer.vanderhallusa.com/reserve/index/brawley"')) failures.push("/brawley/gts/ model bar must carry the reservation link");
 if (!pageBySuffix("/brawley/index.html").includes("See more info")) failures.push("/brawley/ must offer See more info rather than Request info");
 for (const slug of ["santarosa", "carmel", "venice"]) {
   if (!pageBySuffix(`/${slug}/index.html`).includes(`href="/dealers/?model=${slug}"`)) failures.push(`/${slug}/ must still lead to the inquiry form`);
@@ -168,6 +172,32 @@ if (!pageBySuffix("/santarosa/index.html").includes("/assets/images/v3/heroes/sa
 if (!pageBySuffix("/brawley/index.html").includes("/assets/images/v3/heroes/brawley/")) failures.push("Brawley is not using the V3 desert hero");
 for (const slug of ["venice", "carmel"]) {
   if (pageBySuffix(`/${slug}/index.html`).includes('id="specifications"')) failures.push(`/${slug}/ must omit specifications while no verified data exists`);
+}
+
+// Structured data is held to the same rule as the visible copy: it may only restate an approved
+// value. A price that drifts between the markup and the page is the failure mode worth catching.
+const schemaOf = (html) => (html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g) || [])
+  .map((block) => JSON.parse(block.replace(/^<script[^>]*>/, "").replace(/<\/script>$/, "").replaceAll("<\\/", "</")));
+const gtsSchemas = schemaOf(gtsHtml);
+if (gtsSchemas.length !== 1) failures.push(`/brawley/gts/ must carry one JSON-LD block, found ${gtsSchemas.length}`);
+else {
+  const product = gtsSchemas[0];
+  if (product["@type"] !== "Product") failures.push("/brawley/gts/ JSON-LD must describe a Product");
+  if (product.offers?.price !== "49950" || product.offers?.priceCurrency !== "USD") failures.push(`/brawley/gts/ JSON-LD price must match the published price, found ${product.offers?.price} ${product.offers?.priceCurrency}`);
+  if (product.offers?.url !== "https://dealer.vanderhallusa.com/reserve/index/brawley") failures.push("/brawley/gts/ JSON-LD offer must point at the reservation system");
+  if (!product.image?.endsWith(".webp")) failures.push("/brawley/gts/ JSON-LD image must be a delivered WebP frame");
+}
+const homeSchemas = schemaOf(homeHtml);
+if (homeSchemas.length !== 1 || !homeSchemas[0]["@graph"]?.some((node) => node["@type"] === "Organization")) failures.push("The homepage must carry one JSON-LD block describing the organization");
+// No other page asserts structured data, so none can drift out of step with its own copy.
+for (const page of builtPages) {
+  const count = schemaOf(page.text).length;
+  const expected = page.path.endsWith("/brawley/gts/index.html") || page.path === resolve(root, "index.html") ? 1 : 0;
+  if (count !== expected) failures.push(`${page.path.replace(root, "")}: expected ${expected} JSON-LD blocks, found ${count}`);
+}
+// Every page states its own canonical, so the trailing-slash routes cannot compete with themselves.
+for (const page of builtPages) {
+  if (!/rel="canonical" href="https:\/\/vanderhall-website\.vercel\.app\//.test(page.text)) failures.push(`${page.path.replace(root, "")}: missing a canonical URL`);
 }
 
 const conceptsHubHtml = pageBySuffix("/concepts/index.html");

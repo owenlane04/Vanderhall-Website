@@ -13,9 +13,11 @@ import {
   leadForm,
   modelBar,
   pageHeader,
+  organizationSchema,
   pathways,
   photoScroll,
   price,
+  productSchema,
   recommendDealerForm,
   sectionHeading,
   shell,
@@ -38,7 +40,10 @@ const modelPage = (model) => {
       <div class="hero__actions">${buttonLink(cta.label, cta.href, "inverse")}${hasSpecs ? '<a class="button button--ghost-inverse" href="#specifications">Specifications</a>' : ""}</div>`;
   const body = `<div class="page">
     ${hero({ src: model.images.hero, srcset: model.images.heroSrcset, tallSrcset: model.images.heroTallSrcset, alt: model.images.heroAlt, focal: model.images.focal, align: model.images.heroAlign, content: heroContent })}
-    ${modelBar(model)}
+    ${/* The sticky bar only earns its space where it offers something the header does not. On the
+          three models whose action is Request info it just repeated the header button, so it is
+          gone. Brawley keeps it, because it points at the purchase page instead. */
+      model.cta ? modelBar(model) : ""}
     <section class="section--tight narrow"><p class="lede">${model.overview}</p></section>
     <section class="section">${sectionHeading("IN DETAIL", `A closer look at ${model.name}.`)}${photoScroll(model.images.modules)}</section>
     ${hasSpecs ? `<section class="section narrow centered" id="specifications">${sectionHeading("SPECIFICATIONS", "Published figures")}${specTable(model)}</section>` : ""}
@@ -93,6 +98,7 @@ const brawleyGtsPage = (model) => {
     description: `${gts.name} pricing and paint colors. ${gts.price.value} MSRP, quad-motor 4WD, 488 lb-ft of torque, and up to 140 mi of range.`,
     path: "/brawley/gts",
     body,
+    schema: productSchema(model),
   });
 };
 
@@ -119,7 +125,7 @@ const homePage = () => {
       { title: "Talk with Vanderhall", body: "Tell Vanderhall where you are and which vehicle interests you.", label: "Request info", href: "/dealers/" },
     ])}</section>
   </div>`;
-  return shell({ title: "Home", description: "Vanderhall Motor Works builds three-wheel gas roadsters and electric vehicles in Provo, Utah.", path: "/", body });
+  return shell({ title: "Home", description: "Vanderhall Motor Works builds three-wheel gas roadsters and electric vehicles in Provo, Utah.", path: "/", body, schema: organizationSchema() });
 };
 
 const vehiclesPage = () => {

@@ -166,19 +166,25 @@ if (sectionShape.focusableMedia !== 0) failures.push(`${sectionShape.focusableMe
 // Model pages: a photo module carries a photograph, a label, and a description, and the sticky
 // bar names the model and offers one action.
 report.interactions.photoScroll = {};
-for (const [route, expected, barAction] of [["/brawley/", 6, "/brawley/gts/"], ["/santarosa/", 5, "/dealers/"], ["/carmel/", 6, "/dealers/"], ["/venice/", 6, "/dealers/"]]) {
+for (const [route, expected, barAction] of [["/brawley/", 6, "/brawley/gts/"], ["/santarosa/", 5, null], ["/carmel/", 6, null], ["/venice/", 6, null]]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   const shape = await page.evaluate(() => ({
     modules: document.querySelectorAll(".photo-module").length,
     withLabel: [...document.querySelectorAll(".photo-module")].filter((node) => node.querySelector(".photo-module__body .eyebrow")?.textContent.trim()).length,
     withDescription: [...document.querySelectorAll(".photo-module")].filter((node) => node.querySelectorAll(".photo-module__body p").length > 1).length,
-    stickyBar: getComputedStyle(document.querySelector(".model-bar")).position,
+    bars: document.querySelectorAll(".model-bar").length,
+    stickyBar: document.querySelector(".model-bar") ? getComputedStyle(document.querySelector(".model-bar")).position : null,
     barAction: document.querySelector(".model-bar__action")?.getAttribute("href"),
     relatedGrids: document.querySelectorAll(".card-grid--related, .card").length,
   }));
   report.interactions.photoScroll[route] = shape;
   if (shape.modules !== expected || shape.withLabel !== expected || shape.withDescription !== expected) failures.push(`Photo scroll failed on ${route}: ${JSON.stringify(shape)}`);
-  if (shape.stickyBar !== "sticky" || !shape.barAction?.startsWith(barAction)) failures.push(`Sticky model bar failed on ${route}: expected ${barAction}, got ${shape.barAction}`);
+  if (barAction === null) {
+    // Removed on the three models where its action just repeated the header button.
+    if (shape.bars !== 0) failures.push(`${route} must not carry the sticky model bar, found ${shape.bars}`);
+  } else if (shape.stickyBar !== "sticky" || !shape.barAction?.startsWith(barAction)) {
+    failures.push(`Sticky model bar failed on ${route}: expected ${barAction}, got ${shape.barAction}`);
+  }
   if (shape.relatedGrids !== 0) failures.push(`${route} still pushes the visitor to other models`);
 }
 
@@ -316,6 +322,32 @@ if (!walk.restoredLive.startsWith("Ivory White, angle 3 of 8")) failures.push(`A
 walk.selectedCount = await page.locator(".swatch.is-selected").count();
 walk.checkedCount = await page.locator('.swatch[aria-checked="true"]').count();
 if (walk.selectedCount !== 1 || walk.checkedCount !== 1) failures.push("Exactly one paint option must be selected at a time");
+
+// Structured data, checked by parsing it rather than by matching strings, and checked against the
+// price the visitor actually reads on the page.
+await page.goto(`${base}/brawley/gts/`, { waitUntil: "networkidle" });
+report.interactions.schema = await page.evaluate(() => {
+  const blocks = [...document.querySelectorAll('script[type="application/ld+json"]')];
+  let parsed = null;
+  try { parsed = JSON.parse(blocks[0].textContent); } catch (error) { return { error: String(error) }; }
+  return {
+    blocks: blocks.length,
+    type: parsed["@type"],
+    price: parsed.offers?.price,
+    currency: parsed.offers?.priceCurrency,
+    offerUrl: parsed.offers?.url,
+    visiblePrice: document.querySelector(".price__value")?.textContent.replace(/[^\d]/g, ""),
+    canonical: document.querySelector('link[rel="canonical"]')?.getAttribute("href"),
+  };
+});
+const schema = report.interactions.schema;
+if (schema.error) failures.push(`Purchase page JSON-LD does not parse: ${schema.error}`);
+else if (schema.blocks !== 1 || schema.type !== "Product" || schema.currency !== "USD") failures.push(`Purchase page JSON-LD is malformed: ${JSON.stringify(schema)}`);
+else if (schema.price !== schema.visiblePrice) failures.push(`JSON-LD price ${schema.price} disagrees with the visible price ${schema.visiblePrice}`);
+else if (!schema.offerUrl?.includes("dealer.vanderhallusa.com")) failures.push("JSON-LD offer must point at the reservation system");
+if (schema.canonical !== `${base}/brawley/gts/`.replace("127.0.0.1:4173", "vanderhall-website.vercel.app").replace("http://", "https://")) {
+  report.interactions.schema.canonicalNote = "canonical is absolute to production, which is correct when verifying locally";
+}
 
 // Screenshots are the human review surface, so reset persisted units and theme first.
 await page.goto(`${base}/`, { waitUntil: "load" });
