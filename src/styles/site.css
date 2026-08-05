@@ -718,7 +718,12 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
     .photo-module,
     .card-grid--concepts .card,
     .concept-figure,
-    .ambient,
+    /* The frame, not the whole block. The block also contains the label and the pause button, and an
+       element part-way through an opacity reveal is measurably low contrast while it is there: at the
+       fold on /brawley/ the caps label and the control were computing to 2.59 against the paper, which
+       cost the route four accessibility points and, more to the point, means a control can be operable
+       while it is hard to read. The media reveals; its controls do not. */
+    .ambient__frame,
     .pathways .pathway,
     .split__media,
     .split__body,

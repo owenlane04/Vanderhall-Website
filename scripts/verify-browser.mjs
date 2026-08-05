@@ -734,6 +734,39 @@ for (const [route, blockSelector, posterSelector] of AMBIENT_PLACEMENTS) {
   // The state at the load event, before site.js has had a chance to run. No video may exist yet.
   const atLoad = videoSourcesOf(requests).length;
   const block = videoPage.locator(blockSelector).first();
+
+  // Measured at scroll zero, before anything is scrolled into view, and only on the two routes that
+  // have a control bar of their own. The block's media is allowed to be part-way through its scroll
+  // reveal here; its label and its pause button are not. An element inside an opacity reveal is
+  // genuinely low contrast while it is there, and a control that is operable while it is hard to read
+  // is the bug: on /brawley/ the caps label and the button computed to 2.59 against the paper and cost
+  // the route four Lighthouse accessibility points. Effective opacity has to be walked up the
+  // ancestors, because the button's own opacity is 1 no matter what its parent is doing.
+  if (blockSelector === ".ambient") {
+    const bar = await block.evaluate((node) => {
+      const effectiveOpacity = (start) => {
+        let value = 1;
+        for (let element = start; element && element !== document.body; element = element.parentElement) {
+          value *= Number(getComputedStyle(element).opacity);
+        }
+        return value;
+      };
+      const toggle = node.querySelector("[data-ambient-toggle]");
+      const eyebrow = node.querySelector(".eyebrow");
+      return {
+        barAnimation: getComputedStyle(node.querySelector(".ambient__bar")).animationName,
+        toggleOpacity: Number(effectiveOpacity(toggle).toFixed(3)),
+        labelOpacity: Number(effectiveOpacity(eyebrow).toFixed(3)),
+        frameAnimation: getComputedStyle(node.querySelector(".ambient__frame")).animationName,
+      };
+    });
+    report.ambient.routes[route] = { bar };
+    if (bar.toggleOpacity < 1 || bar.labelOpacity < 1) failures.push(`${route}: the ambient control and label must be at full opacity before any scroll, found ${JSON.stringify(bar)}`);
+    if (bar.barAnimation !== "none") failures.push(`${route}: the ambient control bar must not animate, found ${bar.barAnimation}`);
+    // The reveal is still expected, just moved onto the media alone rather than removed.
+    if (bar.frameAnimation !== "rise-in") failures.push(`${route}: the ambient media lost its scroll reveal, found ${bar.frameAnimation}`);
+  }
+
   if (route !== "/") await block.scrollIntoViewIfNeeded();
   // Waiting for the fade to finish, not merely for it to start. data-painted is set on the first
   // presented frame and the cross-fade runs for --dur-4 after that, so reading opacity the moment the
@@ -769,7 +802,7 @@ for (const [route, blockSelector, posterSelector] of AMBIENT_PLACEMENTS) {
     };
   }, posterSelector);
   const lcp = await videoPage.evaluate(() => window.__lcp);
-  report.ambient.routes[route] = { atLoad, requests: [...requests], shape, lcp };
+  report.ambient.routes[route] = { ...report.ambient.routes[route], atLoad, requests: [...requests], shape, lcp };
 
   const videoSources = videoSourcesOf(requests);
   const firstPoster = requests.findIndex((url) => url.endsWith(".webp"));
