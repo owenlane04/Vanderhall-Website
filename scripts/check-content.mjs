@@ -1,6 +1,11 @@
 import { readFile, readdir } from "node:fs/promises";
 import { dirname, extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+// Imported to compare what the pages publish against the one source those strings come from. The
+// counts asserted below are hardcoded on purpose, so the structural checks stay independent of the
+// generator: importing the data proves the strings match, the counts prove the shape is right.
+import { modelBySlug, SPEC_DISCLAIMER } from "../src/data/models.mjs";
+import { conceptBySlug } from "../src/data/concepts.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ignored = new Set(["node_modules", ".git", "public", ".vercel"]);
@@ -42,7 +47,10 @@ const combinedHtml = builtPages.map((page) => page.text).join("\n");
 // chips, and the FAQ list, all replaced by the vehicle sections and the photo scroll.
 // V6 removes data-walkaround from this list: the studio viewer is back, on /brawley/gts/ only,
 // and is asserted positively below. row-links joins the list, replaced by the pathway cards.
-for (const token of ["data-missing", "MISSING:", "data-vehicles-trigger", "data-mega-panel", "data-open-lead", "data-lead-sheet", "data-filter-pill", "class=\"chapter", "concepts-theme", "stat-band", "concept-feature", "concept-wide", "concept-tile", "card-grid--vehicles", "card-grid--related", "class=\"gallery", "chip--status", "faq-list", "concept-ring", "row-links"]) {
+// V8 retires the unit toggle: every figure ships imperial, so a second value cannot go stale or
+// be derived here. concept-back and resource-row are retired by the site-wide back affordance and
+// the owners page cards that replaced them.
+for (const token of ["data-missing", "MISSING:", "data-vehicles-trigger", "data-mega-panel", "data-open-lead", "data-lead-sheet", "data-filter-pill", "class=\"chapter", "concepts-theme", "stat-band", "concept-feature", "concept-wide", "concept-tile", "card-grid--vehicles", "card-grid--related", "class=\"gallery", "chip--status", "faq-list", "concept-ring", "row-links", "unit-toggle", "data-unit", "data-spec-table", "unit-metric", "vhw.units", "spec-toolbar", "concept-back", "resource-row"]) {
   if (combinedHtml.includes(token)) failures.push(`Retired markup remains: ${token}`);
 }
 for (const route of ["/about/", "/faq/", "/contact/"]) {
@@ -89,21 +97,86 @@ const supportFrames = (vehiclesHtml.match(/vehicle-section__support/g) || []).le
 if (supportFrames !== 8) failures.push(`/vehicles/ must carry two supporting photographs per vehicle, found ${supportFrames}`);
 if ((homeHtml.match(/vehicle-section__support/g) || []).length !== 0) failures.push("The homepage must stay the short version with one photograph per vehicle");
 
-// Model pages end on their own content: a photo scroll, then specifications where verified.
-// Nothing pushes the visitor back out to other models.
+// Model pages end on their own content: a photo scroll where each photograph carries the figures it
+// shows, then the disclosure line. Nothing pushes the visitor back out to other models.
+//
+// SPEC_GROUP_COUNTS is stated here rather than read from the data, so the assertion stays
+// independent of the generator it is checking. models.mjs is imported too, but only to compare the
+// published strings against their source of truth; the counts below are the non-circular anchor.
 const MODULE_COUNTS = { venice: 6, carmel: 6, santarosa: 5, brawley: 6 };
+const SPEC_GROUP_COUNTS = { venice: 4, carmel: 6, santarosa: 5, brawley: 6 };
+const SPEC_ROW_COUNTS = { venice: 19, carmel: 15, santarosa: 28, brawley: 28 };
 for (const slug of MODEL_SLUGS) {
   const html = pageBySuffix(`/${slug}/index.html`);
+  const model = modelBySlug[slug];
   const found = (html.match(/<figure class="photo-module/g) || []).length;
   if (found !== MODULE_COUNTS[slug]) failures.push(`/${slug}/ must present ${MODULE_COUNTS[slug]} photo modules, found ${found}`);
-  // The sticky bar is only carried where it offers something the header button does not, which
-  // means Brawley and the purchase page. On the other three it repeated Request info.
-  const wantsBar = slug === "brawley";
-  if (html.includes('class="model-bar') !== wantsBar) failures.push(`/${slug}/ ${wantsBar ? "is missing" : "must not carry"} the sticky model bar`);
+  // The bar carries the way back on every model page now, so all four have it.
+  if (!html.includes('class="model-bar')) failures.push(`/${slug}/ is missing the sticky model bar`);
   if (!html.includes(`A closer look at ${slug[0].toUpperCase() + slug.slice(1)}.`)) failures.push(`/${slug}/ is missing its in-detail heading`);
-  // Every module needs a label and a description, or the scroll is padding rather than content.
+  // Every module needs a label, and the label must be the caption's first child, because the
+  // specification block follows it.
   const labels = (html.match(/photo-module__body">\s*<p class="eyebrow">/g) || []).length;
   if (labels !== MODULE_COUNTS[slug]) failures.push(`/${slug}/ has ${labels} module labels for ${found} modules`);
+  // Specification groups are paired with photographs, one group per photograph.
+  const specBlocks = (html.match(/class="photo-module__specs"/g) || []).length;
+  if (specBlocks !== SPEC_GROUP_COUNTS[slug]) failures.push(`/${slug}/ must pair ${SPEC_GROUP_COUNTS[slug]} specification groups with photographs, found ${specBlocks}`);
+  if (specBlocks !== model.specGroups.length) failures.push(`/${slug}/ pairs ${specBlocks} groups but the data declares ${model.specGroups.length}`);
+  const rows = (html.match(/class="spec-row"/g) || []).length;
+  if (rows !== SPEC_ROW_COUNTS[slug]) failures.push(`/${slug}/ must publish ${SPEC_ROW_COUNTS[slug]} specification rows, found ${rows}`);
+  // Every declared row must actually reach the page. A group silently dropped from a pairing is
+  // the failure this catches.
+  for (const group of model.specGroups) {
+    for (const row of group.rows) {
+      if (!html.includes(`<span>${row.label}</span>`)) failures.push(`/${slug}/ is missing the specification label ${row.label}`);
+      if (!html.includes(row.value.replaceAll("&", "&amp;"))) failures.push(`/${slug}/ is missing the value for ${row.label}: ${row.value}`);
+    }
+  }
+  // The prose captions are gone. After a label comes either the figures or the end of the caption,
+  // never a sentence about where the vehicle was parked.
+  const captionShapes = (html.match(/photo-module__body">\s*<p class="eyebrow">[^<]*<\/p>(?:<div class="photo-module__specs">|\s*<\/figcaption>)/g) || []).length;
+  if (captionShapes !== MODULE_COUNTS[slug]) failures.push(`/${slug}/ has ${captionShapes} modules in the label-then-figures shape, expected ${MODULE_COUNTS[slug]}`);
+  // Model pages carry no specification table and no anchor to one. The purchase page is asserted
+  // separately below, and holds the only copy on the site.
+  for (const token of ['id="specifications"', 'class="spec-table"', "Published figures"]) {
+    if (html.includes(token)) failures.push(`/${slug}/ must not carry ${token}: figures are paired with photographs now`);
+  }
+  // The estimate sentence belongs on every page that publishes figures.
+  if (!html.includes(SPEC_DISCLAIMER)) failures.push(`/${slug}/ must carry the specification estimate disclaimer`);
+  // Warranty on the current models, a model-year qualifier on the past ones. Never both, because a
+  // warranty term for a vehicle no longer sold would mislead.
+  if (model.pastModel) {
+    if (!html.includes(model.specNote)) failures.push(`/${slug}/ must state which model year its figures describe`);
+    if (html.includes("limited warranty")) failures.push(`/${slug}/ is a past model and must publish no warranty term`);
+  } else {
+    if (!html.includes(model.warranty)) failures.push(`/${slug}/ must carry its warranty line`);
+    if (model.specNote) failures.push(`/${slug}/ is a current model and needs no model-year qualifier`);
+  }
+}
+if ((combinedHtml.match(/class="photo-module__specs"/g) || []).length !== Object.values(SPEC_GROUP_COUNTS).reduce((a, b) => a + b, 0)) {
+  failures.push("Paired specification blocks appear outside the four model pages");
+}
+
+// Past models. Owen confirmed on 2026-08-05 that Venice and Carmel are past models and that
+// Brawley and Santarosa are current. Six occurrences: two cards on each lineup surface, and the
+// two model page heroes. A tag on a current model, or a missing tag on a past one, fails here.
+const PAST_MODELS = ["venice", "carmel"];
+const totalTags = (combinedHtml.match(/>Past model</g) || []).length;
+if (totalTags !== 6) failures.push(`Expected six Past model tags sitewide, found ${totalTags}`);
+for (const slug of MODEL_SLUGS) {
+  const html = pageBySuffix(`/${slug}/index.html`);
+  const tags = (html.match(/>Past model</g) || []).length;
+  const expected = PAST_MODELS.includes(slug) ? 1 : 0;
+  if (tags !== expected) failures.push(`/${slug}/ must carry ${expected} Past model tag, found ${tags}`);
+  if (expected && !/<h1>[^<]*<\/h1>\s*<p class="model-tag">/.test(html)) failures.push(`/${slug}/ must place the Past model tag directly after the heading`);
+}
+for (const [route, html] of [["/", homeHtml], ["/vehicles/", vehiclesHtml]]) {
+  const blocks = withoutFooter(html).split('<section class="vehicle-section').slice(1);
+  for (const block of blocks) {
+    const slug = block.match(/href="\/(brawley|santarosa|carmel|venice)\/"/)?.[1];
+    const tagged = block.includes(">Past model<");
+    if (tagged !== PAST_MODELS.includes(slug)) failures.push(`${route}: ${slug} ${tagged ? "must not be" : "must be"} tagged as a past model`);
+  }
 }
 // Prices exist on exactly one route. V1 through V5 published none at all, and V6 publishes the
 // Brawley GTS MSRP and its three paint tiers under Owen's approval of 2026-08-05, sourced from
@@ -157,7 +230,18 @@ for (const required of [
 // Brawley is the one model with a page beyond the inquiry form, so its bar and hero point there.
 if (!pageBySuffix("/brawley/index.html").includes('class="model-bar__action" href="/brawley/gts/"')) failures.push("/brawley/ model bar must lead to the purchase page");
 if (!gtsHtml.includes('class="model-bar__action" href="https://dealer.vanderhallusa.com/reserve/index/brawley"')) failures.push("/brawley/gts/ model bar must carry the reservation link");
-if (!pageBySuffix("/brawley/index.html").includes("See more info")) failures.push("/brawley/ must offer See more info rather than Request info");
+// V8 renamed the destination. "See more info" promised information and delivered a configurator
+// with a price, which is what read as three pages of "more" in a row. The label appears twice on
+// the page, once in the hero and once in the bar, from one string in the data.
+const brawleyLabels = (pageBySuffix("/brawley/index.html").match(/>Pricing and colors</g) || []).length;
+if (brawleyLabels !== 2) failures.push(`/brawley/ must offer Pricing and colors in both the hero and the model bar, found ${brawleyLabels}`);
+if (combinedHtml.includes("See more info")) failures.push("The retired See more info label remains");
+// The purchase page holds the only specification table and the only anchor to one on the site.
+if (!gtsHtml.includes('id="specifications"')) failures.push("/brawley/gts/ must keep its specification anchor");
+if (!gtsHtml.includes('class="spec-table"')) failures.push("/brawley/gts/ must keep its specification table");
+if (!gtsHtml.includes("Published figures")) failures.push("/brawley/gts/ must keep its specification heading");
+const anchorCount = (combinedHtml.match(/id="specifications"/g) || []).length;
+if (anchorCount !== 1) failures.push(`The specifications anchor must exist once sitewide, found ${anchorCount}`);
 for (const slug of ["santarosa", "carmel", "venice"]) {
   if (!pageBySuffix(`/${slug}/index.html`).includes(`href="/dealers/?model=${slug}"`)) failures.push(`/${slug}/ must still lead to the inquiry form`);
 }
@@ -170,8 +254,40 @@ for (const [route, html] of [["/", homeHtml], ["/dealers/", dealersHtml]]) {
 
 if (!pageBySuffix("/santarosa/index.html").includes("/assets/images/v3/heroes/santarosa/")) failures.push("Santarosa is not using the V3 hangar hero");
 if (!pageBySuffix("/brawley/index.html").includes("/assets/images/v3/heroes/brawley/")) failures.push("Brawley is not using the V3 desert hero");
-for (const slug of ["venice", "carmel"]) {
-  if (pageBySuffix(`/${slug}/index.html`).includes('id="specifications"')) failures.push(`/${slug}/ must omit specifications while no verified data exists`);
+
+// One way back from every page below the homepage, leading one level up. This map mirrors PARENTS
+// in src/build.mjs: if a route's back link disagrees with it, or a page has none, the build fails.
+// The 404 pair is exempt, because it already offers two ways out and has no parent.
+const BACK_TARGETS = {
+  "/vehicles/index.html": "/",
+  "/concepts/index.html": "/",
+  "/owners/index.html": "/",
+  "/dealers/index.html": "/",
+  "/recommend-dealer/index.html": "/dealers/",
+  "/dealer-inquiry/index.html": "/dealers/",
+  "/venice/index.html": "/vehicles/",
+  "/carmel/index.html": "/vehicles/",
+  "/santarosa/index.html": "/vehicles/",
+  "/brawley/index.html": "/vehicles/",
+  "/brawley/gts/index.html": "/brawley/",
+};
+for (const page of builtPages) {
+  const relative = page.path.replace(root, "");
+  const isHome = page.path === resolve(root, "index.html");
+  const is404 = relative === "/404/index.html" || relative === "/404.html";
+  const navs = page.text.match(/<nav class="back-nav"[\s\S]*?<\/nav>/g) || [];
+  if (isHome || is404) {
+    if (navs.length) failures.push(`${relative}: must not carry a back link`);
+    continue;
+  }
+  if (navs.length !== 1) {
+    failures.push(`${relative}: expected one back link, found ${navs.length}`);
+    continue;
+  }
+  const expected = BACK_TARGETS[relative] ?? (/\/concepts\/[^/]+\/index\.html$/.test(relative) ? "/concepts/" : null);
+  if (!expected) failures.push(`${relative}: no back-link target is declared for this route`);
+  else if (!navs[0].includes(`href="${expected}"`)) failures.push(`${relative}: back link must lead to ${expected}`);
+  if ((navs[0].match(/<a /g) || []).length !== 1) failures.push(`${relative}: the back link must be a single link`);
 }
 
 // Structured data is held to the same rule as the visible copy: it may only restate an approved
@@ -209,13 +325,20 @@ if (conceptPages.length !== 9) failures.push(`Expected nine concept detail pages
 for (const page of conceptPages) {
   if (!/<a class="nav-link is-current" href="\/concepts\/" aria-current="page">Concepts<\/a>/.test(page.text)) failures.push(`${page.path.replace(root, "")}: Concepts navigation is not current`);
   if (/\$\d|\bMSRP\b|\b\d[\d,.]*\s*(?:hp|lb-ft|mi|in\.)\b/i.test(page.text)) failures.push(`${page.path.replace(root, "")}: prohibited production fact or price appears on concept route`);
-  if (!/<h1>[^<]+<\/h1>/.test(page.text)) failures.push(`${page.path.replace(root, "")}: concept name is not a text h1`);
   if (!page.text.includes("Concept vehicle. Not offered for sale.")) failures.push(`${page.path.replace(root, "")}: missing the not-for-sale statement`);
-  for (const tag of page.text.match(/<img[^>]+wordmark\.webp[^>]*>/g) || []) if (!/alt=""/.test(tag)) failures.push(`${page.path.replace(root, "")}: wordmark alt must be empty`);
-  // One clear way back, in place of the V4 previous/all/next ring.
-  const backLinks = (page.text.match(/<nav class="concept-back[\s\S]*?<\/nav>/g) || []);
-  if (backLinks.length !== 1) failures.push(`${page.path.replace(root, "")}: expected one back-link nav, found ${backLinks.length}`);
-  else if ((backLinks[0].match(/<a /g) || []).length !== 1 || !backLinks[0].includes('href="/concepts/"')) failures.push(`${page.path.replace(root, "")}: the back link must be a single link to /concepts/`);
+  // One title per concept, the script wordmark, which is the concept's own mark. It used to sit
+  // under a sans h1 of the same word. The alt carries the name, so the heading still says it and a
+  // failed image still reads.
+  const heading = page.text.match(/<h1 class="concept-title">([\s\S]*?)<\/h1>/);
+  if (!heading) failures.push(`${page.path.replace(root, "")}: the concept title must be the wordmark h1`);
+  else {
+    const slug = page.path.replace(root, "").split("/")[2];
+    const name = conceptBySlug[slug]?.name;
+    if (!heading[1].includes("wordmark.webp")) failures.push(`${page.path.replace(root, "")}: the h1 must contain the wordmark image`);
+    if (/<p|<span/.test(heading[1])) failures.push(`${page.path.replace(root, "")}: the h1 must contain nothing but the wordmark`);
+    if (name && !heading[1].includes(`alt="${name}"`)) failures.push(`${page.path.replace(root, "")}: the wordmark alt must be the concept name`);
+  }
+  if (/<span class="wordmark"/.test(page.text)) failures.push(`${page.path.replace(root, "")}: the wordmark plate markup remains`);
 }
 
 for (const page of builtPages) {
@@ -235,8 +358,22 @@ for (const route of ["/about/", "/faq/", "/contact/"]) {
 const manualFiles = files.filter((path) => path.includes("/assets/manuals/") && extname(path) === ".pdf");
 if (manualFiles.length !== 19) failures.push(`Expected 19 owner manuals, found ${manualFiles.length}`);
 const ownersHtml = pageBySuffix("/owners/index.html");
-const manualRows = (ownersHtml.match(/class="resource-row"/g) || []).length;
-if (manualRows !== 19) failures.push(`Owner resources must list 19 manuals, found ${manualRows}`);
+const manualCards = (ownersHtml.match(/class="resource-card"/g) || []).length;
+if (manualCards !== 19) failures.push(`Owner resources must list 19 manuals, found ${manualCards}`);
+if ((ownersHtml.match(/type="application\/pdf"/g) || []).length !== 19) failures.push("Every owner resource card must declare its PDF type");
+// V8 gave the groups the vehicle they are about. Venice, Carmel, and Brawley have delivered
+// photography; Speedster and Laguna are retired roadsters with none in Assets/, and the concept
+// named Speedster is a different machine that must not stand in for one.
+// Footer first: the last group's slice would otherwise run to the end of the document and count
+// the footer lockup as its photograph.
+const ownerGroups = withoutFooter(ownersHtml).split('<section class="resource-group').slice(1);
+if (ownerGroups.length !== 5) failures.push(`Owner resources must present five model groups, found ${ownerGroups.length}`);
+for (const group of ownerGroups) {
+  const slug = group.match(/id="([^"]+)"/)?.[1];
+  const images = (group.match(/<img /g) || []).length;
+  const expected = ["venice", "carmel", "brawley"].includes(slug) ? 1 : 0;
+  if (images !== expected) failures.push(`/owners/ group ${slug} must carry ${expected} photograph, found ${images}`);
+}
 
 const manifest = JSON.parse(await readFile(resolve(root, "assets/build-manifest.json"), "utf8"));
 if (manifest.some((entry) => entry.verified_clean !== "yes")) failures.push("Every build manifest row must record verified_clean: yes");

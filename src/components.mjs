@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { models } from "./data/models.mjs";
+import { models, SPEC_DISCLAIMER } from "./data/models.mjs";
 import { COUNTRIES, FORM_ENDPOINTS } from "./data/forms.mjs";
 
 // Delivered sizes are read from the build manifest rather than restated in data, because crops
@@ -31,9 +31,18 @@ export const buttonLink = (label, href, variant = "primary") => `<a class="butto
 
 export const textLink = (label, href) => `<a class="text-link" href="${href}">${escapeHtml(label)}<span aria-hidden="true"> →</span></a>`;
 
+// One way back, in the same place on every page below the homepage, leading one level up. A
+// parent link rather than a history control: it needs no script, and it behaves the same for a
+// visitor who arrived from a search result as for one who walked in from the parent page.
+export const backLink = ({ label, href }) => `<nav class="back-nav" aria-label="Breadcrumb"><a href="${href}"><span aria-hidden="true">← </span>${escapeHtml(label)}</a></nav>`;
+
 // On the single-purpose form pages the header takes the form's own column, so the page reads as one
 // document instead of a heading on the left with a form floating in the middle of it.
-export const pageHeader = (eyebrowText, title, intro, className = "") => `<header class="page-header${className ? ` ${className}` : ""}">${eyebrow(eyebrowText)}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(intro)}</p></header>`;
+export const pageHeader = (eyebrowText, title, intro, className = "", back = null) => `<header class="page-header${className ? ` ${className}` : ""}">${back ? backLink(back) : ""}${eyebrow(eyebrowText)}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(intro)}</p></header>`;
+
+// Venice and Carmel only. Owen confirmed their status in chat on 2026-08-05; the two current
+// models carry no tag, because current is the default a visitor already assumes.
+export const pastModelTag = () => `<p class="model-tag">Past model</p>`;
 
 export const sectionHeading = (eyebrowText, title, intro = "") => `<div class="section-heading">${eyebrow(eyebrowText)}<h2>${escapeHtml(title)}</h2>${intro ? `<p>${escapeHtml(intro)}</p>` : ""}</div>`;
 
@@ -78,35 +87,58 @@ export const vehicleSection = (model, { index, copy, eager = false, level = 3, w
     </div>
     <div class="vehicle-section__body">
       <h${level}>${model.name}</h${level}>
+      ${model.pastModel ? pastModelTag() : ""}
       <p>${escapeHtml(copy)}</p>
       ${textLink(`Explore ${model.name}`, `/${model.slug}/`)}
     </div>
   </section>`;
 };
 
-// The smallest component that can carry a photograph and something true about it: a 3:2 frame,
-// a label in the caps register, and one or two sentences. Sides alternate strictly.
+export const specRows = (rows) => rows
+  .map((row) => `<div class="spec-row"><span>${escapeHtml(row.label)}</span><strong>${escapeHtml(row.value)}</strong></div>`)
+  .join("");
+
+// A photograph, a label in the caps register, and the figures that photograph shows. V8 replaced
+// the prose sentence with the paired specification group: the sentence described where the
+// vehicle was parked, and the rows are both truer to the frame and verified.
+//
+// The group name is not rendered. The label already occupies the caps register, and a second caps
+// line reading "Chassis and suspension" under a label reading CONTROL ARMS is noise. The rows
+// label themselves. The label stays the caption's first child, which the build check asserts.
+//
+// A module with no figures runs full width with its label beneath, rather than taking the
+// two-column layout and stranding a lone label in an empty half-column.
 export const photoModule = (item, index) => {
   const { width, height } = sizeOf(item.src);
-  return `<figure class="photo-module${index % 2 === 1 ? " photo-module--reverse" : ""}">
-    <div class="photo-module__media"><img src="${item.src}" srcset="${item.srcset}" width="${width}" height="${height}" sizes="(min-width: 1024px) 58vw, 92vw" alt="${escapeHtml(item.alt)}" loading="lazy" decoding="async"></div>
+  // The slot differs by layout, so the hint has to as well: a paired module's frame takes the wide
+  // side of a two-column row, a plain one takes the whole content column. Declaring 58vw for a
+  // full-width frame is what makes a 1440 viewport fetch the 960 rung for a 1200px slot and upscale.
+  const sizes = item.specs ? "(min-width: 1024px) 58vw, 92vw" : "(min-width: 1280px) 1200px, 92vw";
+  return `<figure class="photo-module${item.specs ? (index % 2 === 1 ? " photo-module--reverse" : "") : " photo-module--plain"}">
+    <div class="photo-module__media"><img src="${item.src}" srcset="${item.srcset}" width="${width}" height="${height}" sizes="${sizes}" alt="${escapeHtml(item.alt)}" loading="lazy" decoding="async"></div>
     <figcaption class="photo-module__body">
-      <p class="eyebrow">${escapeHtml(item.label)}</p>
-      <p>${escapeHtml(item.description)}</p>
+      <p class="eyebrow">${escapeHtml(item.label)}</p>${item.specs ? `<div class="photo-module__specs">${specRows(item.specs.rows)}</div>` : ""}
     </figcaption>
   </figure>`;
 };
 
 export const photoScroll = (items) => `<div class="photo-scroll">${items.map((item, index) => photoModule(item, index)).join("")}</div>`;
 
-// Says where you are and what you can do, which is the job the deleted related-vehicles grid
-// was doing badly. Pure CSS sticky, no JavaScript.
-export const modelBar = (model, { name = model.name, label, href } = {}) => `<div class="model-bar bleed">
+// Says where you are, how to get back, and what you can do. V6 removed this bar from the three
+// models whose action only repeated the header button; V8 returns it to all of them, because it
+// now carries the way back, which the header does not offer. Where a model has no action of its
+// own, the bar is a back link and a name. Pure CSS sticky, no JavaScript.
+export const modelBar = (model, { name = model.name, label, href, back } = {}) => {
+  const action = label || model.cta?.label;
+  const target = href || model.cta?.href;
+  return `<div class="model-bar bleed">
     <div class="model-bar__inner">
+      ${back ? backLink(back) : ""}
       <span class="model-bar__name">${escapeHtml(name)}</span>
-      <a class="model-bar__action" href="${href || model.cta?.href || `/dealers/?model=${model.slug}`}">${escapeHtml(label || model.cta?.label || "Request info")}<span aria-hidden="true"> →</span></a>
+      ${action ? `<a class="model-bar__action" href="${target}">${escapeHtml(action)}<span aria-hidden="true"> →</span></a>` : ""}
     </div>
   </div>`;
+};
 
 // One bordered card per destination, replacing the V5 row of bare headings under a hairline.
 // The same component carried four destinations of different weight and read as crammed, which is
@@ -126,10 +158,10 @@ export const price = ({ label, value }, disclaimer, delivery) => `<p class="pric
     <span class="price__disclaimer">${escapeHtml(disclaimer)}</span>
   </p>`;
 
-// Four figures already published in the specification table below, on the same unit toggle, so
-// the page never states a number the table does not.
+// Four figures already published in the specification table below, so the page never states a
+// number the table does not.
 export const figureBand = (figures) => `<div class="gts-figures">${figures.map((figure) => `<div class="gts-figure">
-      <span class="gts-figure__value"><span data-unit="imp">${figure.imp}</span><span data-unit="met">${figure.met}</span></span>
+      <span class="gts-figure__value">${escapeHtml(figure.value)}</span>
       <span class="gts-figure__label">${escapeHtml(figure.label)}</span>
     </div>`).join("")}</div>`;
 
@@ -176,19 +208,24 @@ export const hero = ({ src, srcset, tallSrcset, alt, focal, align = "", content 
     <div class="hero__content">${content}</div>
   </section>`;
 
-export const specTable = (model) => `<div class="spec-table" data-spec-table>
-    <div class="spec-toolbar">
-      <div class="unit-toggle" role="radiogroup" aria-label="Units">
-        <label><input type="radio" name="units-${model.slug}" value="imperial" checked> Imperial</label>
-        <label><input type="radio" name="units-${model.slug}" value="metric"> Metric</label>
-      </div>
-    </div>
-    <div class="sr-only" aria-live="polite" data-unit-live></div>
+// The purchase page's reference block, and the only spec table left on the site. Model pages pair
+// their groups with photographs instead. Imperial only since V8: the manufacturer's own pages
+// carry broken conversions, and deriving a second unit system here would mean publishing figures
+// Vanderhall never stated.
+export const specTable = (model) => `<div class="spec-table">
     ${model.specGroups.map((group) => `<div class="spec-group">
-      <h3>${group.name}</h3>
-      <div class="spec-rows">${group.rows.map((row) => `<div class="spec-row"><span>${row.label}</span><strong>${row.value ? row.value : `<span data-unit="imp">${row.imp}</span><span data-unit="met">${row.met}</span>`}</strong></div>`).join("")}</div>
+      <h3>${escapeHtml(group.name)}</h3>
+      <div class="spec-rows">${specRows(group.rows)}</div>
     </div>`).join("")}
   </div>`;
+
+// Warranty and the manufacturer's estimate sentence, under the paired photographs. Warranty is
+// not a paired row because no photograph shows one, and the past models carry a model-year
+// qualifier here instead, because their figures describe one year of a vehicle built across many.
+export const specNote = (model) => {
+  const lines = [model.specNote, model.warranty, SPEC_DISCLAIMER].filter(Boolean);
+  return `<div class="spec-note">${lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("")}</div>`;
+};
 
 const requiredMark = `<span aria-hidden="true"> *</span><span class="sr-only"> required</span>`;
 const label = (id, text, required = false) => `<label for="${id}">${text}${required ? requiredMark : ""}</label>`;
@@ -381,7 +418,7 @@ export const productSchema = (model) => {
     additionalProperty: gts.figures.map((figure) => ({
       "@type": "PropertyValue",
       name: figure.label.charAt(0) + figure.label.slice(1).toLowerCase(),
-      value: figure.imp,
+      value: figure.value,
     })),
   });
 };
@@ -398,7 +435,7 @@ export const shell = ({ title, description, path, body, schema = "" }) => `<!doc
   <link rel="icon" href="/assets/brand/favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
   <link rel="manifest" href="/site.webmanifest">
-  <script>try{const t=localStorage.getItem('vhw.theme');if(t)document.documentElement.dataset.theme=t;const u=localStorage.getItem('vhw.units');if(u==='metric')document.documentElement.classList.add('unit-metric')}catch(e){}</script>
+  <script>try{const t=localStorage.getItem('vhw.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
   <link rel="canonical" href="${SITE_URL}${path === "/" ? "/" : `${path}/`}">
   <link rel="stylesheet" href="/styles/bundle.css">
   ${schema}

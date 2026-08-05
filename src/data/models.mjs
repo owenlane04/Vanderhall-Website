@@ -5,20 +5,46 @@ const feature = (root, name) => ({
   srcset: [640, 800, 960, 1280].map((width) => `${root}/${name}-${width}.webp ${width}w`).join(", "),
 });
 
-// A photo module is one photograph with a label in the caps register and one or two sentences
-// written from what the photograph shows. Labels and descriptions are Owen-approved copy.
-const modules = (root, entries) => entries.map(([name, label, description, alt]) => ({
-  ...feature(root, name),
-  label,
-  description,
-  alt,
-}));
+// V8: a photo module is one photograph, a label in the caps register, and the specification group
+// that photograph shows. The prose descriptions are gone: they described where the vehicle was
+// parked, which is the weakest copy the site had, and verified figures are better content in the
+// same space. Every group must be paired with exactly one photograph, and the checks below throw
+// at import time rather than letting a page ship with an orphaned group.
+const modules = (root, specGroups, entries) => {
+  const byName = new Map(specGroups.map((group) => [group.name, group]));
+  return entries.map(([name, label, alt, groupName = null]) => {
+    if (groupName === null) return { ...feature(root, name), label, alt, specs: null };
+    const group = byName.get(groupName);
+    if (!group) throw new Error(`${root}/${name}: no specification group named "${groupName}"`);
+    return { ...feature(root, name), label, alt, specs: group };
+  });
+};
+
+// Completeness is checked per model rather than per modules() call, because Brawley draws its
+// photographs from two image roots and each call can only see its own batch. Run over the whole
+// module list, every group must be claimed exactly once.
+const assertPairings = (model) => {
+  const counts = new Map(model.specGroups.map((group) => [group.name, 0]));
+  for (const item of model.images.modules) {
+    if (!item.specs) continue;
+    counts.set(item.specs.name, (counts.get(item.specs.name) ?? 0) + 1);
+  }
+  for (const [name, count] of counts) {
+    if (count === 0) throw new Error(`${model.slug}: specification group "${name}" is paired with no photograph`);
+    if (count > 1) throw new Error(`${model.slug}: specification group "${name}" is paired with ${count} photographs`);
+  }
+};
 
 const VENICE_FEATURES = "/assets/images/v2/features/venice";
 const CARMEL_FEATURES = "/assets/images/v2/features/carmel";
 const SANTAROSA_FEATURES = "/assets/images/v2/features/santarosa";
 const BRAWLEY_LIFESTYLE = "/assets/images/brawley/lifestyle";
 const BRAWLEY_FEATURES = "/assets/images/v2/features/brawley";
+
+// Published verbatim from the live vanderhallusa.com Brawley GTS page, read 2026-08-05 and
+// approved by Owen the same day. Model pages publish figures now, so the estimate sentence rides
+// on all of them rather than on the purchase page alone.
+export const SPEC_DISCLAIMER = "Features and specifications are estimated and subject to change without notice.";
 
 // Brawley GTS purchase page. The price, the three paint tiers, and the disclosure blocks were
 // read from the live vanderhallusa.com configurator on 2026-08-05 and approved by Owen in chat
@@ -81,6 +107,256 @@ const paint = PAINT.map(([name, slug, hex, tier, stillAngle = null]) => ({
   frames: stillAngle ? [frameSrcset(slug, stillAngle)] : WALKAROUND_ANGLES.map(([angle]) => frameSrcset(slug, angle)),
 }));
 
+// ---------------------------------------------------------------------------------------------
+// Specification groups. V8 drops metric: every row is a single value now. Vanderhall's own
+// feature pages carry broken conversions (Santarosa's wheelbase reads "101.4 in. (365 cm)"), so
+// maintaining a second unit system would mean deriving it here, which is exactly the kind of
+// invented figure this project refuses to publish.
+//
+// Every row carries its source. Where a row is not from Vanderhall, the comment says so.
+// ---------------------------------------------------------------------------------------------
+
+// Brawley. Rows without a source note were verified in V1 and are unchanged. Rows marked LIVE
+// were read from vanderhallusa.com/brawley-gts-features-electric-ev-off-road-utv-side-by-side-vehicles/
+// on 2026-08-05, a page which restates every V1 figure identically. Vanderhall's trademark
+// symbols are dropped, matching the house style applied to the approved V1 copy.
+const BRAWLEY_SPECS = [
+  {
+    name: "Output and powertrain",
+    rows: [
+      { label: "Range", value: "Up to 140 mi" },
+      { label: "Torque", value: "488 lb-ft" },
+      { label: "Power", value: "283 to 404 hp" },
+      { label: "Motors", value: "Quad-electric with integrated cooling system" }, // LIVE
+      { label: "Drivetrain", value: "4-wheel drive with traction control" }, // LIVE
+      { label: "Drive modes", value: "4x2, 4x4, eCrawl, eCrab, eSteer" },
+      { label: "Battery", value: "Lithium-ion battery pack" }, // LIVE
+    ],
+  },
+  {
+    name: "Lighting and protection",
+    rows: [
+      // LIVE. The head-on photograph this group is paired with is the one that shows the lightbar.
+      { label: "Lighting", value: "7 in high-performance LED halo headlights with ultra-bright tail lights and a 32 in 5000 lumen LED lightbar" },
+      { label: "Protection", value: "Front and rear removable skid plates, full roll cage, 4-point harness safety belts" },
+    ],
+  },
+  {
+    name: "Suspension",
+    rows: [
+      { label: "Front and rear suspension", value: "Stamped steel control arms" }, // LIVE
+      { label: "Shocks", value: "21 in travel with cooling reservoir and gas bump stop" }, // LIVE
+    ],
+  },
+  {
+    name: "Tires, wheels, and brakes",
+    rows: [
+      { label: "Tires", value: "Atlas Paraller M/T 35x12.50R18LT" }, // LIVE
+      { label: "Wheels", value: "18x8 in aluminum" }, // LIVE
+      { label: "Brakes", value: "Regenerative braking with 200 mm in-board discs and ceramic pads" }, // LIVE
+    ],
+  },
+  {
+    name: "Dimensions and capability",
+    rows: [
+      { label: "Estimated dry weight", value: "3,700 lb" }, // LIVE
+      { label: "Chassis", value: "Aluminum unibody construction" }, // LIVE
+      { label: "Length, width, height", value: "147.5 x 76 x 69.5 in" }, // LIVE
+      { label: "Wheelbase", value: "112.5 in" }, // LIVE
+      { label: "Ground clearance", value: "18 in" }, // LIVE
+      { label: "Storage capacity", value: "5.1 sq ft" }, // LIVE
+      { label: "Towing capacity", value: "1,500 lb, 300 lb tongue weight, front and rear 2 in receiver" }, // LIVE, extends the V1 row
+    ],
+  },
+  {
+    name: "Cabin",
+    rows: [
+      { label: "Seating capacity", value: "4" },
+      { label: "Gauges", value: "Twin-gauge display with digital inset screen" }, // LIVE
+      { label: "Instrumentation", value: "USB A charging ports" }, // LIVE
+      { label: "Climate control", value: "Heating, cooling, ventilation speed, circulation, and defrost" }, // LIVE
+      { label: "Seats", value: "Heated with integrated 4-point harness" }, // LIVE
+      { label: "Sound system", value: "Multi-channel amp Bluetooth" }, // LIVE
+      { label: "Roof", value: "Full hard roof with fixed moonroof" }, // LIVE
+    ],
+  },
+];
+
+// Santarosa. LIVE rows read from vanderhallusa.com/santarosa-features-3-wheel-ev-electric-autocycle/
+// on 2026-08-05. Two rows on that page are deliberately absent here: the wiper system and the
+// removable capshade both carry a triple-asterisk footnote whose meaning is not stated anywhere
+// readable, and a row whose qualifier is unknown could turn optional equipment into standard.
+// The optional range row is kept because its own label states the condition.
+const SANTAROSA_SPECS = [
+  {
+    name: "Output and range",
+    rows: [
+      { label: "Standard range", value: "150 mi" },
+      { label: "Optional range", value: "300 mi" }, // LIVE
+      { label: "Torque", value: "216 lb-ft" },
+      { label: "Power", value: "180 hp" },
+    ],
+  },
+  {
+    name: "Powertrain",
+    rows: [
+      { label: "Motors", value: "Twin-electric with integrated cooling system" }, // LIVE
+      { label: "Drivetrain", value: "Front-wheel drive with traction control" }, // LIVE
+      { label: "Battery", value: "Lithium-ion battery pack" }, // LIVE
+    ],
+  },
+  {
+    name: "Chassis, wheels, and brakes",
+    rows: [
+      { label: "Front suspension", value: "Cast aluminum double wishbone" }, // LIVE
+      { label: "Rear suspension", value: "Cast aluminum trailing arm" }, // LIVE
+      { label: "Shocks", value: "Coil-over adjustable" }, // LIVE
+      { label: "Front tires", value: "Atlas Force UHP 225/35R19" }, // LIVE
+      { label: "Rear tires", value: "Atlas Force UHP 295/30R19" }, // LIVE
+      { label: "Front wheels", value: "19x8 in aluminum" }, // LIVE
+      { label: "Rear wheels", value: "19x11 in aluminum" }, // LIVE
+      { label: "Brakes", value: "Adaptive regenerative braking with 200 mm in-board high-temp stainless rotors and ceramic pads" }, // LIVE
+      { label: "Parking brake", value: "Electric auto-setting" }, // LIVE
+    ],
+  },
+  {
+    name: "Dimensions and weight",
+    rows: [
+      { label: "Curb weight", value: "1,539 to 1,749 lb" }, // LIVE
+      { label: "Chassis", value: "Aluminum unibody" }, // LIVE
+      { label: "Length, width, height", value: "143 x 68.9 x 50.2 in" }, // LIVE
+      { label: "Wheelbase", value: "101.4 in" }, // LIVE
+      { label: "Ground clearance", value: "4.9 in" }, // LIVE
+      { label: "Storage capacity", value: "5.1 sq ft" }, // LIVE
+    ],
+  },
+  {
+    name: "Cabin",
+    rows: [
+      { label: "Gauges", value: "Twin-gauge display with digital inset screen" }, // LIVE
+      { label: "Instrumentation", value: "USB A charging ports" }, // LIVE
+      { label: "Lighting", value: "7 in high-performance LED halo headlights with ultra-bright tail lights and a third brake light" }, // LIVE
+      { label: "Seats", value: "Heated manual reclining" }, // LIVE
+      { label: "Seat belts", value: "Driver and passenger 3-point" }, // LIVE
+      { label: "Sound system", value: "Multi-channel amp Bluetooth" }, // LIVE
+    ],
+  },
+];
+
+// Carmel, a past model. Source: the Vanderhall Carmel infocard Owen supplied on 2026-08-05,
+// vanderhallusa.com/wp-content/uploads/2019/02/carmel-infocard-1.pdf, plus the dimensions from
+// Vanderhall's own specs-menu-carmel.pdf. These figures describe the 2019 Carmel, which is why
+// the page states that.
+//
+// Power is flagged: Vanderhall's 2020 Carmel line sheet publishes 194 hp for this same 1.5 liter
+// engine. Owen chose the infocard's 200 hp on 2026-08-05. Settling it is on the Vanderhall list.
+//
+// Not published from those documents: the MSRP (only /brawley/gts/ may carry a price, and a past
+// model's old price would mislead), the fuel capacity (the source row is mislabeled "DISPLACEMENT
+// 10 Gallons" and cannot be published either way), and the performance claims, which the source
+// footnotes with "Verification of these results should not be attempted".
+const CARMEL_SPECS = [
+  {
+    name: "Powertrain",
+    rows: [
+      { label: "Engine", value: "1.5 L 4-cylinder turbo" },
+      { label: "Power", value: "200 hp" },
+      { label: "Torque", value: "203 lb-ft" },
+      { label: "Transmission", value: "6-speed" },
+    ],
+  },
+  {
+    name: "Chassis and steering",
+    rows: [
+      { label: "Front suspension", value: "Pushrod front coil over" },
+      { label: "Rear suspension", value: "Rear single-sided swing arm coil over" },
+      { label: "Steering", value: "Electric power steering" },
+    ],
+  },
+  {
+    name: "Wheels and tires",
+    rows: [
+      { label: "Front tires", value: "235/35 ZR19" },
+      { label: "Rear tire", value: "275/35 ZR19" },
+      { label: "Front wheels", value: "19x8.5 aluminum" },
+      { label: "Rear wheel", value: "19x11 aluminum" },
+    ],
+  },
+  {
+    name: "Comfort",
+    rows: [{ label: "Climate control", value: "Heating control module, heated seats" }],
+  },
+  {
+    name: "Special features",
+    rows: [{ label: "Doors", value: "Dual front entry doors with expanded interior width" }],
+  },
+  {
+    name: "Dimensions and weight",
+    rows: [
+      { label: "Length, width, height", value: "147 x 70 x 45 in" }, // specs-menu-carmel.pdf
+      { label: "Curb weight", value: "1,595 lb" },
+    ],
+  },
+];
+
+// Venice, a past model. Rows are from Vanderhall's own 2020-Venice-GT-infocard.pdf unless noted:
+// LINE means the 2020 Venice line comparison sheet, MANUAL means the Venice owner's manual in
+// this project's library, and CRUISER means the Motorcycle Cruiser 2020 Venice GT review Owen
+// supplied on 2026-08-05. The two CRUISER rows are third-party and are the only ones on this
+// site that are: no Vanderhall document states a Venice wheelbase or a brake specification.
+//
+// These figures describe the 2020 Venice GT, which is why the page states that. Venice ran across
+// many model years with two different engines (Vanderhall's 2018 menu publishes 180 hp from a 1.4
+// liter), so an unqualified figure set would be false about most Venices built.
+//
+// Not published: the $33,950 price (one-price rule), the review's 8.5 gal fuel capacity (the
+// manufacturer's own manual says 9), the review's 1,465 lb claimed curb weight (mixing a
+// third-party curb weight with a first-party dry weight invites a false comparison), torque, 0 to
+// 60, and top speed (Vanderhall publishes those only for the earlier 1.4 liter car), and the
+// interior material (the infocard says Tan V-Tex, the line sheet says Tan Leather, and two
+// first-party sources disagreeing means neither ships).
+const VENICE_SPECS = [
+  {
+    name: "Powertrain and capacities",
+    rows: [
+      { label: "Engine", value: "1.5 L turbocharged" },
+      { label: "Power", value: "194 hp" }, // LINE
+      { label: "Transmission", value: "6-speed automatic with bump shifter" },
+      { label: "Fuel capacity", value: "9 gal" }, // MANUAL, capacities and specifications section
+      { label: "Dry weight", value: "1,390 lb" },
+    ],
+  },
+  {
+    name: "Chassis and suspension",
+    rows: [
+      { label: "Frame", value: "Aluminum" },
+      { label: "Body", value: "Composite" },
+      { label: "Front suspension", value: "Pushrod, coil-over hydraulic shocks" },
+      { label: "Rear suspension", value: "Single-sided swingarm, coil-over hydraulic shock" },
+      { label: "Steering", value: "Rack-and-pinion, electronic assist" },
+      { label: "Wheelbase", value: "100.2 in" }, // CRUISER, third-party
+    ],
+  },
+  {
+    name: "Wheels, tires, and brakes",
+    rows: [
+      { label: "Front tires", value: "225/40-18" },
+      { label: "Rear tire", value: "285/30-18" },
+      { label: "Front wheels", value: "18x8.5" },
+      { label: "Rear wheel", value: "18x10.5" },
+      { label: "Front brakes", value: "1-piston calipers, 296 mm discs" }, // CRUISER, third-party
+      { label: "Rear brake", value: "1-piston caliper, 278 mm disc" }, // CRUISER, third-party
+    ],
+  },
+  {
+    name: "Comfort",
+    rows: [
+      { label: "Climate control", value: "Heat, heated seats" },
+      { label: "Sound system", value: "Bluetooth" },
+    ],
+  },
+];
+
 const brawleyGts = {
   name: "Brawley GTS",
   descriptor: "Quad-motor electric off-road UTV. Hand-built in Provo, Utah.",
@@ -92,16 +368,21 @@ const brawleyGts = {
   paint,
   defaultPaint: "obsidian-black",
   figures: [
-    { label: "POWER", imp: "283 to 404 hp", met: "211 to 301 kW" },
-    { label: "TORQUE", imp: "488 lb-ft", met: "661 Nm" },
-    { label: "RANGE", imp: "Up to 140 mi", met: "Up to 225 km" },
-    { label: "SUSPENSION TRAVEL", imp: "21 in", met: "533 mm" },
+    { label: "POWER", value: "283 to 404 hp" },
+    { label: "TORQUE", value: "488 lb-ft" },
+    { label: "RANGE", value: "Up to 140 mi" },
+    { label: "SUSPENSION TRAVEL", value: "21 in" },
   ],
   scene: { name: "desert", label: "OPEN DESERT", alt: "Brawley on packed sand under a clear sky" },
   priceDisclaimer: "Manufacturer's Suggested Retail Price. Excludes options; taxes; title; registration; delivery, processing and handling fee; dealer charges.",
-  specDisclaimer: "Features and specifications are estimated and subject to change without notice.",
+  specDisclaimer: SPEC_DISCLAIMER,
   // Verbatim from the live vanderhallusa.com Brawley GTS page, read 2026-08-05. Safety and legal
   // language is never paraphrased, reordered, or condensed.
+  //
+  // Known conflict, recorded in work/missing-data-inventory.md and unresolved: Vanderhall's
+  // Brawley features page says a driver must be at least 16 years old, while this page, the one
+  // that was sourced and approved, says 18. The approved text stands unchanged until Vanderhall
+  // settles which is correct. A minimum age is not something to resolve by choosing.
   safety: [
     "The Brawley is an off-road, electric vehicle not intended for on-road use and can be hazardous to operate. Driver must be at least 18 years old with a valid driver's license to operate.",
     "Some states may require additional training and certification. Riders should always wear helmets, eye protection, and footwear. Ride within your limits and never do stunt driving.",
@@ -116,47 +397,18 @@ export const models = [
     name: "Brawley",
     powertrain: { fuel: "electric", layout: "4x4" },
     descriptor: "Quad-motor electric off-road UTV.",
-    status: "delivering",
     // Brawley is the one model with somewhere further to go than the inquiry form, so its hero
     // and model bar point at the purchase page instead. The other three keep Request info.
-    cta: { label: "See more info", href: "/brawley/gts/" },
+    cta: { label: "Pricing and colors", href: "/brawley/gts/" },
     gts: brawleyGts,
+    // Warranty rides in the page's disclosure line rather than as a paired row: it belongs with
+    // the estimate sentence, and no photograph shows a warranty. Read from the live feature page
+    // 2026-08-05; the entity was verified in V1.
+    warranty: "6-month Vanderhall limited warranty. 36-month battery pack warranty. Warranty entity: Vanderhall North America, LLC (Vanderhall NA).",
     overview: "Brawley is a quad-motor electric off-road UTV with a seating capacity of four. Published output spans 283 to 404 hp with 488 lb-ft of torque and up to 140 mi of range.",
     summary: "Quad-motor electric off-road UTV with seating for four, 488 lb-ft of torque, and up to 140 mi of range.",
     intro: "Quad-motor electric off-road UTV with a seating capacity of four. Published output spans 283 to 404 hp with 488 lb-ft of torque, up to 140 mi of range, and 21 in of suspension travel.",
-    specGroups: [
-      {
-        name: "Powertrain",
-        rows: [
-          { label: "Power", imp: "283 to 404 hp", met: "211 to 301 kW" },
-          { label: "Torque", imp: "488 lb-ft", met: "661 Nm" },
-          { label: "Drive", value: "Quad-motor 4WD" },
-          { label: "Drive modes", value: "4x2, 4x4, eCrawl, eCrab, eSteer" },
-        ],
-      },
-      {
-        name: "Performance",
-        rows: [{ label: "Range", imp: "Up to 140 mi", met: "Up to 225 km" }],
-      },
-      {
-        name: "Chassis and suspension",
-        rows: [{ label: "Suspension travel", imp: "21 in", met: "533 mm" }],
-      },
-      {
-        name: "Dimensions and weight",
-        rows: [
-          { label: "Seating capacity", value: "4" },
-          { label: "Towing capacity", imp: "1,500 lb", met: "680 kg" },
-        ],
-      },
-      {
-        name: "Warranty",
-        rows: [
-          { label: "Off-road limited warranty", value: "6 months" },
-          { label: "Warranty entity", value: "Vanderhall North America, LLC (Vanderhall NA)" },
-        ],
-      },
-    ],
+    specGroups: BRAWLEY_SPECS,
     images: {
       focal: "50% 55%",
       hero: "/assets/images/v3/heroes/brawley/brawley-wide-1920.webp",
@@ -169,15 +421,15 @@ export const models = [
         { ...feature(BRAWLEY_LIFESTYLE, "interior"), alt: "Vanderhall Brawley cabin with steering wheel and gauges" },
       ],
       modules: [
-        ...modules(BRAWLEY_LIFESTYLE, [
-          ["mountain-road", "STRAIGHT ON", "Head on, climbing a gravel two-track through oak and juniper scrub, with a full-width light bar above the windshield.", "Brawley climbing a gravel two-track through scrub"],
-          ["desert", "OPEN DESERT", "Rear three-quarter on packed sand under a clear sky, on knobby all-terrain tires with the rear coil-overs in plain sight.", "Brawley on packed sand under a clear sky"],
-          ["juniper", "UNDER THE JUNIPER", "Parked in dry grassland with the low sun flaring through a juniper branch and snow-dusted peaks on the horizon.", "Brawley parked in dry grassland beneath a juniper"],
-          ["interior", "THE CABIN", "A black cabin with a three-spoke wheel, two round gauges, a tinted glass roof panel, and seat backs embossed with the V shield.", "Brawley cabin with steering wheel, gauges, and embossed seat backs"],
+        ...modules(BRAWLEY_LIFESTYLE, BRAWLEY_SPECS, [
+          ["mountain-road", "STRAIGHT ON", "Brawley climbing a gravel two-track through scrub", "Lighting and protection"],
+          ["desert", "OPEN DESERT", "Brawley on packed sand under a clear sky", "Dimensions and capability"],
+          ["juniper", "UNDER THE JUNIPER", "Brawley parked in dry grassland beneath a juniper", "Output and powertrain"],
+          ["interior", "THE CABIN", "Brawley cabin with steering wheel, gauges, and embossed seat backs", "Cabin"],
         ]),
-        ...modules(BRAWLEY_FEATURES, [
-          ["suspension", "CONTROL ARMS", "Bare control arms and coil-over dampers behind the wheel, still carrying dried mud.", "Brawley control arms and coil-over dampers"],
-          ["wheel", "WHEEL AND TIRE", "A satin black wheel carrying the Vanderhall Motor Works name across its face, a V shield center cap, and a mud-terrain tire.", "Brawley satin black wheel and mud-terrain tire"],
+        ...modules(BRAWLEY_FEATURES, BRAWLEY_SPECS, [
+          ["suspension", "CONTROL ARMS", "Brawley control arms and coil-over dampers", "Suspension"],
+          ["wheel", "WHEEL AND TIRE", "Brawley satin black wheel and mud-terrain tire", "Tires, wheels, and brakes"],
         ]),
       ],
     },
@@ -187,24 +439,11 @@ export const models = [
     name: "Santarosa",
     powertrain: { fuel: "electric", layout: "3-wheel" },
     descriptor: "Three-wheel electric autocycle.",
-    status: "reserve",
+    warranty: "1-year Vanderhall limited warranty. 36-month battery pack warranty.",
     overview: "Santarosa is a three-wheel electric autocycle. Twin-motor front-wheel drive produces 180 hp, with a published standard range of 150 mi.",
     summary: "Three-wheel electric autocycle. Twin motors drive the front wheels, with 180 hp and a published standard range of 150 mi.",
     intro: "Three-wheel electric autocycle. Twin motors drive the front wheels and produce 180 hp and 216 lb-ft, with a published standard range of 150 mi.",
-    specGroups: [
-      {
-        name: "Powertrain",
-        rows: [
-          { label: "Power", imp: "180 hp", met: "134 kW" },
-          { label: "Torque", imp: "216 lb-ft", met: "293 Nm" },
-          { label: "Drive", value: "Twin-motor front-wheel drive" },
-        ],
-      },
-      {
-        name: "Performance",
-        rows: [{ label: "Standard range", imp: "150 mi", met: "241 km" }],
-      },
-    ],
+    specGroups: SANTAROSA_SPECS,
     images: {
       focal: "34% 49%",
       hero: "/assets/images/v3/heroes/santarosa/santarosa-wide-1920.webp",
@@ -217,12 +456,12 @@ export const models = [
         { ...feature(SANTAROSA_FEATURES, "street"), alt: "Santarosa on a cobblestone street" },
         { ...feature(SANTAROSA_FEATURES, "top-view"), alt: "Santarosa seen from above" },
       ],
-      modules: modules(SANTAROSA_FEATURES, [
-        ["street", "COBBLESTONES", "Front three-quarter on a cobblestone street outside a coffee shop, in pearl white over charcoal with a tan interior.", "Santarosa on a cobblestone street outside a coffee shop"],
-        ["sunset", "MOUNTAIN TURNOUT", "Parked at a turnout above layered ridges with the sun low behind it, in red over charcoal, two roll hoops standing behind the cockpit.", "Santarosa at a mountain turnout with the sun low behind it"],
-        ["city", "ROOFTOP AT DUSK", "Rear three-quarter on a wet rooftop deck at blue hour, fitted with a hard roof, a lit skyline behind.", "Santarosa with a hard roof on a rooftop deck at dusk"],
-        ["top-view", "FROM ABOVE", "Overhead on a concrete floor: a long creased hood, two quilted seats side by side, and a covered spare wheel carried at the left front.", "Santarosa seen from above on a concrete floor"],
-        ["dashboard", "THE FASCIA", "A woven carbon-look fascia with two knurled chrome vents, a chrome Santarosa script, and a painted rail beneath it.", "Santarosa fascia with chrome vents and script"],
+      modules: modules(SANTAROSA_FEATURES, SANTAROSA_SPECS, [
+        ["street", "COBBLESTONES", "Santarosa on a cobblestone street outside a coffee shop", "Powertrain"],
+        ["sunset", "MOUNTAIN TURNOUT", "Santarosa at a mountain turnout with the sun low behind it", "Output and range"],
+        ["city", "ROOFTOP AT DUSK", "Santarosa with a hard roof on a rooftop deck at dusk", "Dimensions and weight"],
+        ["top-view", "FROM ABOVE", "Santarosa seen from above on a concrete floor", "Chassis, wheels, and brakes"],
+        ["dashboard", "THE FASCIA", "Santarosa fascia with chrome vents and script", "Cabin"],
       ]),
     },
   },
@@ -231,11 +470,14 @@ export const models = [
     name: "Carmel",
     powertrain: { fuel: "gas", layout: "3-wheel" },
     descriptor: "Three-wheel gas roadster.",
-    status: null,
-    overview: "Carmel is an open three-wheel gas roadster. Vanderhall builds it in Provo, Utah.",
+    pastModel: true,
+    // Stated on the page because the figures describe one model year. Source documents and the
+    // reasoning are in the CARMEL_SPECS comment above.
+    specNote: "Specifications shown are for the 2019 Carmel.",
+    overview: "Carmel is an open three-wheel gas roadster. Vanderhall built it in Provo, Utah.",
     summary: "Open two-seat gas roadster on three wheels, shown here in red with a tan interior.",
     intro: "Open two-seat gas roadster on three wheels. The photographs show red bodywork, a leather-wrapped three-spoke wheel, four analog gauges, and tan contrast-stitched seats.",
-    specGroups: [],
+    specGroups: CARMEL_SPECS,
     images: {
       focal: "52% 60%",
       hero: "/assets/images/v2/heroes/carmel/carmel-wide-1920.webp",
@@ -247,13 +489,13 @@ export const models = [
         { ...feature(CARMEL_FEATURES, "dashboard"), alt: "Carmel dashboard and analog gauges" },
         { ...feature(CARMEL_FEATURES, "lake-reflection"), alt: "Carmel side profile on a causeway between two sheets of water" },
       ],
-      modules: modules(CARMEL_FEATURES, [
-        ["beach-reflection", "ON THE SAND", "Rear three-quarter on damp sand at first light, doubled in a tidal pool alongside it.", "Carmel on damp sand with its reflection in a tidal pool"],
-        ["lake-reflection", "STILL WATER", "Side profile on a causeway between two flat sheets of water, with blue ridges layered behind.", "Carmel side profile on a causeway between two sheets of water"],
-        ["downtown", "AFTER DARK", "Rear three-quarter on wet paving at night, the lit signage behind it thrown out of focus.", "Carmel on wet paving at night"],
-        ["dashboard", "THE COCKPIT", "A leather-wrapped three-spoke wheel, four analog gauges, and a row of chrome toggle switches.", "Carmel steering wheel, gauges, and toggle switches"],
-        ["seats", "TAN LEATHER", "Two contrast-stitched seats and matching door panels, seen from above.", "Carmel tan contrast-stitched seats from above"],
-        ["shifter", "SHIFT BALL", "A black shift knob on a stitched leather boot, with a drilled alloy pedal alongside it.", "Carmel shift knob and drilled alloy pedal"],
+      modules: modules(CARMEL_FEATURES, CARMEL_SPECS, [
+        ["beach-reflection", "ON THE SAND", "Carmel on damp sand with its reflection in a tidal pool", "Wheels and tires"],
+        ["lake-reflection", "STILL WATER", "Carmel side profile on a causeway between two sheets of water", "Chassis and steering"],
+        ["downtown", "AFTER DARK", "Carmel on wet paving at night", "Dimensions and weight"],
+        ["dashboard", "THE COCKPIT", "Carmel steering wheel, gauges, and toggle switches", "Special features"],
+        ["seats", "TAN LEATHER", "Carmel tan contrast-stitched seats from above", "Comfort"],
+        ["shifter", "SHIFT BALL", "Carmel shift knob and drilled alloy pedal", "Powertrain"],
       ]),
     },
   },
@@ -262,12 +504,13 @@ export const models = [
     name: "Venice",
     powertrain: { fuel: "gas", layout: "3-wheel" },
     descriptor: "Three-wheel gas roadster.",
-    status: null,
-    overview: "Venice is an open three-wheel gas roadster. Vanderhall builds it in Provo, Utah.",
+    pastModel: true,
+    specNote: "Specifications shown are for the 2020 Venice GT.",
+    overview: "Venice is an open three-wheel gas roadster. Vanderhall built it in Provo, Utah.",
     // Homepage section: one line. Vehicles page: the same line plus one more.
     summary: "Open two-seat gas roadster on three wheels, shown here in silver over black.",
     intro: "Open two-seat gas roadster on three wheels. The photographs show polished silver bodywork over a black lower body, a wood-rimmed steering wheel, and tan leather seats.",
-    specGroups: [],
+    specGroups: VENICE_SPECS,
     images: {
       focal: "45% 55%",
       hero: "/assets/images/v2/heroes/venice/venice-wide-1920.webp",
@@ -281,16 +524,20 @@ export const models = [
         { ...feature(VENICE_FEATURES, "forest-road"), alt: "Venice on a forest road" },
         { ...feature(VENICE_FEATURES, "seats"), alt: "Venice seats in tan leather" },
       ],
-      modules: modules(VENICE_FEATURES, [
-        ["forest-road", "FOREST ROAD", "Front three-quarter on a road cut through spruce, with the sun coming through the trees behind.", "Venice on a forest road at sunrise"],
-        ["mountain-lake", "AT THE LAKE", "Parked on gravel beside a split-rail fence, an alpine lake and a snow-capped ridge behind it.", "Venice parked beside an alpine lake"],
-        ["motion", "ON THE MOVE", "Photographed under a concrete underpass with the camera panning, which draws the overhead lights into streaks.", "Venice photographed in motion under an underpass"],
-        ["seats", "TWO SEATS", "Tan leather seats with black belts, a wood-rimmed wheel, and a chrome shift ball between them.", "Venice tan leather seats and wood-rimmed steering wheel"],
-        ["speedometer", "ONE DIAL", "A single analog speedometer set into tan leather, with the Vanderhall name printed on the face.", "Venice analog speedometer set into tan leather"],
-        ["steering-wheel", "WOOD AND ALUMINUM", "A four-spoke wheel with a wooden rim, polished spokes, and a Venice horn button at the center.", "Venice four-spoke steering wheel with a wooden rim"],
+      // Two interior details stay label-only: Venice has four specification groups and six
+      // photographs, and a detail photograph carrying its label alone reads as deliberate.
+      modules: modules(VENICE_FEATURES, VENICE_SPECS, [
+        ["forest-road", "FOREST ROAD", "Venice on a forest road at sunrise", "Chassis and suspension"],
+        ["mountain-lake", "AT THE LAKE", "Venice parked beside an alpine lake", "Wheels, tires, and brakes"],
+        ["motion", "ON THE MOVE", "Venice photographed in motion under an underpass", "Powertrain and capacities"],
+        ["seats", "TWO SEATS", "Venice tan leather seats and wood-rimmed steering wheel", "Comfort"],
+        ["speedometer", "ONE DIAL", "Venice analog speedometer set into tan leather"],
+        ["steering-wheel", "WOOD AND ALUMINUM", "Venice four-spoke steering wheel with a wooden rim"],
       ]),
     },
   },
 ];
+
+models.forEach(assertPairings);
 
 export const modelBySlug = Object.fromEntries(models.map((model) => [model.slug, model]));

@@ -258,8 +258,6 @@ p { color: var(--text-secondary); }
 
 /* Caps register */
 .eyebrow,
-.chip,
-.card__cue,
 .site-footer h2 {
   font-size: var(--fs-eyebrow);
   font-weight: var(--wt-medium);
@@ -427,19 +425,40 @@ p { color: var(--text-secondary); }
 .vehicle-section__body { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-4); min-width: 0; }
 .vehicle-section__body p { max-width: var(--w-text); }
 
-/* Photo modules: one photograph, a label in the caps register, one or two sentences. The
-   rhythm is one step tighter than the V5 plan proposed, because at the planned --sf-xl the
-   captions read as stranded rather than paced. */
+/* Photo modules: one photograph, a label in the caps register, and the figures that photograph
+   shows. The rhythm is one step tighter than the V5 plan proposed, because at the planned
+   --sf-xl the captions read as stranded rather than paced. */
 .photo-scroll { display: flex; flex-direction: column; gap: var(--sf-l); }
 .photo-module { display: grid; grid-template-columns: 1fr; gap: var(--sf-s); margin: 0; align-items: center; }
 .photo-module__media { aspect-ratio: var(--ar-feature); overflow: hidden; border-radius: var(--r-2); background: var(--surface-1); }
 .photo-module__media img { width: 100%; height: 100%; object-fit: cover; }
 .photo-module__body { display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; }
-.photo-module__body p:last-child { max-width: var(--w-text); font-size: var(--fs-body-lg); }
+/* Constrained the way the prose it replaced was: below 1024px this column spans the full content
+   width, and unconstrained rows would strand a label and its value at opposite ends. */
+.photo-module__specs { display: flex; flex-direction: column; width: 100%; max-width: var(--w-text); }
 
-/* Sticky model bar: where you are, and the one thing you can do. */
+/* Warranty, the manufacturer's estimate sentence, and the model-year qualifier on the past
+   models. Quiet by intent: it is the fine print under the figures, not a section of its own. */
+.spec-note { display: flex; flex-direction: column; gap: var(--s-3); border-top: var(--hairline) solid var(--line); padding-top: var(--sf-s); color: var(--text-tertiary); font-size: var(--fs-caption); }
+
+/* One way back, in the same place on every page below the homepage. */
+/* The gap is not cosmetic: an inline-flex line box discards the whitespace between the arrow span
+   and the label, so without it the two run together as "←All vehicles". */
+.back-nav a { display: inline-flex; min-height: var(--hit-target); align-items: center; gap: var(--s-1); color: var(--text-secondary); font-size: var(--fs-body-sm); font-weight: var(--wt-medium); text-decoration: none; }
+.back-nav a:hover { color: var(--text-primary); text-decoration: underline; text-underline-offset: var(--s-2); }
+.back-nav a span { transition: transform var(--dur-2) var(--ease-out); }
+.back-nav a:hover span { transform: translateX(calc(-1 * var(--s-1))); }
+.hero__content .back-nav a, .model-bar .back-nav a { color: inherit; }
+
+/* Past model, on Venice and Carmel. A hairline pill in the caps register, quiet enough to be a
+   fact rather than a warning. */
+.model-tag { align-self: flex-start; border: var(--hairline) solid var(--line-strong); border-radius: var(--r-pill); padding: var(--s-1) var(--s-3); color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); line-height: var(--lh-caps); text-transform: uppercase; }
+.hero__content .model-tag { border-color: color-mix(in srgb, var(--pure-white) 55%, transparent); }
+
+/* Sticky model bar: where you are, the way back, and the one thing you can do. */
 .model-bar { position: sticky; z-index: var(--z-sticky); top: var(--header-h); border-bottom: var(--hairline) solid var(--line); background: var(--frost-bg); backdrop-filter: var(--frost-blur); }
-/* Padded to land on the same optical line as the content column of .page at every width. */
+/* Padded to land on the same optical line as the content column of .page at every width. The back
+   link takes the first slot, the name the middle, the action the last. */
 .model-bar__inner { display: flex; width: min(100%, calc(var(--w-content) + 2 * var(--gutter))); min-height: var(--hit-target); align-items: center; justify-content: space-between; gap: var(--s-4); margin-inline: auto; padding-inline: var(--gutter); }
 .model-bar__name { font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); text-transform: uppercase; }
 .model-bar__action { display: inline-flex; min-height: var(--hit-target); align-items: center; color: var(--text-secondary); font-size: var(--fs-body-sm); font-weight: var(--wt-medium); text-decoration: none; }
@@ -478,16 +497,9 @@ p { color: var(--text-secondary); }
 .pathway__cue span { display: inline-block; transition: transform var(--dur-2) var(--ease-out); }
 
 /* Specifications. The width constraint lives on the .narrow section only: declaring it twice
-   meant a change to one silently failed to move the other. */
+   meant a change to one silently failed to move the other. Imperial only since V8, so there is no
+   unit toggle and no second value to hide. Rows are shared with the paired photo modules. */
 .spec-table { display: flex; flex-direction: column; gap: var(--sf-s); }
-.spec-toolbar { display: flex; justify-content: flex-end; border-bottom: var(--hairline) solid var(--line); padding-bottom: var(--s-3); }
-.unit-toggle { display: flex; gap: var(--s-1); border: var(--hairline) solid var(--line-strong); border-radius: var(--r-pill); padding: var(--s-1); }
-.unit-toggle label { position: relative; display: inline-flex; min-height: var(--hit-target); align-items: center; border-radius: var(--r-pill); padding-inline: var(--s-3); font-size: var(--fs-caption); font-weight: var(--wt-medium); text-transform: uppercase; cursor: pointer; }
-.unit-toggle input { position: absolute; opacity: 0; }
-.unit-toggle label:has(input:checked) { background: var(--ink); color: var(--paper); }
-[data-unit="met"] { display: none; }
-.unit-metric [data-unit="imp"] { display: none; }
-.unit-metric [data-unit="met"] { display: inline; }
 .spec-group h3 { margin-bottom: var(--s-3); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); text-transform: uppercase; color: var(--text-tertiary); }
 .spec-group + .spec-group { margin-top: var(--sf-s); }
 .spec-row { display: grid; grid-template-columns: 1fr; gap: var(--s-1); border-bottom: var(--hairline) solid var(--line-faint); padding: var(--s-3) 0; font-size: var(--fs-body-sm); }
@@ -595,12 +607,18 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 .disclosures { display: flex; flex-direction: column; gap: var(--s-4); border-top: var(--hairline) solid var(--line); padding-top: var(--sf-s); }
 .disclosures p { max-width: var(--w-text); color: var(--text-tertiary); font-size: var(--fs-caption); }
 
-/* Concept detail */
-.concept-header .wordmark { align-self: flex-start; }
-.concept-header .wordmark img { width: auto; max-width: min(100%, 18rem); height: auto; max-height: 3rem; }
-:root[data-theme="dark"] .concept-header .wordmark { display: inline-block; border-radius: var(--r-2); padding: var(--s-2) var(--s-4); background: var(--pure-white); }
+/* Concept detail. The wordmark is the page title now, so it renders at heading scale and the
+   duplicate sans h1 is gone. In dark theme it is redrawn white rather than standing on the white
+   plate it used to need.
+   brightness(0) then invert(1), not invert(1) alone: some marks are two-tone (Yuma Defense sets
+   DEFENSE in mid grey), and mid grey inverts to mid grey, which all but disappears on the dark
+   background. Crushing every pixel to black first and then inverting yields one solid white mark
+   and keeps the alpha channel, so it holds for any artwork in the set. */
+.concept-title { margin: 0; }
+.concept-title img { width: auto; max-width: 100%; height: auto; max-height: clamp(2.75rem, 6vw, 4.25rem); }
+:root[data-theme="dark"] .concept-title img { filter: brightness(0) invert(1); }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .concept-header .wordmark { display: inline-block; border-radius: var(--r-2); padding: var(--s-2) var(--s-4); background: var(--pure-white); }
+  :root:not([data-theme="light"]) .concept-title img { filter: brightness(0) invert(1); }
 }
 .concept-status { color: var(--text-tertiary); font-size: var(--fs-caption); }
 /* Concept slides carry their own white canvas, so the figure sits on white and the
@@ -612,13 +630,22 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 .concept-back a { display: inline-flex; min-height: var(--hit-target); align-items: center; font-size: var(--fs-body-sm); font-weight: var(--wt-medium); }
 
 /* Owner resources */
-.resource-groups { display: flex; max-width: var(--w-narrow); flex-direction: column; gap: var(--sf-l); }
+/* Owner resources. V8 gave the groups the vehicle they are about and turned nineteen hairline rows
+   into cards: the page was the only one on the site with no photography, and a list of filenames
+   read as a document index rather than as something to act on. */
+.resource-groups { display: flex; flex-direction: column; gap: var(--sf-l); }
+.resource-group { display: grid; grid-template-columns: 1fr; gap: var(--sf-s); }
+.resource-group__media { overflow: hidden; border-radius: var(--r-2); aspect-ratio: var(--ar-feature); background: var(--surface-1); }
+.resource-group__media img { width: 100%; height: 100%; object-fit: cover; }
+.resource-group__body { min-width: 0; }
 .resource-group h2 { margin-bottom: var(--s-5); font-size: var(--fs-display-s); }
-.resource-list { border-top: var(--hairline) solid var(--line); }
-.resource-row { display: grid; min-height: var(--hit-target); grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--s-2) var(--s-4); border-bottom: var(--hairline) solid var(--line); padding-block: var(--s-4); text-decoration: none; }
-.resource-row:hover .resource-row__title { text-decoration: underline; }
-.resource-row__title { font-weight: var(--wt-medium); }
-.resource-row__meta { color: var(--text-tertiary); font-size: var(--fs-caption); white-space: nowrap; }
+.resource-cards { display: flex; flex-direction: column; gap: var(--s-3); }
+.resource-card { display: grid; min-height: var(--hit-target); grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--s-2) var(--s-4); border: var(--hairline) solid var(--line); border-radius: var(--r-2); padding: var(--s-4); text-decoration: none; transition: border-color var(--dur-2) var(--ease-out); }
+.resource-card:hover { border-color: var(--line-strong); }
+.resource-card:hover .resource-card__title { text-decoration: underline; text-underline-offset: var(--s-2); }
+.resource-card__title { font-weight: var(--wt-medium); }
+.resource-card__meta { display: inline-flex; align-items: center; gap: var(--s-3); color: var(--text-tertiary); font-size: var(--fs-caption); white-space: nowrap; }
+.resource-card__cue { display: inline-block; transition: transform var(--dur-2) var(--ease-out); }
 
 /* 404 */
 .not-found { display: flex; min-height: 50vh; flex-direction: column; justify-content: center; gap: var(--s-5); }
@@ -645,9 +672,14 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
   .site-header__inner { gap: var(--s-3); }
 }
 
+/* A bar carrying both a way back and an action has no room for the name on a narrow phone: all
+   three slots wrap. The name yields, because the heading directly below it says the same word. */
+@media (max-width: 639px) {
+  .model-bar__inner:has(.back-nav):has(.model-bar__action) .model-bar__name { display: none; }
+}
+
 @media (min-width: 640px) {
   .card-grid--concepts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .resource-row__meta { grid-column: auto; }
 }
 
 @media (min-width: 768px) {
@@ -665,6 +697,9 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
   .vehicle-section { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sf-l); }
   .vehicle-section--reverse .vehicle-section__media { grid-area: 1 / 2; }
   .vehicle-section--reverse .vehicle-section__body { grid-area: 1 / 1; }
+  /* The photograph takes the narrower side, matching the split section's proportions, so the
+     manual list stays the wider column and the year rows never crowd. */
+  .resource-group--media { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: var(--sf-m); align-items: start; }
 }
 
 @media (min-width: 1024px) {
@@ -673,7 +708,9 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
   .desktop-theme { display: inline-flex; }
   .menu-button { display: none; }
   .card-grid--concepts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .photo-module { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: var(--sf-m); }
+  /* Only the modules that carry figures split into two columns. A label with nothing beside it
+     keeps the full width and sits under its photograph. */
+  .photo-module:not(.photo-module--plain) { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: var(--sf-m); }
   .photo-module--reverse .photo-module__media { grid-area: 1 / 2; }
   .photo-module--reverse .photo-module__body { grid-area: 1 / 1; }
   /* The name and the price sit on one line, the price against the right edge, so the two things a
@@ -693,6 +730,7 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
   .pathway:hover .pathway__title { text-decoration: underline; text-underline-offset: var(--s-2); }
   .pathway:hover .pathway__cue span { transform: translateX(var(--s-1)); }
   .swatch:not([disabled]):hover > span { transform: scale(1.12); }
+  .resource-card:hover .resource-card__cue { transform: translateY(var(--s-1)); }
 }
 
 /* Scroll motion. Driven entirely by CSS scroll-progress timelines, so there is still no
@@ -758,6 +796,8 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
   .vehicle-section__lead:hover img,
   .vehicle-section__support:hover img,
   .swatch:hover > span,
+  .back-nav a:hover span,
+  .resource-card:hover .resource-card__cue,
   .pathway:hover .pathway__cue span { transform: none; }
   /* Scroll-driven animations advance with scroll position rather than time, so clearing the
      duration is not enough: the timeline itself has to go. */

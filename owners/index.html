@@ -10,7 +10,7 @@
   <link rel="icon" href="/assets/brand/favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
   <link rel="manifest" href="/site.webmanifest">
-  <script>try{const t=localStorage.getItem('vhw.theme');if(t)document.documentElement.dataset.theme=t;const u=localStorage.getItem('vhw.units');if(u==='metric')document.documentElement.classList.add('unit-metric')}catch(e){}</script>
+  <script>try{const t=localStorage.getItem('vhw.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
   <link rel="canonical" href="https://vanderhall-website.vercel.app/owners/">
   <link rel="stylesheet" href="/styles/bundle.css">
   
@@ -40,8 +40,80 @@
   </div>
   <div class="sheet-backdrop" data-sheet-backdrop hidden></div>
   <main id="main"><div class="page">
-    <header class="page-header"><p class="eyebrow">OWNERS</p><h1>Owner resources</h1><p>Vanderhall owner's manuals, grouped by model and year. Each file opens as a PDF.</p></header>
-    <section class="section--tight narrow"><div class="resource-groups"><section class="resource-group" id="venice"><h2>Venice</h2><div class="resource-list"><a class="resource-row" href="/assets/manuals/2017-vanderhall-venice-owners-manual.pdf" type="application/pdf"><span class="resource-row__title">2017 Venice owner's manual</span><span class="resource-row__meta">PDF · 4.9 MB</span></a><a class="resource-row" href="/assets/manuals/2018-vanderhall-venice-owners-manual.pdf" type="application/pdf"><span class="resource-row__title">2018 Venice owner's manual</span><span class="resource-row__meta">PDF · 4.4 MB</span></a><a class="resource-row" href="/assets/manuals/2019-vanderhall-venice-owners-manual.pdf" type="application/pdf"><span class="resource-row__title">2019 Venice owner's manual</span><span class="resource-row__meta">PDF · 7.6 MB</span></a><a class="resource-row" href="/assets/manuals/2020-vanderhall-venice-owners-manual.pdf" type="application/pdf"><span class="resource-row__title">2020 Venice owner's manual</span><span class="resource-row__meta">PDF · 12.5 MB</span></a><a class="resource-row" href="/assets/manuals/2021-vanderhall-venice-owners-manual.pdf" type="application/pdf"><span class="resource-row__title">2021 Venice owner's manual</span><span class="resource-row__meta">PDF · 19.9 MB</span></a><a class="resource-row" href="/assets/manuals/2022-vanderhall-venice-owners-manual.pdf" type="application/pdf"><span class="resource-row__title">2022 Venice owner's manual</span><span class="resource-row__meta">PDF · 12.8 MB</span></a><a class="resource-row" href="/assets/manuals/2023-vanderhall-venice-owners-manual.pdf" type="application/pdf"><span class="resource-row__title">2023 Venice owner's manual</span><span class="resource-row__meta">PDF · 5.8 MB</span></a><a class="resource-row" href="/assets/manuals/2024-vanderhall-venice-owners-manual.pdf" type="application/pdf"><span class="resource-row__title">2024 Venice owner's manual</span><span class="resource-row__meta">PDF · 6.4 MB</span></a></div></section><section class="resource-group" id="carmel"><h2>Carmel</h2><div class="resource-list"><a class="resource-row" href="/assets/manuals/2020-vanderhall-carmel-owners-manual.pdf" type="application/pdf"><span class="resource-row__title">2020 Carmel owner's manual</span><span class="resource-row__meta">PDF · 15.9 MB</span></a><a class="resource-row" href="/assets/manuals/2021-vanderhall-carmel-owners-manual.pdf" type="application/pdf"><span class="resource-row__title">2021 Carmel owner's manual</span><span class="resource-row__meta">PDF · 15.9 MB</span></a><a class="resource-row" href="/assets/manuals/2022-vanderhall-carmel-owners-manual.pdf" type="application/pdf"><span class="resource-row__title">2022 Carmel owner's manual</span><span class="resource-row__meta">PDF · 21.3 MB</span></a><a class="resource-row" href="/assets/manuals/2023-vanderhall-carmel-owners-manual.pdf" type="application/pdf"><span class="resource-row__title">2023 Carmel owner's manual</span><span class="resource-row__meta">PDF · 10.2 MB</span></a><a class="resource-row" href="/assets/manuals/2024-vanderhall-carmel-owners-manual.pdf" type="application/pdf"><span class="resource-row__title">2024 Carmel owner's manual</span><span class="resource-row__meta">PDF · 9.9 MB</span></a></div></section><section class="resource-group" id="brawley"><h2>Brawley</h2><div class="resource-list"><a class="resource-row" href="/assets/manuals/2024-brawley-owners-manual.pdf" type="application/pdf"><span class="resource-row__title">2024 Brawley owner's manual</span><span class="resource-row__meta">PDF · 41.9 MB</span></a><a class="resource-row" href="/assets/manuals/2024-brawley-owners-manual-spanish.pdf" type="application/pdf"><span class="resource-row__title">2024 Brawley owner's manual (Spanish)</span><span class="resource-row__meta">PDF · 42.5 MB</span></a><a class="resource-row" href="/assets/manuals/2025-brawley-owners-manual.pdf" type="application/pdf"><span class="resource-row__title">2025 Brawley owner's manual</span><span class="resource-row__meta">PDF · 48.4 MB</span></a><a class="resource-row" href="/assets/manuals/2026-brawley-owners-manual.pdf" type="application/pdf"><span class="resource-row__title">2026 Brawley owner's manual</span><span class="resource-row__meta">PDF · 43.8 MB</span></a></div></section><section class="resource-group" id="speedster"><h2>Speedster</h2><div class="resource-list"><a class="resource-row" href="/assets/manuals/2019-vanderhall-speedster-owners-manual.pdf" type="application/pdf"><span class="resource-row__title">2019 Speedster owner's manual</span><span class="resource-row__meta">PDF · 4.7 MB</span></a></div></section><section class="resource-group" id="laguna"><h2>Laguna</h2><div class="resource-list"><a class="resource-row" href="/assets/manuals/2016-vanderhall-laguna-owners-manual.pdf" type="application/pdf"><span class="resource-row__title">2016 Laguna owner's manual</span><span class="resource-row__meta">PDF · 2.8 MB</span></a></div></section></div></section>
+    <header class="page-header"><nav class="back-nav" aria-label="Breadcrumb"><a href="/"><span aria-hidden="true">← </span>Home</a></nav><p class="eyebrow">OWNERS</p><h1>Owner resources</h1><p>Vanderhall owner's manuals, grouped by model and year. Each file opens as a PDF.</p></header>
+    <section class="section--tight"><div class="resource-groups"><section class="resource-group resource-group--media" id="venice">
+      <div class="resource-group__media"><img src="/assets/images/v2/features/venice/seaside-960.webp" srcset="/assets/images/v2/features/venice/seaside-640.webp 640w, /assets/images/v2/features/venice/seaside-800.webp 800w, /assets/images/v2/features/venice/seaside-960.webp 960w, /assets/images/v2/features/venice/seaside-1280.webp 1280w" width="960" height="640" sizes="(min-width: 768px) 38vw, 92vw" alt="Silver Vanderhall Venice side profile by the sea" loading="lazy" decoding="async"></div>
+      <div class="resource-group__body"><h2>Venice</h2><div class="resource-cards"><a class="resource-card" href="/assets/manuals/2017-vanderhall-venice-owners-manual.pdf" type="application/pdf">
+        <span class="resource-card__title">2017 Venice owner's manual</span>
+        <span class="resource-card__meta">PDF · 4.9 MB<span class="resource-card__cue" aria-hidden="true">↓</span></span>
+      </a><a class="resource-card" href="/assets/manuals/2018-vanderhall-venice-owners-manual.pdf" type="application/pdf">
+        <span class="resource-card__title">2018 Venice owner's manual</span>
+        <span class="resource-card__meta">PDF · 4.4 MB<span class="resource-card__cue" aria-hidden="true">↓</span></span>
+      </a><a class="resource-card" href="/assets/manuals/2019-vanderhall-venice-owners-manual.pdf" type="application/pdf">
+        <span class="resource-card__title">2019 Venice owner's manual</span>
+        <span class="resource-card__meta">PDF · 7.6 MB<span class="resource-card__cue" aria-hidden="true">↓</span></span>
+      </a><a class="resource-card" href="/assets/manuals/2020-vanderhall-venice-owners-manual.pdf" type="application/pdf">
+        <span class="resource-card__title">2020 Venice owner's manual</span>
+        <span class="resource-card__meta">PDF · 12.5 MB<span class="resource-card__cue" aria-hidden="true">↓</span></span>
+      </a><a class="resource-card" href="/assets/manuals/2021-vanderhall-venice-owners-manual.pdf" type="application/pdf">
+        <span class="resource-card__title">2021 Venice owner's manual</span>
+        <span class="resource-card__meta">PDF · 19.9 MB<span class="resource-card__cue" aria-hidden="true">↓</span></span>
+      </a><a class="resource-card" href="/assets/manuals/2022-vanderhall-venice-owners-manual.pdf" type="application/pdf">
+        <span class="resource-card__title">2022 Venice owner's manual</span>
+        <span class="resource-card__meta">PDF · 12.8 MB<span class="resource-card__cue" aria-hidden="true">↓</span></span>
+      </a><a class="resource-card" href="/assets/manuals/2023-vanderhall-venice-owners-manual.pdf" type="application/pdf">
+        <span class="resource-card__title">2023 Venice owner's manual</span>
+        <span class="resource-card__meta">PDF · 5.8 MB<span class="resource-card__cue" aria-hidden="true">↓</span></span>
+      </a><a class="resource-card" href="/assets/manuals/2024-vanderhall-venice-owners-manual.pdf" type="application/pdf">
+        <span class="resource-card__title">2024 Venice owner's manual</span>
+        <span class="resource-card__meta">PDF · 6.4 MB<span class="resource-card__cue" aria-hidden="true">↓</span></span>
+      </a></div></div>
+    </section><section class="resource-group resource-group--media" id="carmel">
+      <div class="resource-group__media"><img src="/assets/images/v2/features/carmel/beach-reflection-960.webp" srcset="/assets/images/v2/features/carmel/beach-reflection-640.webp 640w, /assets/images/v2/features/carmel/beach-reflection-800.webp 800w, /assets/images/v2/features/carmel/beach-reflection-960.webp 960w, /assets/images/v2/features/carmel/beach-reflection-1280.webp 1280w" width="960" height="640" sizes="(min-width: 768px) 38vw, 92vw" alt="Red Vanderhall Carmel on damp sand at first light" loading="lazy" decoding="async"></div>
+      <div class="resource-group__body"><h2>Carmel</h2><div class="resource-cards"><a class="resource-card" href="/assets/manuals/2020-vanderhall-carmel-owners-manual.pdf" type="application/pdf">
+        <span class="resource-card__title">2020 Carmel owner's manual</span>
+        <span class="resource-card__meta">PDF · 15.9 MB<span class="resource-card__cue" aria-hidden="true">↓</span></span>
+      </a><a class="resource-card" href="/assets/manuals/2021-vanderhall-carmel-owners-manual.pdf" type="application/pdf">
+        <span class="resource-card__title">2021 Carmel owner's manual</span>
+        <span class="resource-card__meta">PDF · 15.9 MB<span class="resource-card__cue" aria-hidden="true">↓</span></span>
+      </a><a class="resource-card" href="/assets/manuals/2022-vanderhall-carmel-owners-manual.pdf" type="application/pdf">
+        <span class="resource-card__title">2022 Carmel owner's manual</span>
+        <span class="resource-card__meta">PDF · 21.3 MB<span class="resource-card__cue" aria-hidden="true">↓</span></span>
+      </a><a class="resource-card" href="/assets/manuals/2023-vanderhall-carmel-owners-manual.pdf" type="application/pdf">
+        <span class="resource-card__title">2023 Carmel owner's manual</span>
+        <span class="resource-card__meta">PDF · 10.2 MB<span class="resource-card__cue" aria-hidden="true">↓</span></span>
+      </a><a class="resource-card" href="/assets/manuals/2024-vanderhall-carmel-owners-manual.pdf" type="application/pdf">
+        <span class="resource-card__title">2024 Carmel owner's manual</span>
+        <span class="resource-card__meta">PDF · 9.9 MB<span class="resource-card__cue" aria-hidden="true">↓</span></span>
+      </a></div></div>
+    </section><section class="resource-group resource-group--media" id="brawley">
+      <div class="resource-group__media"><img src="/assets/images/brawley/lifestyle/juniper-960.webp" srcset="/assets/images/brawley/lifestyle/juniper-640.webp 640w, /assets/images/brawley/lifestyle/juniper-800.webp 800w, /assets/images/brawley/lifestyle/juniper-960.webp 960w, /assets/images/brawley/lifestyle/juniper-1280.webp 1280w" width="960" height="640" sizes="(min-width: 768px) 38vw, 92vw" alt="Green Vanderhall Brawley beneath a juniper with snow-dusted peaks behind" loading="lazy" decoding="async"></div>
+      <div class="resource-group__body"><h2>Brawley</h2><div class="resource-cards"><a class="resource-card" href="/assets/manuals/2024-brawley-owners-manual.pdf" type="application/pdf">
+        <span class="resource-card__title">2024 Brawley owner's manual</span>
+        <span class="resource-card__meta">PDF · 41.9 MB<span class="resource-card__cue" aria-hidden="true">↓</span></span>
+      </a><a class="resource-card" href="/assets/manuals/2024-brawley-owners-manual-spanish.pdf" type="application/pdf">
+        <span class="resource-card__title">2024 Brawley owner's manual (Spanish)</span>
+        <span class="resource-card__meta">PDF · 42.5 MB<span class="resource-card__cue" aria-hidden="true">↓</span></span>
+      </a><a class="resource-card" href="/assets/manuals/2025-brawley-owners-manual.pdf" type="application/pdf">
+        <span class="resource-card__title">2025 Brawley owner's manual</span>
+        <span class="resource-card__meta">PDF · 48.4 MB<span class="resource-card__cue" aria-hidden="true">↓</span></span>
+      </a><a class="resource-card" href="/assets/manuals/2026-brawley-owners-manual.pdf" type="application/pdf">
+        <span class="resource-card__title">2026 Brawley owner's manual</span>
+        <span class="resource-card__meta">PDF · 43.8 MB<span class="resource-card__cue" aria-hidden="true">↓</span></span>
+      </a></div></div>
+    </section><section class="resource-group" id="speedster">
+      
+      <div class="resource-group__body"><h2>Speedster</h2><div class="resource-cards"><a class="resource-card" href="/assets/manuals/2019-vanderhall-speedster-owners-manual.pdf" type="application/pdf">
+        <span class="resource-card__title">2019 Speedster owner's manual</span>
+        <span class="resource-card__meta">PDF · 4.7 MB<span class="resource-card__cue" aria-hidden="true">↓</span></span>
+      </a></div></div>
+    </section><section class="resource-group" id="laguna">
+      
+      <div class="resource-group__body"><h2>Laguna</h2><div class="resource-cards"><a class="resource-card" href="/assets/manuals/2016-vanderhall-laguna-owners-manual.pdf" type="application/pdf">
+        <span class="resource-card__title">2016 Laguna owner's manual</span>
+        <span class="resource-card__meta">PDF · 2.8 MB<span class="resource-card__cue" aria-hidden="true">↓</span></span>
+      </a></div></div>
+    </section></div></section>
   </div></main>
   <footer class="site-footer">
   <div class="footer-links">

@@ -1,6 +1,71 @@
 # Internal missing-data inventory
 
-Status: current as of the V5 refinement pass, 2026-08-04.
+Status: current as of V8, 2026-08-05.
+
+## Resolved in V8
+
+**Specifications for all four models.** Every model page now publishes figures, paired with the
+photographs that show them. Sources, per model:
+
+| Model | Source | Note |
+|---|---|---|
+| Brawley | Existing V1-verified data, extended from `vanderhallusa.com/brawley-gts-features-...`, read 2026-08-05 | The live page restates every V1 figure identically, which independently confirms the V1 data |
+| Santarosa | Existing V1-verified data, extended from `vanderhallusa.com/santarosa-features-...`, read 2026-08-05 | |
+| Carmel | Vanderhall's Carmel infocard, `wp-content/uploads/2019/02/carmel-infocard-1.pdf`, supplied by Owen, plus dimensions from their `specs-menu-carmel.pdf` | Describes the 2019 Carmel, stated on the page |
+| Venice | Vanderhall's `2020-Venice-GT-infocard.pdf`, their 2020 line sheet, and the owner's manual already in this library | Describes the 2020 Venice GT, stated on the page. Two rows, wheelbase and brakes, come from the Motorcycle Cruiser review Owen approved, because no Vanderhall document states either |
+
+Every page that publishes figures now also carries the manufacturer's estimate sentence, and the
+two past models state which model year their figures describe. That qualifier is a correctness
+requirement, not decoration: Venice ran with two different engines across its life, so an
+unqualified figure set would be false about most Venices built.
+
+**Production status.** Owen confirmed in chat on 2026-08-05 that Venice and Carmel are past models
+and that Brawley and Santarosa are current and selling. The two past models carry a "Past model"
+tag on their cards and page heroes. This closes the row that had been open since V4 deleted the
+status chips.
+
+**Warranty for the current models.** Brawley: 6-month limited, 36-month battery. Santarosa:
+1-year limited, 36-month battery. Both read from the live feature pages, 2026-08-05. The past
+models publish no warranty, deliberately.
+
+## Opened in V8: two conflicts inside Vanderhall's own material
+
+| Conflict | Detail | Why it is not resolved here |
+|---|---|---|
+| Brawley minimum driver age | Their Brawley features page says a driver must be at least **16**. Their Brawley GTS page, which this site quotes verbatim under D-V6-1, says at least **18**. | A minimum age is a safety requirement and is not something to settle by choosing the more convenient number. The approved 18 text stands unchanged until Vanderhall says which is correct. |
+| Carmel horsepower | The 2019 infocard says **200 hp** with 203 lb-ft. Their 2020 Carmel line sheet says **194 hp** for the same 1.5 liter engine. | Owen chose the infocard figure on 2026-08-05. Both numbers are recorded in the data comment so the choice is visible, and the question is on the Vanderhall list. |
+
+## Found in V8: a corpus of Vanderhall spec documents nobody had catalogued
+
+Vanderhall's media library serves **18 infocard PDFs and 17 specification sheets** covering Venice,
+Carmel, Speedster, and their trim lines, dated 2018 to 2020. No page on their current site links
+any of them; they are orphaned uploads still served at their direct URLs. None of this project's
+four prior audits recorded them, because each audit walked the page tree rather than the media
+library. The V3 note that "current Venice and Carmel specification pages could not be recovered"
+was drawn from the page tree and is superseded.
+
+Two defects to know about if these are cited again: the line sheets are headed "MRSP", a typo for
+MSRP, and `specs-menu-carmel.pdf` labels its fuel capacity row "DISPLACEMENT 10 Gallons". The
+Carmel fuel capacity is unpublished for exactly that reason.
+
+There is **no** infocard or specification sheet for Santarosa or Brawley. The whole PDF program
+ended in March 2020, before either launched. What those two have instead is specification content
+baked into images on their live pages, plus the HTML tables this version read.
+
+## Still missing after V8
+
+| Item | Affected routes | Required source |
+|---|---|---|
+| Venice torque, 0 to 60, top speed, curb weight | `/venice/` | Vanderhall figures for the 1.5 liter car. The only ones they publish describe the earlier 1.4 liter 180 hp Venice and would be wrong beside a 194 hp engine. |
+| Venice interior material | `/venice/` | Their GT infocard says Tan V-Tex and their line sheet says Tan Leather for the same trim. Two first-party sources disagree, so neither ships. |
+| Carmel fuel capacity | `/carmel/` | A correctly labeled figure. See the mislabeled source row above. |
+| Santarosa wiper system and removable capshade | `/santarosa/` | What the triple-asterisk footnote on their features page means. A row whose qualifier is unknown could turn optional equipment into standard. |
+| A Santarosa owner's manual | `/owners/` | The library holds 19 manuals covering Venice, Carmel, Brawley, Speedster, and Laguna. There is no Santarosa manual. Ask whether one exists. |
+| Speedster and Laguna photography | `/owners/` | No photograph of either retired roadster exists in `Assets/`, so their groups stay typographic. The concept named Speedster is a different vehicle and must not stand in for it. |
+
+---
+
+Earlier status, retained for history: current as of the V5 refinement pass, 2026-08-04.
 
 This file is the internal record of information the public site does not have. It is the
 replacement for the visible MISSING gates that V1 to V3 rendered on the live site. The
@@ -32,11 +97,14 @@ amount appears on any other page, or if any amount other than those four appears
 
 ## Specifications
 
-| Item | Affected routes | Required source |
+Superseded by the V8 section at the top of this file. The three rows below were resolved there and
+are kept so the history reads straight.
+
+| Item | Affected routes | Status |
 |---|---|---|
-| Venice and Carmel specifications (power, torque, 0 to 60, weight, dimensions) | `/venice/`, `/carmel/` | Vanderhall spec sheets as text. Nothing verified exists today. |
-| Curb weight for all four vehicles | all four model pages | Vanderhall engineering data. |
-| Remainder of the Santarosa and Brawley spec tables (chassis, wheels, brakes, interior, technology) | `/santarosa/`, `/brawley/` | Vanderhall spec sheets as text. |
+| ~~Venice and Carmel specifications~~ | `/venice/`, `/carmel/` | RESOLVED in V8 from Vanderhall's own infocards and line sheets, plus two third-party rows on Venice. Curb weight for Venice is still open; Carmel publishes 1,595 lb. |
+| Curb weight for Venice | `/venice/` | Still open. Their 2020 documents give dry weight only. |
+| ~~Remainder of the Santarosa and Brawley spec tables~~ | `/santarosa/`, `/brawley/` | RESOLVED in V8 from their live feature pages: suspension, wheels, tires, brakes, dimensions, wheelbase, ground clearance, storage, cabin equipment, and warranty. |
 | Colorway mapping and paint values for Venice, Carmel, Santarosa | those three model pages | Which colorways apply to which vehicle and trim, plus paint chips or sampled values. Brawley GTS is resolved: nine colors ship on `/brawley/gts/` with sampled swatch values and studio frames. |
 | The four missing Jean Grey studio angles | `/brawley/gts/` | A studio shoot covering side, side-rear-driver, side-rear-passenger, and rear in Jean Grey. Until then that color is shown as a single still and the viewer says so. |
 | Whether Concrete Grey is still offered | `/brawley/gts/` | Vanderhall's current color list. It has studio frames for the four angles Jean Grey lacks but no page on the current Vanderhall site, so V6 does not ship it. |

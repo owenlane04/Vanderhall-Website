@@ -63,19 +63,6 @@ document.addEventListener("keydown", (event) => {
   if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
 });
 
-document.querySelectorAll("[data-spec-table]").forEach((table) => {
-  const radios = [...table.querySelectorAll(".unit-toggle input")];
-  const live = table.querySelector("[data-unit-live]");
-  const storedMetric = root.classList.contains("unit-metric");
-  radios.forEach((radio) => { radio.checked = storedMetric ? radio.value === "metric" : radio.value === "imperial"; });
-  radios.forEach((radio) => radio.addEventListener("change", () => {
-    const metric = radio.value === "metric";
-    root.classList.toggle("unit-metric", metric);
-    try { localStorage.setItem("vhw.units", metric ? "metric" : "imperial"); } catch (error) {}
-    if (live) live.textContent = `Units set to ${metric ? "metric" : "imperial"}.`;
-  }));
-});
-
 // Studio walkaround. Restored from V3, with the idle preload of every colour dropped: it pulled
 // several megabytes nobody had asked for. Frame URLs are read from the swatches rather than built
 // from a template, so the HTML is the one source for both this island and the build's check that

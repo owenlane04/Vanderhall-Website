@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { concepts } from "./data/concepts.mjs";
 import { modelBySlug, models } from "./data/models.mjs";
 import {
+  backLink,
   buttonLink,
   conceptCard,
   eyebrow,
@@ -14,6 +15,7 @@ import {
   modelBar,
   pageHeader,
   organizationSchema,
+  pastModelTag,
   pathways,
   photoScroll,
   price,
@@ -22,6 +24,7 @@ import {
   sectionHeading,
   shell,
   sizeOf,
+  specNote,
   specTable,
   textLink,
   vehicleSection,
@@ -31,22 +34,45 @@ import {
 const sourceRoot = dirname(fileURLToPath(import.meta.url));
 const websiteRoot = resolve(sourceRoot, "..");
 
+// One way back from every page below the homepage, one level up. This map is the single source:
+// scripts/check-content.mjs mirrors it and fails the build if any page disagrees with it, so a new
+// route cannot ship without deciding where its back link goes.
+const PARENTS = {
+  vehicles: { label: "Home", href: "/" },
+  concepts: { label: "Home", href: "/" },
+  owners: { label: "Home", href: "/" },
+  dealers: { label: "Home", href: "/" },
+  brawley: { label: "All vehicles", href: "/vehicles/" },
+  santarosa: { label: "All vehicles", href: "/vehicles/" },
+  carmel: { label: "All vehicles", href: "/vehicles/" },
+  venice: { label: "All vehicles", href: "/vehicles/" },
+  "brawley/gts": { label: "Brawley", href: "/brawley/" },
+  concept: { label: "All concepts", href: "/concepts/" },
+  "recommend-dealer": { label: "Dealers", href: "/dealers/" },
+  "dealer-inquiry": { label: "Dealers", href: "/dealers/" },
+};
+
 const modelPage = (model) => {
-  const hasSpecs = model.specGroups.length > 0;
   const cta = model.cta || { label: "Request info", href: `/dealers/?model=${model.slug}` };
   const heroContent = `${eyebrow(`${model.powertrain.fuel} · ${model.powertrain.layout}`)}
       <h1>${model.name}</h1>
+      ${model.pastModel ? pastModelTag() : ""}
       <p class="hero__descriptor">${model.descriptor}</p>
-      <div class="hero__actions">${buttonLink(cta.label, cta.href, "inverse")}${hasSpecs ? '<a class="button button--ghost-inverse" href="#specifications">Specifications</a>' : ""}</div>`;
+      <div class="hero__actions">${buttonLink(cta.label, cta.href, "inverse")}</div>`;
   const body = `<div class="page">
     ${hero({ src: model.images.hero, srcset: model.images.heroSrcset, tallSrcset: model.images.heroTallSrcset, alt: model.images.heroAlt, focal: model.images.focal, align: model.images.heroAlign, content: heroContent })}
-    ${/* The sticky bar only earns its space where it offers something the header does not. On the
-          three models whose action is Request info it just repeated the header button, so it is
-          gone. Brawley keeps it, because it points at the purchase page instead. */
-      model.cta ? modelBar(model) : ""}
+    ${/* The bar carries the way back on every model page now, which is something the header does
+          not offer, so it earns its space on all four rather than on Brawley alone. */
+      modelBar(model, { back: PARENTS[model.slug] })}
     <section class="section--tight narrow"><p class="lede">${model.overview}</p></section>
-    <section class="section">${sectionHeading("IN DETAIL", `A closer look at ${model.name}.`)}${photoScroll(model.images.modules)}</section>
-    ${hasSpecs ? `<section class="section narrow centered" id="specifications">${sectionHeading("SPECIFICATIONS", "Published figures")}${specTable(model)}</section>` : ""}
+    <section class="section">
+      ${sectionHeading("IN DETAIL", `A closer look at ${model.name}.`)}
+      ${/* Each photograph carries the figures it shows. The specification table that used to sit
+            at the foot of this page is gone: a reference block down there went unread, while the
+            photographs were carrying prose about where the vehicle was parked. */
+        photoScroll(model.images.modules)}
+    </section>
+    <section class="section--tight narrow centered">${specNote(model)}</section>
   </div>`;
   return shell({ title: model.name, description: model.descriptor, path: `/${model.slug}`, body });
 };
@@ -62,7 +88,7 @@ const brawleyGtsPage = (model) => {
     srcset: [640, 800, 960, 1280].map((width) => `/assets/images/brawley/lifestyle/${gts.scene.name}-${width}.webp ${width}w`).join(", "),
   };
   const body = `<div class="page">
-    ${modelBar(model, { name: gts.name, label: "Order yours now", href: gts.reserveUrl })}
+    ${modelBar(model, { name: gts.name, label: "Order yours now", href: gts.reserveUrl, back: PARENTS["brawley/gts"] })}
     <section class="section--tight">
       <div class="gts-open">
         <div class="gts-open__row">
@@ -130,7 +156,9 @@ const homePage = () => {
 
 const vehiclesPage = () => {
   const body = `<div class="page">
-    ${pageHeader("VEHICLES", "Vehicles", "Two three-wheel gas roadsters, one three-wheel electric autocycle, and one electric off-road UTV. All four are hand-built in Provo, Utah.")}
+    ${/* The old line said all four "are hand-built in Provo", present tense, which stopped being
+          true for two of them the moment they were labeled past models. */
+      pageHeader("VEHICLES", "Vehicles", "Two three-wheel gas roadsters, one three-wheel electric autocycle, and one electric off-road UTV, hand-built in Provo, Utah. Venice and Carmel are past models.", "", PARENTS.vehicles)}
     <section class="section">
       <div class="vehicle-scroll">${models.map((model, index) => vehicleSection(model, { index, copy: model.intro, eager: index === 0, level: 2, withSupport: true })).join("")}</div>
     </section>
@@ -140,7 +168,7 @@ const vehiclesPage = () => {
 
 const conceptsPage = () => {
   const body = `<div class="page">
-    ${pageHeader("CONCEPTS", "Design studies", "These nine vehicles are Vanderhall concepts. They are not offered for sale, and no pricing or specifications are published for them.")}
+    ${pageHeader("CONCEPTS", "Design studies", "These nine vehicles are Vanderhall concepts. They are not offered for sale, and no pricing or specifications are published for them.", "", PARENTS.concepts)}
     <section class="section--tight"><div class="card-grid card-grid--concepts">${concepts.map((concept, index) => conceptCard(concept, { eager: index < 3 })).join("")}</div></section>
   </div>`;
   return shell({ title: "Concepts", description: "Vanderhall concept vehicles and design studies, not offered for sale.", path: "/concepts", body });
@@ -151,26 +179,31 @@ const conceptImage = (item, { eager = false } = {}) => {
   return `<picture>${item.mobile ? `<source media="(max-width: 639px)" srcset="${item.mobile}">` : ""}<img src="${item.src}"${item.srcset ? ` srcset="${item.srcset}"` : ""} sizes="(min-width: 1280px) 1200px, 92vw" width="${width}" height="${height}" alt="${item.alt}" loading="${eager ? "eager" : "lazy"}"${eager ? ' fetchpriority="high"' : ""} decoding="async"></picture>`;
 };
 
+// One title, the script wordmark, which is the concept's own mark. It used to sit under a bold sans
+// h1 of the same word, and in dark theme it sat on a white plate because the artwork is dark on
+// transparency. The artwork is monochrome, so dark theme inverts it instead and the plate is gone.
+// The alt carries the name, so the accessible heading and a failed image both still say the word.
+const conceptTitle = (concept) => `<h1 class="concept-title"><img src="${concept.wordmark.src}" width="${concept.wordmark.width}" height="${concept.wordmark.height}" alt="${concept.name}" loading="eager" fetchpriority="high" decoding="async"></h1>`;
+
 const conceptPage = (concept) => {
   const body = `<div class="page">
     <header class="page-header concept-header">
+      ${backLink(PARENTS.concept)}
       ${eyebrow("CONCEPT")}
-      <h1>${concept.name}</h1>
-      <span class="wordmark"><img src="${concept.wordmark.src}" width="${concept.wordmark.width}" height="${concept.wordmark.height}" alt="" loading="lazy" decoding="async"></span>
+      ${conceptTitle(concept)}
       <p>${concept.category}</p>
       <p class="concept-status">Concept vehicle. Not offered for sale.</p>
     </header>
     <section class="section--tight"><div class="concept-figure">${conceptImage(concept.hero, { eager: true })}</div></section>
     <section class="section--tight narrow"><p class="lede">${concept.intro}</p></section>
     ${concept.gallery.length ? `<section class="section--tight concept-gallery">${concept.gallery.map((item) => `<div class="concept-figure">${conceptImage(item)}</div>`).join("")}</section>` : ""}
-    <nav class="concept-back section--tight" aria-label="Concept navigation"><a href="/concepts/"><span aria-hidden="true">← </span>All concepts</a></nav>
   </div>`;
   return shell({ title: `${concept.name} concept`, description: `${concept.name}, a Vanderhall ${concept.category.toLowerCase()} that is not offered for sale.`, path: `/concepts/${concept.slug}`, body });
 };
 
 const dealersPage = () => {
   const body = `<div class="page">
-    ${pageHeader("DEALERS", "Find your dealer.", "Vanderhall vehicles are sold through a dealer network. Tell Vanderhall where you are and which vehicle interests you, and someone will connect you with a dealer.", "form-shell")}
+    ${pageHeader("DEALERS", "Find your dealer.", "Vanderhall vehicles are sold through a dealer network. Tell Vanderhall where you are and which vehicle interests you, and someone will connect you with a dealer.", "form-shell", PARENTS.dealers)}
     <section class="section--tight form-shell" id="request-info">
       <h2 class="form-heading">Request information</h2>
       ${leadForm()}
@@ -184,12 +217,12 @@ const dealersPage = () => {
 };
 
 const recommendDealerPage = () => {
-  const body = `<div class="page">${pageHeader("DEALER NETWORK", "Recommend a dealer", "Share a dealer candidate with Vanderhall.", "form-shell")}<section class="section--tight form-shell">${recommendDealerForm()}</section></div>`;
+  const body = `<div class="page">${pageHeader("DEALER NETWORK", "Recommend a dealer", "Share a dealer candidate with Vanderhall.", "form-shell", PARENTS["recommend-dealer"])}<section class="section--tight form-shell">${recommendDealerForm()}</section></div>`;
   return shell({ title: "Recommend a dealer", description: "Recommend a local dealer to Vanderhall.", path: "/recommend-dealer", body });
 };
 
 const dealerInquiryPage = () => {
-  const body = `<div class="page">${pageHeader("INTERNATIONAL DEALERS", "Become a dealer", "Complete every section to prepare an international dealer inquiry.", "form-shell")}<section class="section--tight form-shell">${internationalDealerForm()}</section></div>`;
+  const body = `<div class="page">${pageHeader("INTERNATIONAL DEALERS", "Become a dealer", "Complete every section to prepare an international dealer inquiry.", "form-shell", PARENTS["dealer-inquiry"])}<section class="section--tight form-shell">${internationalDealerForm()}</section></div>`;
   return shell({ title: "Become a dealer", description: "International Vanderhall dealer inquiry.", path: "/dealer-inquiry", body });
 };
 
@@ -226,14 +259,35 @@ const ownerManualData = await Promise.all(ownerManuals.map(async ([slug, model, 
   return { slug, model, year, file, language, size };
 }));
 
+// Only the models whose photography is already delivered get a frame. Speedster and Laguna are
+// retired roadsters and no photograph of either exists in Assets/, so their groups stay
+// typographic rather than borrowing an image of a different vehicle. The concept named Speedster
+// is not the same machine and must not stand in for it.
+const OWNER_GROUP_IMAGE = {
+  venice: modelBySlug.venice.images.lead,
+  carmel: modelBySlug.carmel.images.lead,
+  brawley: modelBySlug.brawley.images.lead,
+};
+
 const ownersPage = () => {
   const groups = ["venice", "carmel", "brawley", "speedster", "laguna"].map((slug) => {
     const manuals = ownerManualData.filter((manual) => manual.slug === slug);
-    return `<section class="resource-group" id="${slug}"><h2>${manuals[0].model}</h2><div class="resource-list">${manuals.map((manual) => `<a class="resource-row" href="/assets/manuals/${manual.file}" type="application/pdf"><span class="resource-row__title">${manual.year} ${manual.model} owner's manual${manual.language === "Spanish" ? " (Spanish)" : ""}</span><span class="resource-row__meta">PDF · ${manual.size}</span></a>`).join("")}</div></section>`;
+    const image = OWNER_GROUP_IMAGE[slug];
+    const media = image
+      ? `<div class="resource-group__media"><img src="${image.src}" srcset="${image.srcset}" width="${sizeOf(image.src).width}" height="${sizeOf(image.src).height}" sizes="(min-width: 768px) 38vw, 92vw" alt="${image.alt}" loading="lazy" decoding="async"></div>`
+      : "";
+    const cards = manuals.map((manual) => `<a class="resource-card" href="/assets/manuals/${manual.file}" type="application/pdf">
+        <span class="resource-card__title">${manual.year} ${manual.model} owner's manual${manual.language === "Spanish" ? " (Spanish)" : ""}</span>
+        <span class="resource-card__meta">PDF · ${manual.size}<span class="resource-card__cue" aria-hidden="true">↓</span></span>
+      </a>`).join("");
+    return `<section class="resource-group${media ? " resource-group--media" : ""}" id="${slug}">
+      ${media}
+      <div class="resource-group__body"><h2>${manuals[0].model}</h2><div class="resource-cards">${cards}</div></div>
+    </section>`;
   }).join("");
   const body = `<div class="page">
-    ${pageHeader("OWNERS", "Owner resources", "Vanderhall owner's manuals, grouped by model and year. Each file opens as a PDF.")}
-    <section class="section--tight narrow"><div class="resource-groups">${groups}</div></section>
+    ${pageHeader("OWNERS", "Owner resources", "Vanderhall owner's manuals, grouped by model and year. Each file opens as a PDF.", "", PARENTS.owners)}
+    <section class="section--tight"><div class="resource-groups">${groups}</div></section>
   </div>`;
   return shell({ title: "Owner resources", description: "Vanderhall owner's manuals grouped by model and year.", path: "/owners", body });
 };

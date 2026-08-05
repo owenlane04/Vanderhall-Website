@@ -85,7 +85,8 @@ for (const [route, destination] of [["/about/", "/"], ["/contact/", "/dealers/"]
 }
 await probeContext.close();
 
-for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/santarosa/", "/venice/", "/recommend-dealer/", "/dealer-inquiry/", "/concepts/", "/concepts/indio/", "/owners/", "/dealers/", "/404/"]) {
+// /carmel/ joins the list in V8: it had never been audited, and it now publishes figures and a tag.
+for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/santarosa/", "/venice/", "/carmel/", "/recommend-dealer/", "/dealer-inquiry/", "/concepts/", "/concepts/indio/", "/owners/", "/dealers/", "/404/"]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   await page.addScriptTag({ content: axe.source });
   const result = await page.evaluate(async () => axe.run(document, { resultTypes: ["violations"] }));
@@ -153,7 +154,7 @@ report.interactions.vehicleSections = {
   leadFrames: await page.locator(".vehicle-section__lead img").count(),
   supportFrames: await page.locator(".vehicle-section__support img").count(),
   modelLinks: await page.locator(".vehicle-section__body a").evaluateAll((anchors) => anchors.map((anchor) => new URL(anchor.href).pathname)),
-  hasSpecsOrPrices: await page.locator(".spec-table, .price").count(),
+  hasSpecsOrPrices: await page.locator(".spec-table, .price, .photo-module__specs").count(),
   // The photographs became links in V6. They must stay out of the tab order, so each section
   // still offers exactly one stop, the text link beneath the copy.
   focusableMedia: await page.locator('.vehicle-section__lead:not([tabindex="-1"]), .vehicle-section__support:not([tabindex="-1"])').count(),
@@ -163,48 +164,140 @@ if (sectionShape.sections !== 4 || sectionShape.leadFrames !== 4 || sectionShape
 if (JSON.stringify(sectionShape.modelLinks) !== JSON.stringify(["/brawley/", "/santarosa/", "/carmel/", "/venice/"])) failures.push(`Vehicles sections must link to each model once in order, got ${sectionShape.modelLinks.join(", ")}`);
 if (sectionShape.focusableMedia !== 0) failures.push(`${sectionShape.focusableMedia} vehicle media links are still in the tab order`);
 
-// Model pages: a photo module carries a photograph, a label, and a description, and the sticky
-// bar names the model and offers one action.
+// Model pages: each photo module carries a photograph, a label, and the figures that photograph
+// shows. Prose captions are gone, so a module holds either specification rows or its label alone,
+// never a sentence. The sticky bar names the model and carries the way back on all four now.
 report.interactions.photoScroll = {};
-for (const [route, expected, barAction] of [["/brawley/", 6, "/brawley/gts/"], ["/santarosa/", 5, null], ["/carmel/", 6, null], ["/venice/", 6, null]]) {
+for (const [route, expected, pairedGroups, tags, barAction] of [
+  ["/brawley/", 6, 6, 0, "/brawley/gts/"],
+  ["/santarosa/", 5, 5, 0, null],
+  ["/carmel/", 6, 6, 1, null],
+  ["/venice/", 6, 4, 1, null],
+]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
-  const shape = await page.evaluate(() => ({
-    modules: document.querySelectorAll(".photo-module").length,
-    withLabel: [...document.querySelectorAll(".photo-module")].filter((node) => node.querySelector(".photo-module__body .eyebrow")?.textContent.trim()).length,
-    withDescription: [...document.querySelectorAll(".photo-module")].filter((node) => node.querySelectorAll(".photo-module__body p").length > 1).length,
-    bars: document.querySelectorAll(".model-bar").length,
-    stickyBar: document.querySelector(".model-bar") ? getComputedStyle(document.querySelector(".model-bar")).position : null,
-    barAction: document.querySelector(".model-bar__action")?.getAttribute("href"),
-    relatedGrids: document.querySelectorAll(".card-grid--related, .card").length,
-  }));
+  const shape = await page.evaluate(() => {
+    const modules = [...document.querySelectorAll(".photo-module")];
+    const rows = [...document.querySelectorAll(".photo-module__specs .spec-row")];
+    return {
+      modules: modules.length,
+      withLabel: modules.filter((node) => node.querySelector(".photo-module__body .eyebrow")?.textContent.trim()).length,
+      withSpecs: modules.filter((node) => node.querySelector(".photo-module__specs .spec-row")).length,
+      // Any paragraph in the caption other than the label would be the prose that was removed.
+      proseParagraphs: modules.filter((node) => node.querySelector(".photo-module__body p:not(.eyebrow)")).length,
+      rows: rows.length,
+      emptyRows: rows.filter((row) => !row.querySelector("span")?.textContent.trim() || !row.querySelector("strong")?.textContent.trim()).length,
+      visibleRows: rows.filter((row) => row.checkVisibility()).length,
+      // The toggle is gone sitewide, and so is the second value it used to switch between.
+      retiredUnitMarkup: document.querySelectorAll(".unit-toggle, [data-unit], [data-spec-table], .spec-table").length,
+      specNotes: document.querySelectorAll(".spec-note").length,
+      tags: document.querySelectorAll(".model-tag").length,
+      heroTag: document.querySelectorAll(".hero__content .model-tag").length,
+      bars: document.querySelectorAll(".model-bar").length,
+      stickyBar: document.querySelector(".model-bar") ? getComputedStyle(document.querySelector(".model-bar")).position : null,
+      barAction: document.querySelector(".model-bar__action")?.getAttribute("href"),
+      barBack: document.querySelector(".model-bar .back-nav a")?.getAttribute("href"),
+      relatedGrids: document.querySelectorAll(".card-grid--related, .card").length,
+    };
+  });
   report.interactions.photoScroll[route] = shape;
-  if (shape.modules !== expected || shape.withLabel !== expected || shape.withDescription !== expected) failures.push(`Photo scroll failed on ${route}: ${JSON.stringify(shape)}`);
+  if (shape.modules !== expected || shape.withLabel !== expected) failures.push(`Photo scroll failed on ${route}: ${JSON.stringify(shape)}`);
+  if (shape.withSpecs !== pairedGroups) failures.push(`${route} must pair ${pairedGroups} specification groups with photographs, found ${shape.withSpecs}`);
+  if (shape.proseParagraphs !== 0) failures.push(`${route} still carries ${shape.proseParagraphs} prose captions`);
+  if (shape.emptyRows !== 0) failures.push(`${route} has ${shape.emptyRows} specification rows with an empty label or value`);
+  if (shape.rows === 0 || shape.visibleRows !== shape.rows) failures.push(`${route} renders ${shape.visibleRows} of ${shape.rows} specification rows visibly`);
+  if (shape.retiredUnitMarkup !== 0) failures.push(`${route} still carries retired unit or spec-table markup`);
+  if (shape.specNotes !== 1) failures.push(`${route} must carry one disclosure note, found ${shape.specNotes}`);
+  if (shape.tags !== tags || shape.heroTag !== tags) failures.push(`${route} must carry ${tags} Past model tag in its hero, found ${shape.tags}`);
+  // The bar is on every model page now, because it carries the way back, which the header does not.
+  if (shape.bars !== 1) failures.push(`${route} must carry one sticky model bar, found ${shape.bars}`);
+  if (shape.stickyBar !== "sticky") failures.push(`${route} model bar is not sticky`);
+  if (shape.barBack !== "/vehicles/") failures.push(`${route} model bar must lead back to /vehicles/, got ${shape.barBack}`);
   if (barAction === null) {
-    // Removed on the three models where its action just repeated the header button.
-    if (shape.bars !== 0) failures.push(`${route} must not carry the sticky model bar, found ${shape.bars}`);
-  } else if (shape.stickyBar !== "sticky" || !shape.barAction?.startsWith(barAction)) {
+    if (shape.barAction) failures.push(`${route} model bar must offer no action beyond the way back, got ${shape.barAction}`);
+  } else if (!shape.barAction?.startsWith(barAction)) {
     failures.push(`Sticky model bar failed on ${route}: expected ${barAction}, got ${shape.barAction}`);
   }
   if (shape.relatedGrids !== 0) failures.push(`${route} still pushes the visitor to other models`);
+}
+
+// The way back, exercised by navigation rather than by reading markup: one sample of each page
+// type, clicked, landing on its declared parent.
+report.interactions.backLinks = {};
+for (const [route, parent] of [["/vehicles/", "/"], ["/venice/", "/vehicles/"], ["/brawley/gts/", "/brawley/"], ["/concepts/indio/", "/concepts/"], ["/recommend-dealer/", "/dealers/"], ["/owners/", "/"]]) {
+  await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  const link = page.locator(".back-nav a").first();
+  const count = await page.locator(".back-nav").count();
+  await link.click();
+  await page.waitForLoadState("networkidle");
+  const landed = new URL(page.url()).pathname;
+  report.interactions.backLinks[route] = { count, landed };
+  if (count !== 1) failures.push(`${route} must carry exactly one back link, found ${count}`);
+  if (landed !== parent) failures.push(`${route} back link landed on ${landed}, expected ${parent}`);
+}
+
+// One title per concept page, the wordmark, named for the accessible heading.
+await page.goto(`${base}/concepts/indio/`, { waitUntil: "networkidle" });
+report.interactions.conceptTitle = await page.evaluate(() => {
+  const h1 = document.querySelector("h1");
+  const image = h1?.querySelector("img");
+  return {
+    headings: document.querySelectorAll("h1").length,
+    isWordmark: Boolean(image?.currentSrc?.includes("wordmark")),
+    accessibleName: image?.getAttribute("alt"),
+    plates: document.querySelectorAll(".wordmark").length,
+  };
+});
+const titleShape = report.interactions.conceptTitle;
+if (titleShape.headings !== 1 || !titleShape.isWordmark || titleShape.accessibleName !== "Indio" || titleShape.plates !== 0) {
+  failures.push(`Concept title failed: ${JSON.stringify(titleShape)}`);
+}
+
+// Owner resources: the groups that have delivered photography carry it, and every manual is a card.
+await page.goto(`${base}/owners/`, { waitUntil: "networkidle" });
+report.interactions.ownerResources = await page.evaluate(() => ({
+  cards: document.querySelectorAll(".resource-card").length,
+  groups: document.querySelectorAll(".resource-group").length,
+  withMedia: document.querySelectorAll(".resource-group--media .resource-group__media img").length,
+  retiredRows: document.querySelectorAll(".resource-row").length,
+}));
+const ownerShape = report.interactions.ownerResources;
+if (ownerShape.cards !== 19 || ownerShape.groups !== 5 || ownerShape.withMedia !== 3 || ownerShape.retiredRows !== 0) {
+  failures.push(`Owner resources failed: ${JSON.stringify(ownerShape)}`);
+}
+
+// The purchase page keeps the one specification table on the site, and it keeps real values in it.
+await page.goto(`${base}/brawley/gts/`, { waitUntil: "networkidle" });
+report.interactions.gtsSpecTable = await page.evaluate(() => ({
+  tables: document.querySelectorAll(".spec-table").length,
+  toggles: document.querySelectorAll(".unit-toggle, [data-unit]").length,
+  emptyValues: [...document.querySelectorAll(".spec-table .spec-row strong")].filter((node) => !node.textContent.trim()).length,
+  figures: [...document.querySelectorAll(".gts-figure__value")].map((node) => node.textContent.trim()).filter(Boolean).length,
+}));
+const gtsShape = report.interactions.gtsSpecTable;
+if (gtsShape.tables !== 1 || gtsShape.toggles !== 0 || gtsShape.emptyValues !== 0 || gtsShape.figures !== 4) {
+  failures.push(`Purchase page specification table failed: ${JSON.stringify(gtsShape)}`);
 }
 
 await page.goto(`${base}/concepts/`, { waitUntil: "networkidle" });
 report.interactions.conceptHubCards = await page.locator(".card .card__link").count();
 if (report.interactions.conceptHubCards !== 9) failures.push("Concept hub must expose nine linked cards");
 
-// The three-part ring is replaced by one clear way back, on all nine routes.
+// One way back on all nine concept routes. V8 moved it from the foot of the page into the header,
+// where it is visible on arrival, and gave every other page below the homepage the same affordance.
 report.interactions.conceptBackLinks = {};
 for (const route of conceptRoutes) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
-  const links = await page.locator(".concept-back a").evaluateAll((anchors) => anchors.map((anchor) => new URL(anchor.href).pathname));
-  report.interactions.conceptBackLinks[route] = links;
+  const links = await page.locator(".back-nav a").evaluateAll((anchors) => anchors.map((anchor) => new URL(anchor.href).pathname));
+  const inHeader = await page.locator(".page-header .back-nav").count();
+  report.interactions.conceptBackLinks[route] = { links, inHeader };
   if (links.length !== 1 || links[0] !== "/concepts/") failures.push(`Concept back link failed on ${route}: ${links.join(", ") || "none"}`);
+  if (inHeader !== 1) failures.push(`${route} back link must sit in the page header`);
 }
 
 await page.goto(`${base}/owners/`, { waitUntil: "networkidle" });
-report.interactions.ownerManuals = await page.locator(".resource-row").count();
-if (report.interactions.ownerManuals !== 19) failures.push("Owner manual list does not contain 19 rows");
-const manualHrefs = await page.locator(".resource-row").evaluateAll((rows) => rows.map((row) => row.getAttribute("href")));
+report.interactions.ownerManuals = await page.locator(".resource-card").count();
+if (report.interactions.ownerManuals !== 19) failures.push("Owner manual list does not contain 19 cards");
+const manualHrefs = await page.locator(".resource-card").evaluateAll((rows) => rows.map((row) => row.getAttribute("href")));
 report.interactions.manualResponses = [];
 for (const href of manualHrefs) {
   const response = await page.request.get(`${base}${href}`);
@@ -236,11 +329,16 @@ for (const route of ["/", "/vehicles/", "/brawley/", "/santarosa/", "/venice/", 
   if (audit.missingDimensions.length || audit.nonWebpPhotos.length || audit.upscaled.length) failures.push(`Media audit failed on ${route}`);
 }
 
+// The unit toggle is gone sitewide. It used to be exercised here; what is verified now is that
+// nothing is left of it to exercise, and that the values it used to switch between are single.
 await page.goto(`${base}/santarosa/`, { waitUntil: "networkidle" });
-const metricRadio = page.getByLabel("Metric", { exact: true });
-await metricRadio.check();
-report.interactions.metricToggle = await page.locator("html").evaluate((element) => element.classList.contains("unit-metric"));
-if (!report.interactions.metricToggle) failures.push("Metric toggle failed");
+report.interactions.retiredUnitToggle = await page.evaluate(() => ({
+  toggles: document.querySelectorAll(".unit-toggle, [data-spec-table], [data-unit], [data-unit-live]").length,
+  metricClass: document.documentElement.classList.contains("unit-metric"),
+  storedUnits: (() => { try { return localStorage.getItem("vhw.units"); } catch (error) { return null; } })(),
+}));
+const retired = report.interactions.retiredUnitToggle;
+if (retired.toggles !== 0 || retired.metricClass || retired.storedUnits !== null) failures.push(`Retired unit toggle remains: ${JSON.stringify(retired)}`);
 
 await page.goto(`${base}/dealers/?model=brawley`, { waitUntil: "networkidle" });
 const requestForm = page.locator("#contact-lead");
@@ -351,7 +449,7 @@ if (schema.canonical !== `${base}/brawley/gts/`.replace("127.0.0.1:4173", "vande
 
 // Screenshots are the human review surface, so reset persisted units and theme first.
 await page.goto(`${base}/`, { waitUntil: "load" });
-await page.evaluate(() => { localStorage.clear(); document.documentElement.classList.remove("unit-metric"); delete document.documentElement.dataset.theme; });
+await page.evaluate(() => { localStorage.clear(); delete document.documentElement.dataset.theme; });
 
 for (const [route, name] of [["/", "home"], ["/vehicles/", "vehicles"], ["/venice/", "venice"], ["/carmel/", "carmel"], ["/santarosa/", "santarosa"], ["/brawley/", "brawley"], ["/brawley/gts/", "brawley-gts"], ["/concepts/", "concepts"], ["/concepts/indio/", "indio"], ["/concepts/brawley-r/", "brawley-r"], ["/concepts/balboa/", "balboa"], ["/concepts/yuma/", "yuma"], ["/owners/", "owners"], ["/dealers/", "dealers"], ["/recommend-dealer/", "recommend-dealer"]]) {
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -423,14 +521,25 @@ await motionContext.close();
 const noJsContext = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1280, height: 900 } });
 const noJsPage = await noJsContext.newPage();
 const noJsResponse = await noJsPage.goto(`${base}/brawley/`, { waitUntil: "load" });
+const noJsBodyText = await noJsPage.locator("body").innerText();
 report.noJs = {
   status: noJsResponse?.status(),
-  bodyLength: (await noJsPage.locator("body").innerText()).trim().length,
-  visibleImperialValues: await noJsPage.locator("[data-unit='imp']:visible").count(),
+  bodyLength: noJsBodyText.trim().length,
+  // The figures are plain markup, so all 28 of Brawley's rows render with no script at all. The
+  // metric assertion is negative on purpose: it proves metric was removed rather than hidden by a
+  // stylesheet the way the old toggle hid it.
+  visibleSpecRows: await noJsPage.locator(".photo-module__specs .spec-row:visible").count(),
+  showsImperial: noJsBodyText.includes("488 lb-ft"),
+  showsMetric: noJsBodyText.includes("661 Nm"),
+  backLinks: await noJsPage.locator(".back-nav a:visible").count(),
   navLinks: await noJsPage.locator("nav a").count(),
   forms: {},
 };
-if (report.noJs.status !== 200 || report.noJs.bodyLength < 500 || report.noJs.visibleImperialValues === 0 || report.noJs.navLinks === 0) failures.push("No-JS verification failed");
+if (report.noJs.status !== 200 || report.noJs.bodyLength < 500 || report.noJs.navLinks === 0) failures.push("No-JS verification failed");
+if (report.noJs.visibleSpecRows !== 28) failures.push(`No-JS /brawley/ must render all 28 specification rows, found ${report.noJs.visibleSpecRows}`);
+if (!report.noJs.showsImperial) failures.push("No-JS /brawley/ is missing its imperial torque figure");
+if (report.noJs.showsMetric) failures.push("No-JS /brawley/ still carries a metric value");
+if (report.noJs.backLinks !== 1) failures.push(`No-JS /brawley/ must offer one way back, found ${report.noJs.backLinks}`);
 // The purchase page without JavaScript: a real photograph, the price, the disclaimer, and a
 // plain reservation link. Controls hidden, swatches disabled, nothing dead on the screen.
 await noJsPage.goto(`${base}/brawley/gts/`, { waitUntil: "load" });
