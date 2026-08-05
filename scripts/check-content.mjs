@@ -35,6 +35,23 @@ for (const path of textFiles) {
   if (extname(path) === ".css" && !path.endsWith("tokens.css") && !path.endsWith("bundle.css") && /#[0-9a-f]{3,8}\b/i.test(text)) failures.push(`${path.replace(root, "")}: raw hex value outside tokens.css`);
 }
 
+// Light mode was removed in V9, not defaulted away, so the tokens that could bring it back are
+// banned across the source tree rather than only in built HTML: the stored preference lives in
+// JavaScript, the two-value colors lived in CSS, and the control lived in both. The two check
+// scripts are exempt because they have to name what they ban, and work/ is exempt because it holds
+// gitignored verification output that can quote pre-V9 markup back at us. Everything that ships is
+// scanned, including scripts/site.js. A comment mentioning one of these by name fails too, which is
+// deliberate: the ban is on the string, so the way to discuss it is to describe it.
+const RETIRED_THEME_TOKENS = ["data-theme-toggle", "vhw.theme", "light-dark(", "desktop-theme", 'data-theme="'];
+const CHECK_SCRIPTS = ["check-content.mjs", "verify-browser.mjs"].map((name) => resolve(root, "scripts", name));
+const themeScanned = textFiles.filter((path) => !CHECK_SCRIPTS.includes(path) && !path.startsWith(resolve(root, "work")));
+for (const path of themeScanned) {
+  const text = await readFile(path, "utf8");
+  for (const token of RETIRED_THEME_TOKENS) {
+    if (text.includes(token)) failures.push(`${path.replace(root, "")}: retired light-mode token remains: ${token}`);
+  }
+}
+
 const sourceRasters = files.filter((path) => /\.(?:jpe?g)$/i.test(path));
 if (sourceRasters.length) failures.push(`Source JPEGs shipped: ${sourceRasters.map((path) => path.replace(root, "")).join(", ")}`);
 
@@ -96,6 +113,28 @@ for (const [route, html] of [["/", homeHtml], ["/vehicles/", vehiclesHtml]]) {
 const supportFrames = (vehiclesHtml.match(/vehicle-section__support/g) || []).length;
 if (supportFrames !== 8) failures.push(`/vehicles/ must carry two supporting photographs per vehicle, found ${supportFrames}`);
 if ((homeHtml.match(/vehicle-section__support/g) || []).length !== 0) failures.push("The homepage must stay the short version with one photograph per vehicle");
+
+// The V9 homepage front of page. Owen supplied the h1 and the descriptor verbatim; the retired
+// strings are matched in the shapes they occupied rather than as bare words, because "Hand-built in
+// Provo, Utah." is still the footer line on every page and must stay there.
+const HOME_H1 = "Handcrafted electric vehicles.";
+const HOME_DESCRIPTOR = "Vanderhall builds electric UTVs, side-by-sides, and three-wheeled autocycles. Experience performance, comfort, and style.";
+const HOME_META = "Vanderhall builds handcrafted electric UTVs, side-by-sides, and three-wheeled autocycles.";
+if (!homeHtml.includes(`<h1>${HOME_H1}</h1>`)) failures.push("The homepage hero must carry its approved h1");
+if (!homeHtml.includes(`<p class="hero__descriptor">${HOME_DESCRIPTOR}</p>`)) failures.push("The homepage hero must carry its approved descriptor");
+if (!homeHtml.includes(`<meta name="description" content="${HOME_META}">`)) failures.push("The homepage description must state what the site is");
+// The title is a phrase again, so it takes the poster step. A regression to the long sentence would
+// silently need the smaller step back, which is why the retired modifier is banned outright.
+if (combinedHtml.includes("hero--statement")) failures.push("The retired hero--statement type step remains");
+if (!homeHtml.includes("<h2>The Vanderhall lineup.</h2>")) failures.push("The homepage vehicles section must carry its V9 heading");
+for (const retired of ["<h1>Hand-built in Provo, Utah.</h1>", "since 2010", "Gas and electric, built in Provo.", "foundingDate"]) {
+  if (combinedHtml.includes(retired)) failures.push(`Retired homepage copy remains: ${retired}`);
+}
+// The schema's Provo address is only legitimate while the footer publishes Provo as visible text.
+// The founding date left the site with the old hero, so it must not survive in markup either.
+for (const page of builtPages) {
+  if (!page.text.includes("Hand-built in Provo, Utah.")) failures.push(`${page.path.replace(root, "")}: the footer must keep the Provo line the organization schema rests on`);
+}
 
 // Model pages end on their own content: a photo scroll where each photograph carries the figures it
 // shows, then the disclosure line. Nothing pushes the visitor back out to other models.
@@ -319,6 +358,42 @@ for (const page of builtPages) {
 const conceptsHubHtml = pageBySuffix("/concepts/index.html");
 const conceptCards = (conceptsHubHtml.match(/<article class="card">/g) || []).length;
 if (conceptCards !== 9) failures.push(`Concepts hub must present nine cards, found ${conceptCards}`);
+
+// The V9 concept band. Decorative by construction, which is what keeps the assertions above true: the
+// nine cards are still nine because nothing in the band is an article, and the one h1 is still one
+// because nothing in it is a heading.
+//
+// The band is sliced out of the page rather than matched with a nested-div regex, which cannot be
+// written correctly for this shape.
+const marqueeStart = conceptsHubHtml.indexOf('<div class="concept-marquee bleed"');
+if (marqueeStart < 0) failures.push("The concepts hub must carry the concept band");
+else {
+  const after = conceptsHubHtml.slice(marqueeStart);
+  const band = after.slice(0, after.indexOf("<section"));
+  const items = (band.match(/class="concept-marquee__item"/g) || []).length;
+  // Two identical halves of nine. The loop translates the track by exactly -50%, so an odd count or a
+  // count that is not twice the concept total would seam.
+  if (items !== 18) failures.push(`The concept band must carry 18 items, two halves of nine, found ${items}`);
+  if (items !== conceptCards * 2) failures.push(`The concept band carries ${items} items for ${conceptCards} concepts`);
+  if (!band.includes('<div class="concept-marquee__viewport" aria-hidden="true">')) failures.push("The concept band's viewport must be hidden from assistive technology");
+  // aria-hidden belongs on the viewport, never the outer element, or the pause control leaves the
+  // accessibility tree with it.
+  if (/<div class="concept-marquee bleed"[^>]*aria-hidden/.test(band)) failures.push("aria-hidden must sit on the band's viewport, not on the band itself");
+  if (band.includes("<a ")) failures.push("The concept band must contain no links: the nine cards below are the index");
+  if (band.includes("<article")) failures.push("The concept band must contain no articles, so the nine-card assertion stays honest");
+  if (/<h[1-6][\s>]/.test(band)) failures.push("The concept band must contain no headings");
+  // Motion ships with its off switch or not at all: site.js reveals this button in the same block that
+  // sets data-ready, and data-ready is what starts the animation.
+  if (!/<button class="concept-marquee__toggle" type="button" aria-pressed="false" data-marquee-toggle hidden>Pause<\/button>/.test(band)) failures.push("The concept band's pause control must ship hidden, unpressed, and labelled Pause");
+  if (band.includes("data-ready")) failures.push("data-ready must be set by the island, never shipped in the markup");
+  const bandImages = (band.match(/<img /g) || []).length;
+  if (bandImages !== 18) failures.push(`The concept band must carry one image per item, found ${bandImages}`);
+  const eager = (band.match(/loading="eager"/g) || []).length;
+  if (eager !== 4) failures.push(`The concept band must fetch four items eagerly, found ${eager}`);
+  if ((band.match(/alt=""/g) || []).length !== 18) failures.push("Every concept band image must carry an empty alt");
+}
+const marqueeCount = (combinedHtml.match(/data-marquee(?=[\s>])/g) || []).length;
+if (marqueeCount !== 1) failures.push(`The concept band must appear on the hub alone, found ${marqueeCount}`);
 
 const conceptPages = builtPages.filter((page) => /\/concepts\/[^/]+\/index\.html$/.test(page.path));
 if (conceptPages.length !== 9) failures.push(`Expected nine concept detail pages, found ${conceptPages.length}`);

@@ -159,21 +159,17 @@ p { color: var(--text-secondary); }
   padding-inline: var(--gutter);
 }
 
+/* The lockup no longer swaps: the page is dark, so the reverse artwork is the src the markup ships
+   rather than a content: url() override on top of a file it never wants. */
 .brand { display: inline-flex; flex: 0 0 auto; align-items: center; outline-offset: var(--s-1); text-decoration: none; }
 .brand img { display: block; width: auto; height: 1.25rem; }
-:root[data-theme="dark"] .brand img,
-:root[data-theme="dark"] .brand--sheet { content: url("/assets/brand/vanderhall-lockup-horizontal-white.svg"); }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .brand img,
-  :root:not([data-theme="light"]) .brand--sheet { content: url("/assets/brand/vanderhall-lockup-horizontal-white.svg"); }
-}
 .brand--sheet { width: auto; height: 1.375rem; }
 .desktop-nav { display: none; align-self: stretch; align-items: center; gap: var(--s-6); }
 .nav-link { display: inline-flex; height: 100%; align-items: center; color: var(--text-secondary); font-size: var(--fs-nav); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps); text-decoration: none; text-transform: uppercase; }
 .nav-link:hover { color: var(--text-primary); }
 .nav-link.is-current { color: var(--text-primary); text-decoration: underline; text-decoration-color: var(--accent); text-decoration-thickness: var(--focus-w); text-underline-offset: var(--s-2); }
 .site-header__actions { display: flex; align-items: center; gap: var(--s-2); margin-left: auto; }
-.header-request, .desktop-theme { display: none; }
+.header-request { display: none; }
 .menu-button { display: inline-grid; }
 
 .sheet {
@@ -360,10 +356,11 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 .price__delivery { color: var(--text-secondary); font-size: var(--fs-body-sm); }
 .price__disclaimer { max-width: 48ch; color: var(--text-tertiary); font-size: var(--fs-caption); }
 
-/* The walkaround. The stage is a white plate in both themes, because the frames are studio shots
-   on white and anything else would show as a rectangle behind the vehicle. */
+/* The walkaround. The stage is the page paper since V9, not a white plate: the frames themselves are
+   keyed off their studio backdrop and onto this exact value, so there is no rectangle to hide any
+   more. The hairline border becomes visible again as a result, which is the point. */
 .walkaround { display: flex; flex-direction: column; gap: var(--s-5); }
-.walkaround__stage { position: relative; overflow: hidden; border: var(--hairline) solid var(--line); border-radius: var(--r-2); background: var(--pure-white); touch-action: pan-y; }
+.walkaround__stage { position: relative; overflow: hidden; border: var(--hairline) solid var(--line); border-radius: var(--r-2); background: var(--paper); touch-action: pan-y; }
 .walkaround__stage[data-ready] { cursor: grab; }
 .walkaround__stage.is-dragging { cursor: grabbing; }
 .walkaround__frame { width: 100%; height: auto; }
@@ -414,22 +411,20 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 .disclosures p { max-width: var(--w-text); color: var(--text-tertiary); font-size: var(--fs-caption); }
 
 /* Concept detail. The wordmark is the page title now, so it renders at heading scale and the
-   duplicate sans h1 is gone. In dark theme it is redrawn white rather than standing on the white
-   plate it used to need.
+   duplicate sans h1 is gone. The artwork is drawn dark on transparency, so it is redrawn white
+   rather than standing on the white plate it used to need. One unconditional rule since V9: there
+   is no light page left for it to branch on.
    brightness(0) then invert(1), not invert(1) alone: some marks are two-tone (Yuma Defense sets
    DEFENSE in mid grey), and mid grey inverts to mid grey, which all but disappears on the dark
    background. Crushing every pixel to black first and then inverting yields one solid white mark
    and keeps the alpha channel, so it holds for any artwork in the set. */
 .concept-title { margin: 0; }
-.concept-title img { width: auto; max-width: 100%; height: auto; max-height: clamp(2.75rem, 6vw, 4.25rem); }
-:root[data-theme="dark"] .concept-title img { filter: brightness(0) invert(1); }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .concept-title img { filter: brightness(0) invert(1); }
-}
+.concept-title img { width: auto; max-width: 100%; height: auto; max-height: clamp(2.75rem, 6vw, 4.25rem); filter: brightness(0) invert(1); }
 .concept-status { color: var(--text-tertiary); font-size: var(--fs-caption); }
-/* Concept slides carry their own white canvas, so the figure sits on white and the
-   padding disappears into the page. In dark theme the same white reads as a plate. */
-.concept-figure { overflow: hidden; background: var(--pure-white); }
+/* Concept slides used to carry their own white canvas, which read as a plate on a dark page. The
+   canvas is keyed to this same value in the pipeline now, so the slide's own panels sit directly on
+   the page and the figure's background is only there to cover a rounding gap at the edges. */
+.concept-figure { overflow: hidden; background: var(--paper); }
 .concept-figure picture, .concept-figure img { display: block; width: 100%; height: auto; }
 .concept-gallery { display: flex; flex-direction: column; gap: var(--card-gap); }
 .concept-back { border-top: var(--hairline) solid var(--line); }
@@ -456,8 +451,11 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 /* 404 */
 .not-found { display: flex; min-height: 50vh; flex-direction: column; justify-content: center; gap: var(--s-5); }
 
-/* Footer */
-.site-footer { --paper: var(--dark-paper); --ink: var(--dark-ink); --text-primary: var(--dark-ink); --text-secondary: color-mix(in srgb, var(--dark-ink) 70%, transparent); --text-tertiary: color-mix(in srgb, var(--dark-ink) 60%, transparent); display: grid; gap: var(--sf-m); padding: var(--sf-l) var(--gutter) var(--sf-m); background: var(--paper); color: var(--ink); }
+/* Footer. Its local re-theme is gone: it existed to force a dark block onto a light page, and on a
+   dark page every one of those declarations resolved to the value it was overriding. Without help
+   the footer then merges invisibly into the page, so it takes the quietest surface in the set plus
+   the top border it already had. That is a distinction, not a panel. */
+.site-footer { display: grid; gap: var(--sf-m); padding: var(--sf-l) var(--gutter) var(--sf-m); border-top: var(--hairline) solid var(--line); background: var(--surface-1); }
 .footer-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sf-m); width: min(100%, var(--w-page)); margin-inline: auto; }
 .footer-links > div { display: flex; flex-direction: column; gap: var(--s-3); }
 .footer-links h2 { color: var(--text-tertiary); }
@@ -511,7 +509,6 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 @media (min-width: 1024px) {
   .brand img { height: 1.75rem; }
   .desktop-nav { display: flex; }
-  .desktop-theme { display: inline-flex; }
   .menu-button { display: none; }
   .card-grid--concepts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   /* Only the modules that carry figures split into two columns. A label with nothing beside it
@@ -525,6 +522,52 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
   .gts-open__row .price { align-items: flex-end; text-align: right; }
 }
 
+/* The concept band. Deliberately outside the @supports (animation-timeline: view()) block below.
+   V9 amendment 2: the V6 rule "scroll reveals use CSS view() timelines only" governs scroll-driven
+   motion, and this advances with the clock rather than with scroll. It is the same class of animation
+   as the hover transitions above, just infinite, so it belongs here and not in there. */
+.concept-marquee { display: flex; flex-direction: column; gap: var(--s-3); margin-bottom: var(--sf-m); }
+/* clip rather than hidden: clip cannot become a scroll container, and transform overflow never
+   contributes to scrollWidth, so the 200 percent zoom proxy passes by construction. */
+.concept-marquee__viewport { overflow: clip; }
+/* Items carry their own margin-right and the track must NOT use gap. With gap, the halfway point of
+   the track is nine items plus eight gaps rather than nine of each, and the -50% loop seams. */
+.concept-marquee__track { display: flex; width: max-content; }
+.concept-marquee__item { display: flex; width: var(--marquee-item); flex: 0 0 auto; flex-direction: column; gap: var(--s-2); margin-right: var(--card-gap); }
+.concept-marquee__item img { width: 100%; height: auto; aspect-ratio: var(--ar-cutout); object-fit: cover; border: var(--hairline) solid var(--line); border-radius: var(--r-2); }
+.concept-marquee__name { color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); line-height: var(--lh-caps); text-transform: uppercase; }
+/* The bar lands on the same optical line as the content column at every width, the model bar's trick.
+   min-height is not cosmetic: the pause button ships hidden and site.js reveals it, so without the
+   space reserved the bar grows from nothing to a row after load and shoves the grid below it down.
+   Measured, that shift was the page's entire CLS at 0.015 against 0 before the band existed. */
+.concept-marquee__bar { display: flex; width: min(100%, calc(var(--w-content) + 2 * var(--gutter))); min-height: var(--hit-target); justify-content: flex-end; margin-inline: auto; padding-inline: var(--gutter); }
+.concept-marquee__toggle { min-height: var(--hit-target); border: 0; padding: 0; background: transparent; color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); text-transform: uppercase; cursor: pointer; }
+.concept-marquee__toggle:hover { color: var(--text-primary); }
+
+@keyframes concept-drift {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+/* data-ready is set by site.js in the same block that reveals the pause button, so the band never
+   drifts on a page that cannot stop it. Without script it is a static filmstrip.
+   Longhands, not the animation shorthand. The shorthand resets animation-play-state to running, and
+   the first version of this rule also carried a redundant [data-marquee], which put it at four
+   class-level components against the pause rules' three. It therefore outranked them and nothing
+   stopped: hover and the button both changed state while the band kept drifting. Both halves are
+   fixed here, and the longhands are the half that matters, because they leave play-state entirely to
+   the pause rules no matter what a future selector does to the specificity. */
+.concept-marquee[data-ready] .concept-marquee__track {
+  animation-name: concept-drift;
+  animation-duration: var(--dur-marquee);
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+/* The button holds state; focus-within does not, so tabbing to the control stops the band under the
+   hand that is about to press it and releases it on blur. */
+.concept-marquee.is-paused .concept-marquee__track,
+.concept-marquee:focus-within .concept-marquee__track { animation-play-state: paused; }
+
 /* Hover response. Gated on a fine pointer with real hover, so a phone never holds a hover state
    after a tap. Every transform matches the scale the concept cards already use. */
 @media (hover: hover) and (pointer: fine) {
@@ -537,6 +580,7 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
   .pathway:hover .pathway__cue span { transform: translateX(var(--s-1)); }
   .swatch:not([disabled]):hover > span { transform: scale(1.12); }
   .resource-card:hover .resource-card__cue { transform: translateY(var(--s-1)); }
+  .concept-marquee:hover .concept-marquee__track { animation-play-state: paused; }
 }
 
 /* Scroll motion. Driven entirely by CSS scroll-progress timelines, so there is still no
@@ -553,6 +597,7 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
     .vehicle-section,
     .photo-module,
     .card-grid--concepts .card,
+    .concept-figure,
     .pathways .pathway,
     .split__media,
     .split__body,
@@ -570,6 +615,38 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
     /* Rows of cards enter together, so a small stagger across the row keeps it from reading
        as one block snapping into place. The supporting frames and the pathway pair get the same
        treatment, for the same reason. */
+    /* Word cascade, V9. site.js splits the target's words into inline-block spans and gives each a
+       pre-normalised --wf from 0 to 1 across the element.
+       The timeline is NAMED and declared on the split element, not view() on each word. A word's own
+       view() range is one line-height of scroll, so it would pop at the viewport edge; the element's
+       timeline plays the whole cascade across the element's own entry, which matches the pacing of
+       the block reveals above it.
+       The plain animation-range line is a fallback and must stay first: a browser that rejects calc
+       inside a range drops the two lines under it and degrades to every word rising together, which
+       is exactly today's look rather than nothing. verify-browser compares the computed range of the
+       first and last word, so a regression to that fallback is named rather than silent. */
+    .is-split { view-timeline: --vhw-words; }
+    .is-split .word {
+      --rise: var(--rise-word);
+      display: inline-block;
+      animation: rise-in var(--ease-out) both;
+      animation-timeline: --vhw-words;
+      animation-range: entry 0% entry 100%;
+      animation-range-start: entry calc(var(--wf, 0) * 100%);
+      animation-range-end: entry calc(100% + var(--wf, 0) * 100%);
+    }
+    /* Compounding is resolved by moving the reveal, not stacking two. When site.js splits an h2 it
+       marks the parent, which turns the container's own rise off and gives the eyebrow and the intro
+       paragraph the identical reveal individually. The h2 then carries the cascade alone. No-JS and
+       no-timeline browsers never see data-split, so the block rule above applies to them unchanged. */
+    .section-heading[data-split] { animation-name: none; }
+    .section-heading[data-split] > .eyebrow,
+    .section-heading[data-split] > p {
+      animation: rise-in var(--ease-out) both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 55%;
+    }
+
     .card-grid--concepts .card:nth-child(3n + 2) { animation-range: entry 6% entry 61%; }
     .card-grid--concepts .card:nth-child(3n) { animation-range: entry 12% entry 67%; }
     .pathways .pathway:nth-child(2n) { animation-range: entry 8% entry 63%; }

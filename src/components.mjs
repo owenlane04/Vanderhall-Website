@@ -57,6 +57,39 @@ export const conceptCard = (concept, { eager = false, level = 2 } = {}) => {
   </article>`;
 };
 
+// A continuous band of all nine concepts across the top of the hub. Decorative: the nine real cards
+// below stay the interactive index, and nothing in here is a link, a heading, or an article, so the
+// one-h1 rule and the two exactly-nine card assertions are untouched.
+//
+// Two identical halves of nine, because the loop translates the track by exactly -50% and lands the
+// tenth item where the first was. Eighteen img elements over nine URLs; each file is fetched once.
+//
+// aria-hidden sits on the viewport rather than the outer element, so the pause control stays in the
+// accessibility tree while the decorative filmstrip leaves it. The control ships with the hidden
+// attribute and site.js reveals it in the same block that sets data-ready, which is what starts the
+// animation: motion can therefore never exist without its off switch, the walkaround's pattern.
+export const conceptMarquee = (items) => {
+  const item = (concept, index) => {
+    const { width, height } = sizeOf(concept.card.src);
+    // The first four are eager. Three of them are already eager for the grid below, so the net new
+    // cost above the fold is about one 656w file.
+    const eager = index < 4;
+    return `<div class="concept-marquee__item">
+        <img src="${concept.card.src}" width="${width}" height="${height}" sizes="${Math.round(656 / 2)}px" alt="" loading="${eager ? "eager" : "lazy"}" decoding="async">
+        <span class="concept-marquee__name">${escapeHtml(concept.name)}</span>
+      </div>`;
+  };
+  const half = (offset) => items.map((concept, index) => item(concept, offset + index)).join("");
+  return `<div class="concept-marquee bleed" data-marquee>
+    <div class="concept-marquee__viewport" aria-hidden="true">
+      <div class="concept-marquee__track">${half(0)}${half(items.length)}</div>
+    </div>
+    <div class="concept-marquee__bar">
+      <button class="concept-marquee__toggle" type="button" aria-pressed="false" data-marquee-toggle hidden>Pause</button>
+    </div>
+  </div>`;
+};
+
 // Declares the slot honestly, so high-density phones fetch the 960 rung for section media.
 // Capping this at a 2x density would cut the homepage image payload by about 180 KB and take
 // mobile LCP from 3.8 s to 3.2 s, at the cost of sharpness on those screens. That tradeoff is
@@ -327,23 +360,21 @@ const isCurrent = (path, prefixes) => prefixes.some((prefix) => path === prefix 
 export const header = (path) => `<a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header" data-header>
     <div class="site-header__inner">
-      <a class="brand" href="/"><img src="/assets/brand/vanderhall-lockup-horizontal.svg" alt="Vanderhall home" width="269" height="28"></a>
+      <a class="brand" href="/"><img src="/assets/brand/vanderhall-lockup-horizontal-white.svg" alt="Vanderhall home" width="269" height="28"></a>
       <nav class="desktop-nav" aria-label="Primary">
         ${navItems.map(([name, href, prefixes]) => `<a class="nav-link${isCurrent(path, prefixes) ? " is-current" : ""}" href="${href}"${isCurrent(path, prefixes) ? ' aria-current="page"' : ""}>${name}</a>`).join("")}
       </nav>
       <div class="site-header__actions">
         <a class="button button--primary header-request" href="/dealers/">Request info</a>
-        <button class="icon-button desktop-theme" type="button" data-theme-toggle aria-label="Use dark theme"><span aria-hidden="true">◐</span></button>
         <button class="icon-button menu-button" type="button" data-open-menu aria-label="Open menu" aria-expanded="false"><span aria-hidden="true">☰</span></button>
       </div>
     </div>
   </header>
   <div class="sheet" data-menu-sheet hidden aria-hidden="true">
-    <div class="sheet__top"><img class="brand brand--sheet" src="/assets/brand/vanderhall-lockup-horizontal.svg" alt="Vanderhall" width="211" height="22"><button class="icon-button" type="button" data-close-menu aria-label="Close menu">×</button></div>
+    <div class="sheet__top"><img class="brand brand--sheet" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" alt="Vanderhall" width="211" height="22"><button class="icon-button" type="button" data-close-menu aria-label="Close menu">×</button></div>
     <nav class="mobile-nav" aria-label="Mobile primary">
       ${navItems.map(([name, href]) => `<a href="${href}">${name}</a>`).join("")}
       <a class="button button--primary" href="/dealers/">Request info</a>
-      <button class="button button--secondary" type="button" data-theme-toggle>Change theme</button>
     </nav>
   </div>
   <div class="sheet-backdrop" data-sheet-backdrop hidden></div>`;
@@ -375,9 +406,12 @@ export const organizationSchema = () => jsonLd({
       "@id": `${SITE_URL}/#organization`,
       name: "Vanderhall Motor Works",
       url: `${SITE_URL}/`,
+      // Still the dark-ink lockup, not the reverse the header now paints: a consumer of this markup
+      // draws the logo on its own surface, usually a light one, where a white mark disappears.
       logo: `${SITE_URL}/assets/brand/vanderhall-lockup-horizontal.svg`,
-      // Provo and 2010 are the two company facts the site publishes, in the homepage hero.
-      foundingDate: "2010",
+      // Provo is the one company fact the site still publishes, in the footer line that appears on
+      // every page. The founding date left with the V9 hero copy, and this markup may only restate
+      // text a visitor can read, so it left here too rather than outliving its source.
       address: { "@type": "PostalAddress", addressLocality: "Provo", addressRegion: "UT", addressCountry: "US" },
     },
     {
@@ -428,14 +462,13 @@ export const shell = ({ title, description, path, body, schema = "" }) => `<!doc
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="light dark">
+  <meta name="color-scheme" content="dark">
   <meta name="description" content="${escapeHtml(description)}">
   <title>${escapeHtml(title)} | Vanderhall Motor Works</title>
   <link rel="icon" href="/assets/brand/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/assets/brand/favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
   <link rel="manifest" href="/site.webmanifest">
-  <script>try{const t=localStorage.getItem('vhw.theme');if(t)document.documentElement.dataset.theme=t}catch(e){}</script>
   <link rel="canonical" href="${SITE_URL}${path === "/" ? "/" : `${path}/`}">
   <link rel="stylesheet" href="/styles/bundle.css">
   ${schema}

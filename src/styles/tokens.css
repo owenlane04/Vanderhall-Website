@@ -1,12 +1,16 @@
-/* Vanderhall Design Tokens V1. This file is the only source of raw design values. */
+/* Vanderhall Design Tokens V1. This file is the only source of raw design values.
+   V9 is dark only. Light mode is removed rather than defaulted away: the first five colors below
+   each used to carry a light value and a dark one in a two-value function, and now carry the dark
+   value alone. There is no second value left to keep in step, and no branch a stale stored
+   preference could reach. The check suite bans that function by name across this tree, which is
+   why it is described here rather than written out. */
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
 
-  --paper: light-dark(#FFFFFF, #0E0E10);
-  --ink: light-dark(#111214, #F4F4F5);
-  --accent: light-dark(#B0552C, #E08A55);
-  --accent-quiet: light-dark(#FFF8F4, #23170F);
-  --danger: light-dark(#B4231C, #FF9A8F);
+  --paper: #0E0E10;
+  --ink: #F4F4F5;
+  --accent: #E08A55;
+  --danger: #FF9A8F;
 
   --ink-70: color-mix(in srgb, var(--ink) 70%, transparent);
   --ink-60: color-mix(in srgb, var(--ink) 60%, transparent);
@@ -28,12 +32,14 @@
   --text-secondary: var(--ink-70);
   --text-tertiary: var(--ink-60);
 
+  /* Fixed values for surfaces that are dark because of what sits behind them rather than because
+     of a theme: type over hero photography, the inverse buttons on it, and the footer. They match
+     --paper and --ink now, but they are not aliases of them: their meaning is "the value that
+     belongs on top of a dark photograph", which no longer moves and never should. */
   --dark-paper: #0E0E10;
   --dark-ink: #F4F4F5;
   --pure-white: #FFFFFF;
   --pure-black: #000000;
-  /* Accent that always sits on a white plate, so it cannot follow the theme. 5.02:1 on white. */
-  --accent-on-white: #B0552C;
   --scrim-strong: rgb(0 0 0 / 0.70);
   --scrim-medium: rgb(0 0 0 / 0.34);
   --scrim-clear: rgb(0 0 0 / 0);
@@ -107,6 +113,10 @@
   --dur-2: 220ms;
   --dur-3: 380ms;
   --dur-4: 680ms;
+  /* V9 amendment 1. The first long duration on the site, and the reason is that a continuous drift
+     needs a period and the 120 to 680 ms scale cannot express one. At 55 s one full loop of the
+     concept band travels at roughly 58 px/s on a desktop width, which is drift rather than scroll. */
+  --dur-marquee: 55s;
   --ease-std: cubic-bezier(0.40, 0, 0.20, 1);
   --ease-out: cubic-bezier(0.16, 1, 0.30, 1);
 
@@ -114,6 +124,9 @@
   --focus-offset: 2px;
   --focus-color: var(--accent);
 
+  /* The word cascade's rise, in em so it scales with whatever type size it lands on. The block
+     reveals use a fixed 1.75rem, which would be a shove on a caption and a twitch on display-xl. */
+  --rise-word: 0.35em;
   --ar-feature: 3 / 2;
   --ar-cutout: 16 / 10;
 
@@ -125,6 +138,9 @@
   --hit-target: 2.75rem;
   --icon-size: 1.25rem;
 
+  /* Sized so the concept band renders each tile at most 328 CSS px, which the existing 656w hub
+     file covers exactly at 2x. No new rung, and the media audit's ceiling is respected. */
+  --marquee-item: clamp(15rem, 22vw, 20.5rem);
   --card-pad: clamp(1.25rem, 0.986rem + 1.13vw, 2rem);
   --card-gap: clamp(1.5rem, 1.324rem + 0.75vw, 2rem);
   --form-gap: clamp(1.75rem, 1.574rem + 0.75vw, 2.25rem);
@@ -136,9 +152,6 @@
 @media (min-width: 1024px) {
   :root { --header-h: 4.75rem; }
 }
-
-:root[data-theme="light"] { color-scheme: light; }
-:root[data-theme="dark"] { color-scheme: dark; }
 
 @media (prefers-reduced-motion: reduce) {
   :root { --dur-1: 1ms; --dur-2: 1ms; --dur-3: 1ms; --dur-4: 1ms; }

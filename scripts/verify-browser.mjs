@@ -98,12 +98,10 @@ for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/santaros
     samples: violation.nodes.slice(0, 8).map((node) => ({ target: node.target, html: node.html, summary: node.failureSummary })),
   }));
   if (result.violations.length) failures.push(`axe violations on ${route}: ${result.violations.map((violation) => violation.id).join(", ")}`);
-  await page.evaluate(() => { document.documentElement.dataset.theme = "dark"; });
-  await page.waitForTimeout(300);
-  const darkResult = await page.evaluate(async () => axe.run(document, { resultTypes: ["violations"] }));
-  report.accessibility[`${route}#dark`] = darkResult.violations.map((violation) => ({ id: violation.id, impact: violation.impact, nodes: violation.nodes.length, help: violation.help }));
-  if (darkResult.violations.length) failures.push(`dark-theme axe violations on ${route}: ${darkResult.violations.map((violation) => violation.id).join(", ")}`);
 }
+// V9 collapsed the two axe passes into one. There used to be a second run with data-theme="dark"
+// forced on, because the default was light; the default is dark now, so the pass above audits the
+// only palette that exists and keeps the fuller `samples` shape rather than the thinner dark one.
 
 for (const route of ["/", "/venice/", "/carmel/", "/santarosa/", "/brawley/"]) {
   report.heroes[route] = [];
@@ -282,6 +280,32 @@ await page.goto(`${base}/concepts/`, { waitUntil: "networkidle" });
 report.interactions.conceptHubCards = await page.locator(".card .card__link").count();
 if (report.interactions.conceptHubCards !== 9) failures.push("Concept hub must expose nine linked cards");
 
+// The concept band under reduced motion, which is this context's default. The still state must be a
+// correct static layout: eighteen tiles, no animation, and no pause button offering to stop something
+// that is not moving.
+report.interactions.marqueeReduced = await page.evaluate(() => {
+  const band = document.querySelector("[data-marquee]");
+  const track = band?.querySelector(".concept-marquee__track");
+  const toggle = band?.querySelector("[data-marquee-toggle]");
+  return {
+    items: band?.querySelectorAll(".concept-marquee__item").length,
+    animationName: track ? getComputedStyle(track).animationName : null,
+    ready: band?.hasAttribute("data-ready"),
+    toggleVisible: Boolean(toggle && !toggle.hidden),
+    viewportHidden: band?.querySelector(".concept-marquee__viewport")?.getAttribute("aria-hidden"),
+    // overflow: clip cannot become a scroll container, and a transform never contributes to
+    // scrollWidth, so the band can never widen the document.
+    overflow: track ? getComputedStyle(track.parentElement).overflow : null,
+    noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1,
+  };
+});
+const marqueeStill = report.interactions.marqueeReduced;
+if (marqueeStill.items !== 18) failures.push(`The concept band must render 18 tiles, found ${marqueeStill.items}`);
+if (marqueeStill.animationName !== "none") failures.push(`Reduced motion must stop the concept band, got ${marqueeStill.animationName}`);
+if (marqueeStill.ready || marqueeStill.toggleVisible) failures.push("Reduced motion must leave the concept band unstarted and its pause button hidden");
+if (marqueeStill.viewportHidden !== "true") failures.push("The concept band's viewport must stay hidden from assistive technology");
+if (marqueeStill.overflow !== "clip" || !marqueeStill.noHorizontalScroll) failures.push(`The concept band must clip rather than scroll: ${JSON.stringify(marqueeStill)}`);
+
 // One way back on all nine concept routes. V8 moved it from the foot of the page into the header,
 // where it is visible on arrival, and gave every other page below the homepage the same affordance.
 report.interactions.conceptBackLinks = {};
@@ -339,6 +363,36 @@ report.interactions.retiredUnitToggle = await page.evaluate(() => ({
 }));
 const retired = report.interactions.retiredUnitToggle;
 if (retired.toggles !== 0 || retired.metricClass || retired.storedUnits !== null) failures.push(`Retired unit toggle remains: ${JSON.stringify(retired)}`);
+
+// Dark only, asserted positively rather than by the absence of a control. V9 removed light mode
+// instead of defaulting away from it, so the claim being tested is that one palette is reachable:
+// the dark values compute, the declared scheme is dark, the reverse lockup is what the header
+// actually painted, and nothing survives that could put a second palette back.
+await page.goto(`${base}/`, { waitUntil: "networkidle" });
+report.interactions.darkOnly = await page.evaluate(() => {
+  const rootStyle = getComputedStyle(document.documentElement);
+  return {
+    paper: rootStyle.getPropertyValue("--paper").trim(),
+    ink: rootStyle.getPropertyValue("--ink").trim(),
+    colorScheme: rootStyle.colorScheme,
+    bodyBackground: getComputedStyle(document.body).backgroundColor,
+    metaColorScheme: document.querySelector('meta[name="color-scheme"]')?.getAttribute("content"),
+    toggles: document.querySelectorAll("[data-theme-toggle], .desktop-theme").length,
+    themeAttribute: document.documentElement.dataset.theme ?? null,
+    storedTheme: (() => { try { return localStorage.getItem("vhw.theme"); } catch (error) { return null; } })(),
+    reverseLockup: document.querySelector(".brand img")?.currentSrc.endsWith("/assets/brand/vanderhall-lockup-horizontal-white.svg"),
+    // The pre-paint script that read the stored preference is gone, so the only script the page
+    // fetches is the island loader's one file.
+    inlineScripts: [...document.querySelectorAll("script:not([src])")].filter((node) => node.textContent.includes("localStorage")).length,
+  };
+});
+const dark = report.interactions.darkOnly;
+if (dark.paper !== "#0E0E10" || dark.ink !== "#F4F4F5") failures.push(`Dark tokens did not compute: ${JSON.stringify(dark)}`);
+if (dark.colorScheme !== "dark" || dark.metaColorScheme !== "dark") failures.push(`The declared color scheme is not dark alone: ${dark.colorScheme} / ${dark.metaColorScheme}`);
+if (dark.bodyBackground !== "rgb(14, 14, 16)") failures.push(`The page is not painted on the dark paper: ${dark.bodyBackground}`);
+if (dark.toggles !== 0 || dark.themeAttribute !== null || dark.storedTheme !== null) failures.push(`A theme switch survives: ${JSON.stringify(dark)}`);
+if (!dark.reverseLockup) failures.push("The header must paint the reverse lockup without a CSS swap");
+if (dark.inlineScripts !== 0) failures.push(`${dark.inlineScripts} inline scripts still read stored state before paint`);
 
 await page.goto(`${base}/dealers/?model=brawley`, { waitUntil: "networkidle" });
 const requestForm = page.locator("#contact-lead");
@@ -447,9 +501,10 @@ if (schema.canonical !== `${base}/brawley/gts/`.replace("127.0.0.1:4173", "vande
   report.interactions.schema.canonicalNote = "canonical is absolute to production, which is correct when verifying locally";
 }
 
-// Screenshots are the human review surface, so reset persisted units and theme first.
+// Screenshots are the human review surface, so clear anything a prior run persisted first. There is
+// no theme dataset to unset any more; only the storage clear is still meaningful.
 await page.goto(`${base}/`, { waitUntil: "load" });
-await page.evaluate(() => { localStorage.clear(); delete document.documentElement.dataset.theme; });
+await page.evaluate(() => { localStorage.clear(); });
 
 for (const [route, name] of [["/", "home"], ["/vehicles/", "vehicles"], ["/venice/", "venice"], ["/carmel/", "carmel"], ["/santarosa/", "santarosa"], ["/brawley/", "brawley"], ["/brawley/gts/", "brawley-gts"], ["/concepts/", "concepts"], ["/concepts/indio/", "indio"], ["/concepts/brawley-r/", "brawley-r"], ["/concepts/balboa/", "balboa"], ["/concepts/yuma/", "yuma"], ["/owners/", "owners"], ["/dealers/", "dealers"], ["/recommend-dealer/", "recommend-dealer"]]) {
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -484,6 +539,23 @@ report.reducedMotion = await page.evaluate(() => ({
 if (report.reducedMotion.duration1 !== "1ms" || report.reducedMotion.scrollBehavior !== "auto") failures.push("Reduced motion override failed");
 if (report.reducedMotion.revealAnimation !== "none" || report.reducedMotion.heroTimeline !== "none") failures.push(`Reduced motion must remove the scroll-driven animations, got ${report.reducedMotion.revealAnimation} and ${report.reducedMotion.heroTimeline}`);
 
+// Under reduced motion the word cascade must not exist at all, rather than existing and being stilled.
+// site.js carries its own guard for exactly this: a split element whose animation has been cleared is
+// still a heading rebuilt out of spans, and there is no reason to rebuild it.
+for (const route of ["/", "/brawley/", "/concepts/indio/"]) {
+  await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  const shape = await page.evaluate(() => ({
+    words: document.querySelectorAll(".word").length,
+    split: document.querySelectorAll(".is-split, [data-split]").length,
+    headings: [...document.querySelectorAll(".section-heading h2")].map((node) => node.textContent),
+    lede: document.querySelector(".lede")?.textContent ?? null,
+  }));
+  report.reducedMotion[`cascade${route}`] = shape;
+  if (shape.words !== 0 || shape.split !== 0) failures.push(`${route}: reduced motion must leave text unsplit, found ${shape.words} word spans`);
+  if (shape.headings.some((text) => !text.trim())) failures.push(`${route}: a section heading is empty under reduced motion`);
+}
+await page.goto(`${base}/`, { waitUntil: "networkidle" });
+
 // The V6 additions have to answer reduced motion too: the frame cross-fade and the hover zoom.
 await page.goto(`${base}/brawley/gts/`, { waitUntil: "networkidle" });
 report.reducedMotion.gts = await page.evaluate(() => ({
@@ -516,6 +588,115 @@ report.motion = await motionPage.evaluate(async () => {
 if (report.motion.animationName !== "rise-in" || !report.motion.timeline.includes("view")) failures.push(`Scroll reveal is not attached: ${JSON.stringify(report.motion)}`);
 if (report.motion.hero.animationName !== "hero-drift") failures.push("Hero drift is not attached");
 if (report.motion.opacityOnceEntered < 0.99) failures.push(`A scrolled-into-view section did not resolve to fully visible: opacity ${report.motion.opacityOnceEntered}`);
+
+// The concept band in a context that asks for motion: running, pausable by hover, and pausable by its
+// button. The button is blurred before the resume is read, because :focus-within also pauses the band
+// by design, and a focused button would otherwise make the resume look broken.
+await motionPage.goto(`${base}/concepts/`, { waitUntil: "networkidle" });
+await motionPage.waitForTimeout(400);
+const trackState = () => motionPage.locator(".concept-marquee__track").evaluate((track) => {
+  const style = getComputedStyle(track);
+  return { animationName: style.animationName, playState: style.animationPlayState, duration: style.animationDuration, iterations: style.animationIterationCount };
+});
+report.motion.marquee = { running: await trackState() };
+report.motion.marquee.ready = await motionPage.locator("[data-marquee]").evaluate((band) => band.hasAttribute("data-ready"));
+report.motion.marquee.toggleVisible = await motionPage.locator("[data-marquee-toggle]").isVisible();
+const running = report.motion.marquee.running;
+if (running.animationName !== "concept-drift" || running.playState !== "running") failures.push(`The concept band is not drifting: ${JSON.stringify(running)}`);
+if (running.duration !== "55s" || running.iterations !== "infinite") failures.push(`The concept band's drift is not the continuous one: ${JSON.stringify(running)}`);
+if (!report.motion.marquee.ready || !report.motion.marquee.toggleVisible) failures.push("The island must set data-ready and reveal the pause button together");
+// Hover pauses without touching state, so the band resumes on its own when the pointer leaves.
+await motionPage.locator(".concept-marquee__viewport").hover();
+report.motion.marquee.hovered = await trackState();
+if (report.motion.marquee.hovered.playState !== "paused") failures.push("Hovering the concept band must pause it");
+await motionPage.mouse.move(0, 0);
+report.motion.marquee.unhovered = await trackState();
+if (report.motion.marquee.unhovered.playState !== "running") failures.push("Leaving the concept band must resume it");
+// The button, which does hold state.
+await motionPage.locator("[data-marquee-toggle]").click();
+report.motion.marquee.afterPress = { ...await trackState(), pressed: await motionPage.locator("[data-marquee-toggle]").getAttribute("aria-pressed") };
+if (report.motion.marquee.afterPress.playState !== "paused" || report.motion.marquee.afterPress.pressed !== "true") failures.push(`The pause button did not pause the band: ${JSON.stringify(report.motion.marquee.afterPress)}`);
+await motionPage.locator("[data-marquee-toggle]").click();
+// Both the focus and the pointer have to leave before the resume can be read. Hover and focus-within
+// each pause the band by design, and clicking leaves the pointer on the button and the focus in it, so
+// reading play-state here without releasing both would report a pause the button did not cause.
+await motionPage.locator("[data-marquee-toggle]").evaluate((node) => node.blur());
+await motionPage.mouse.move(0, 0);
+report.motion.marquee.afterSecondPress = { ...await trackState(), pressed: await motionPage.locator("[data-marquee-toggle]").getAttribute("aria-pressed") };
+if (report.motion.marquee.afterSecondPress.playState !== "running" || report.motion.marquee.afterSecondPress.pressed !== "false") failures.push(`The pause button did not resume the band: ${JSON.stringify(report.motion.marquee.afterSecondPress)}`);
+
+// The word cascade. Which headings get split depends on what sits below the fold at load time, and
+// that is deliberate: the first viewport stays still. So existence is asserted across a set of routes
+// rather than on one, while the invariants that must always hold are asserted on every one of them.
+report.motion.wordCascade = { routes: {} };
+for (const route of ["/", "/brawley/", "/concepts/indio/", "/brawley/gts/"]) {
+  await motionPage.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  await motionPage.waitForTimeout(400);
+  const shape = await motionPage.evaluate(async () => {
+    const split = [...document.querySelectorAll(".is-split")];
+    // Measured before anything scrolls, which is the only moment this means what it says. The guard in
+    // site.js only splits blocks that sit entirely below the fold, because splitting text the visitor
+    // is already reading would visibly re-hide it. This is that guarantee, stated as a number.
+    const aboveFold = split.filter((element) => element.getBoundingClientRect().top < innerHeight)
+      .map((element) => element.textContent.slice(0, 40));
+    const readRange = (node) => {
+      const style = getComputedStyle(node);
+      return { start: style.animationRangeStart, name: style.animationName, timeline: style.animationTimeline };
+    };
+    const detail = split.map((element) => {
+      const words = [...element.querySelectorAll(".word")];
+      return {
+        words: words.length,
+        first: words[0] ? readRange(words[0]) : null,
+        last: words.at(-1) ? readRange(words.at(-1)) : null,
+        // The split must not change what the element says.
+        text: element.textContent,
+      };
+    });
+    // Resolve one of them and confirm every word lands fully visible.
+    let resolved = null;
+    if (split.length) {
+      split[0].scrollIntoView({ block: "center", behavior: "instant" });
+      await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+      resolved = Math.min(...[...split[0].querySelectorAll(".word")].map((word) => Number(getComputedStyle(word).opacity)));
+    }
+    return {
+      detail,
+      resolved,
+      aboveFold,
+      // Belt and braces on the selector itself: hero and page-header h1s are excluded by never being
+      // targeted, and this fires if that ever changes.
+      heroSplit: document.querySelectorAll(".hero__content h1.is-split, .page-header h1.is-split").length,
+      // The container's own reveal moves to its siblings rather than stacking with the cascade.
+      splitContainers: [...document.querySelectorAll(".section-heading[data-split]")].map((node) => ({
+        container: getComputedStyle(node).animationName,
+        eyebrow: node.querySelector(".eyebrow") ? getComputedStyle(node.querySelector(".eyebrow")).animationName : null,
+      })),
+    };
+  });
+  report.motion.wordCascade.routes[route] = shape;
+  if (shape.heroSplit !== 0) failures.push(`${route}: ${shape.heroSplit} first-viewport headings were split`);
+  if (shape.aboveFold.length) failures.push(`${route}: ${shape.aboveFold.length} already-visible blocks were split, which re-hides text the visitor is reading: ${shape.aboveFold.join(" / ")}`);
+  for (const container of shape.splitContainers) {
+    if (container.container !== "none") failures.push(`${route}: a split section heading still runs its own block reveal (${container.container})`);
+    if (container.eyebrow !== "rise-in") failures.push(`${route}: a split section heading's eyebrow lost its reveal (${container.eyebrow})`);
+  }
+  for (const element of shape.detail) {
+    if (element.words < 2) failures.push(`${route}: a split element has ${element.words} words`);
+    if (element.first?.name !== "rise-in") failures.push(`${route}: split words are not animated (${element.first?.name})`);
+    if (!element.first?.timeline.includes("vhw-words")) failures.push(`${route}: split words are not on the element's named timeline (${element.first?.timeline})`);
+    // The stagger IS the feature. Identical ranges mean the browser rejected calc inside a range and
+    // fell back to every word rising together, which is a real regression and must be named, not
+    // discovered by eye. Plan B in the V9 plan is bucketed ranges if this ever fires.
+    if (element.first?.start === element.last?.start) failures.push(`${route}: the word stagger collapsed, every word starts at ${element.first?.start}. calc-in-range is unsupported here; apply the bucketed-range fallback.`);
+  }
+  if (shape.resolved !== null && shape.resolved < 0.99) failures.push(`${route}: a scrolled-into-view cascade did not resolve to fully visible: ${shape.resolved}`);
+}
+const cascadeRoutes = Object.values(report.motion.wordCascade.routes);
+report.motion.wordCascade.totalSplit = cascadeRoutes.reduce((sum, shape) => sum + shape.detail.length, 0);
+report.motion.wordCascade.totalWords = cascadeRoutes.reduce((sum, shape) => sum + shape.detail.reduce((inner, element) => inner + element.words, 0), 0);
+if (report.motion.wordCascade.totalSplit < 3) failures.push(`The word cascade reached only ${report.motion.wordCascade.totalSplit} elements across four routes`);
+if (report.motion.wordCascade.totalWords < 20) failures.push(`The word cascade split only ${report.motion.wordCascade.totalWords} words across four routes`);
 await motionContext.close();
 
 const noJsContext = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1280, height: 900 } });
@@ -563,6 +744,42 @@ const gtsNoJs = report.noJs.gts;
 if (!gtsNoJs.frameLoaded || !gtsNoJs.frameVisible) failures.push("No-JS purchase page does not render a studio frame");
 if (!gtsNoJs.controlsHidden || gtsNoJs.disabledSwatches !== 9) failures.push("No-JS purchase page shows controls it cannot drive");
 if (!gtsNoJs.reserveIsPlainLink || !gtsNoJs.hasPrice || !gtsNoJs.hasTiers || !gtsNoJs.hasDisclaimer || !gtsNoJs.hasSafety) failures.push(`No-JS purchase page is missing price, disclosure, or the order link: ${JSON.stringify(gtsNoJs)}`);
+
+// Without JavaScript the V9 additions must each read as a finished static layout. The band is a
+// filmstrip with no pause button, and the headings are whole sentences rather than span soup.
+await noJsPage.goto(`${base}/concepts/`, { waitUntil: "load" });
+report.noJs.marquee = await noJsPage.evaluate(() => {
+  const band = document.querySelector("[data-marquee]");
+  const track = band?.querySelector(".concept-marquee__track");
+  const toggle = band?.querySelector("[data-marquee-toggle]");
+  return {
+    items: band?.querySelectorAll(".concept-marquee__item").length,
+    animationName: track ? getComputedStyle(track).animationName : null,
+    ready: band?.hasAttribute("data-ready"),
+    toggleHidden: toggle?.hidden === true,
+    toggleVisible: Boolean(toggle?.getClientRects().length),
+    tilesVisible: [...(band?.querySelectorAll(".concept-marquee__item img") ?? [])].filter((image) => image.getClientRects().length).length,
+    noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1,
+    cards: document.querySelectorAll(".card .card__link").length,
+  };
+});
+const noJsMarquee = report.noJs.marquee;
+if (noJsMarquee.items !== 18) failures.push(`No-JS concept band must render 18 tiles, found ${noJsMarquee.items}`);
+if (noJsMarquee.animationName !== "none" || noJsMarquee.ready) failures.push("No-JS concept band must not animate: data-ready is the island's to set");
+if (!noJsMarquee.toggleHidden || noJsMarquee.toggleVisible) failures.push("No-JS concept band must show no pause button it cannot drive");
+if (!noJsMarquee.noHorizontalScroll) failures.push("No-JS concept band widened the document");
+if (noJsMarquee.cards !== 9) failures.push(`No-JS concepts hub must still expose nine linked cards, found ${noJsMarquee.cards}`);
+
+await noJsPage.goto(`${base}/concepts/indio/`, { waitUntil: "load" });
+report.noJs.wordCascade = await noJsPage.evaluate(() => ({
+  words: document.querySelectorAll(".word").length,
+  split: document.querySelectorAll(".is-split, [data-split]").length,
+  lede: document.querySelector(".lede")?.textContent ?? null,
+  ledeVisible: Boolean(document.querySelector(".lede")?.getClientRects().length),
+}));
+const noJsCascade = report.noJs.wordCascade;
+if (noJsCascade.words !== 0 || noJsCascade.split !== 0) failures.push(`No-JS pages must carry no word spans, found ${noJsCascade.words}`);
+if (!noJsCascade.ledeVisible || (noJsCascade.lede ?? "").length < 80) failures.push(`No-JS lede must render whole: ${JSON.stringify(noJsCascade.lede)}`);
 
 await noJsPage.goto(`${base}/`, { waitUntil: "load" });
 report.noJs.vehiclesHref = await noJsPage.getByRole("link", { name: "Vehicles", exact: true }).first().getAttribute("href");

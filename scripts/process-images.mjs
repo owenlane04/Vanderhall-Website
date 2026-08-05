@@ -4,6 +4,7 @@ import { basename, dirname, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
+import { keyStudioFrame, keyWhiteCanvas, keyingNote, KEYING } from "./lib/key-studio-frame.mjs";
 
 const run = promisify(execFile);
 const websiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -15,6 +16,14 @@ const v3ConceptRoot = resolve(v3Root, "Concepts");
 const outputRoot = resolve(websiteRoot, "assets/images");
 const brandRoot = resolve(websiteRoot, "assets/brand");
 const manifest = [];
+
+// V9 is a single dark page, so anything that used to be baked onto a white canvas is baked onto the
+// page paper instead. One value, used by the concept hub cards and by the studio keying.
+const DARK_PAPER = "#0E0E10";
+// How much of each concept slide the canvas key claimed, reported at the end so a render that was
+// never meant to be keyed cannot lose its sky quietly.
+const conceptKeying = [];
+const hubCardKeying = [];
 
 await rm(resolve(outputRoot, "v2"), { recursive: true, force: true });
 await rm(resolve(outputRoot, "v3"), { recursive: true, force: true });
@@ -80,6 +89,16 @@ const encode = async (input, output, options = {}) => {
   // Legacy concept slides sit on padded canvases. Trimming the uniform border removes the
   // empty white or black margin so the delivered crop is only the composition itself.
   if (options.trim) pipeline = pipeline.trim({ threshold: options.trim });
+  // V9: the sheet-style concept slides carry their own white canvas, which reads as a plate on a dark
+  // page. The canvas is keyed onto the paper here, after any trim so the geometry is settled, and
+  // before the resize so the ladder rungs all come from one keyed image. The pipeline is materialised
+  // to raw and rebuilt, which is the only way to reach the pixels mid-chain.
+  if (options.keyCanvas) {
+    const raw = await pipeline.removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    const keyed = keyWhiteCanvas({ data: raw.data, width: raw.info.width, height: raw.info.height, channels: raw.info.channels });
+    conceptKeying.push({ output: relative(websiteRoot, output), claimedFraction: keyed.claimedFraction });
+    pipeline = sharp(keyed.data, { raw: { width: keyed.width, height: keyed.height, channels: 3 } });
+  }
   if (options.width && options.height) {
     pipeline = pipeline.resize({
       width: options.width,
@@ -168,10 +187,10 @@ for (const [slug, entries] of Object.entries(featureSpecs)) {
   }
 }
 
-const encodeLadder = async (input, directory, base, widths, { extract, trim, transform = "native ratio" } = {}) => {
+const encodeLadder = async (input, directory, base, widths, { extract, trim, keyCanvas, transform = "native ratio" } = {}) => {
   for (const width of widths) {
     const output = resolve(outputRoot, `v3/${directory}/${base}-${width}.webp`);
-    await encode(input, output, { width, ...(extract ? { extract } : {}), ...(trim ? { trim } : {}), transform: `${transform}; ${width}w; WebP q80; verified clean` });
+    await encode(input, output, { width, ...(extract ? { extract } : {}), ...(trim ? { trim } : {}), ...(keyCanvas ? { keyCanvas } : {}), transform: `${transform}; ${width}w; WebP q80; verified clean${keyCanvas ? "; white canvas keyed to the dark paper" : ""}` });
   }
 };
 
@@ -216,16 +235,19 @@ const conceptLadders = [
   ["Balboa", "vanderhall-balboa-ev-concept.png", "balboa", "hero"],
   ["Balboa", "balboa-slide-1-2-scaled.jpg", "balboa", "gallery-1"],
 ];
+// Every concept slide gets the canvas key. The sheet-style slides lose their white plate; the
+// full-bleed renders are unaffected, because a border-seeded fill on a dark render reaches nothing.
+// The claimed fraction of each is reported below rather than assumed.
 for (const [folder, filename, slug, base] of conceptLadders) {
   const metadata = await sharp(conceptFile(folder, filename)).metadata();
   const widths = [960, 1280, 1920].filter((width) => width <= metadata.width);
-  await encodeLadder(conceptFile(folder, filename), `concepts/${slug}`, base, widths, { trim: 12, transform: `${filename}; padded canvas trimmed; no line art, callouts, disclaimer, or legacy UI` });
+  await encodeLadder(conceptFile(folder, filename), `concepts/${slug}`, base, widths, { trim: 12, keyCanvas: true, transform: `${filename}; padded canvas trimmed; no line art, callouts, disclaimer, or legacy UI` });
 }
 
-await encodeLadder(conceptFile("Indio", "indio-beach-slide-scaled.jpg"), "concepts/indio", "hero", [960, 1440, 2560], { trim: 12, transform: "Indio hero; padded canvas trimmed" });
+await encodeLadder(conceptFile("Indio", "indio-beach-slide-scaled.jpg"), "concepts/indio", "hero", [960, 1440, 2560], { trim: 12, keyCanvas: true, transform: "Indio hero; padded canvas trimmed" });
 // Explicit crop only: this source carries an alpha channel, and trimming a transparent
 // edge collapses the extract area.
-await encodeLadder(conceptFile("Yuma Defense", "vanderhall-yuma-defense-concept-vehicle.png"), "concepts/yuma-defense", "gallery-2", [960, 1280], { extract: { left: 0, top: 0, width: 1400, height: 650 }, transform: "clean left vehicle band; More Concepts furniture excluded" });
+await encodeLadder(conceptFile("Yuma Defense", "vanderhall-yuma-defense-concept-vehicle.png"), "concepts/yuma-defense", "gallery-2", [960, 1280], { extract: { left: 0, top: 0, width: 1400, height: 650 }, keyCanvas: true, transform: "clean left vehicle band; More Concepts furniture excluded" });
 const conceptMobiles = [
   ["Indio", "indio-slide-2-mobile.jpg", "indio"],
   ["Coachella", "coachella-slide-03-mobile-size.jpg", "coachella"],
@@ -233,7 +255,7 @@ const conceptMobiles = [
   ["Santarosa R", "vanderhall-santarosa-r-slide-mobile.jpg", "santarosa-r"],
   ["Yuma", "yuma-slide-1-3-mobile-2.jpg", "yuma"],
 ];
-for (const [folder, filename, slug] of conceptMobiles) await encode(conceptFile(folder, filename), resolve(outputRoot, `v3/concepts/${slug}/mobile-704.webp`), { width: 704, trim: 12, transform: `mobile source ${filename}; padded canvas trimmed; verified clean` });
+for (const [folder, filename, slug] of conceptMobiles) await encode(conceptFile(folder, filename), resolve(outputRoot, `v3/concepts/${slug}/mobile-704.webp`), { width: 704, trim: 12, keyCanvas: true, transform: `mobile source ${filename}; padded canvas trimmed; verified clean; white canvas keyed to the dark paper` });
 
 // Hub cards. Each 656x445 source draws the vehicle in one band of non-white rows and the
 // concept wordmark in a separate lower band, with a white gap between them. Taking the upper
@@ -283,12 +305,37 @@ for (const [slug, input] of hubCards) {
   if (box.width > CARD_WIDTH || box.height > CARD_HEIGHT) throw new Error(`${slug}: vehicle band ${box.width}x${box.height} does not fit the ${CARD_WIDTH}x${CARD_HEIGHT} card`);
   const left = Math.floor((CARD_WIDTH - box.width) / 2);
   const top = Math.floor((CARD_HEIGHT - box.height) / 2);
-  await encode(input, resolve(outputRoot, `v3/concepts/hub/${slug}-656.webp`), {
-    extract: box,
-    extend: { left, right: CARD_WIDTH - box.width - left, top, bottom: CARD_HEIGHT - box.height - top, background: "#FFFFFF" },
-    transform: `vehicle band x=${box.left}..${box.left + box.width} y=${box.top}..${box.top + box.height} centred on a ${CARD_WIDTH}x${CARD_HEIGHT} white canvas; baked wordmark excluded`,
+  // V9 extends onto the page paper rather than white, and keys the band's own backdrop with the full
+  // studio treatment rather than the border flood alone. These sources are exactly what that keying
+  // was built for: a vehicle cutout on a white studio backdrop with a contact shadow beneath it. The
+  // border flood alone left that shadow as a white ellipse on the dark card, because the shadow's own
+  // gradient seals it off from the frame edge, and an ellipse of studio floor under each vehicle is
+  // the same white-plate problem in a softer shape.
+  //
+  // bandTop is 0.62 here rather than the 0.78 the full frames use, because this extract is already
+  // cropped to the vehicle band: there is no empty backdrop above and below to spend the band on. QA
+  // per card, printed below: zero punctures on all nine, and 78 to 801 light pixels left under the
+  // midline, which is the shadow reading as a shadow.
+  const output = resolve(outputRoot, `v3/concepts/hub/${slug}-656.webp`);
+  const raw = await sharp(input).extract(box).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+  const keyed = keyStudioFrame({ data: raw.data, width: raw.info.width, height: raw.info.height, channels: raw.info.channels }, { bandTop: 0.62 });
+  if (keyed.metrics.holesInBody > 0) throw new Error(`${slug}: keying punctured the vehicle in ${keyed.metrics.holesInBody} places`);
+  hubCardKeying.push({ slug, lightBelowMid: keyed.metrics.lightBelowMid, holesInBody: keyed.metrics.holesInBody });
+  await mkdir(dirname(output), { recursive: true });
+  const info = await sharp(keyed.data, { raw: { width: keyed.width, height: keyed.height, channels: 3 } })
+    .extend({ left, right: CARD_WIDTH - box.width - left, top, bottom: CARD_HEIGHT - box.height - top, background: DARK_PAPER })
+    .webp({ quality: 80, effort: 6, smartSubsample: true })
+    .toFile(output);
+  record(output, input, `vehicle band x=${box.left}..${box.left + box.width} y=${box.top}..${box.top + box.height} centred on a ${CARD_WIDTH}x${CARD_HEIGHT} ${DARK_PAPER} canvas; baked wordmark excluded; ${keyingNote({ bandTop: 0.62 })}`, {
+    source_width: (await sharp(input).metadata()).width,
+    source_height: (await sharp(input).metadata()).height,
+    output_width: info.width,
+    output_height: info.height,
+    crop_window: `x=${box.left} y=${box.top} width=${box.width} height=${box.height}`,
+    verified_clean: "yes",
   });
 }
+console.log(`Hub cards keyed onto ${DARK_PAPER}: ${hubCardKeying.map((entry) => `${entry.slug} ${entry.lightBelowMid}`).join(", ")} light pixels left below the midline, zero punctures.`);
 
 for (const [folder, filename, slug] of [
   ["Indio", "indio-logo-2.png", "indio"],
@@ -360,22 +407,108 @@ const STUDIO_COLORS = [
 ];
 const STUDIO_STILL_ONLY = { "jean-grey": "front" };
 const STUDIO_WIDTHS = [960, 1600];
-const studioWritten = new Set();
+
+// V9 keys these frames onto the dark page paper instead of leaving them on a white plate. See
+// scripts/lib/key-studio-frame.mjs for the algorithm and the measurements behind it.
+//
+// The QA gate below is mandatory and is what decides whether a color ships keyed. Its expected ink
+// boxes are the per-angle medians measured across all nine colors during the V9 planning pass: the
+// camera does not move between colors, so eight angles give eight expected boxes, and a color that
+// disagrees is the one whose mask moved. They are stated here rather than recomputed so the gate
+// cannot agree with a mask that drifted on every color at once.
+const STUDIO_INK_BOXES = {
+  front: { left: 704, top: 220, width: 1495, height: 1208 },
+  "front-side-driver": { left: 108, top: 248, width: 2671, height: 1198 },
+  "front-side-passenger": { left: 99, top: 245, width: 2669, height: 1197 },
+  rear: { left: 691, top: 188, width: 1502, height: 1246 },
+  side: { left: 154, top: 293, width: 2559, height: 1152 },
+  "side-rear-driver": { left: 167, top: 226, width: 2535, height: 1220 },
+  "side-rear-passenger": { left: 175, top: 228, width: 2481, height: 1196 },
+  "side-reverse": { left: 158, top: 296, width: 2555, height: 1150 },
+};
+// Measured maxima across the set, with headroom: drift 13, light-below-midline 18851, punctures 0,
+// smallest vehicle region 1391997.
+const STUDIO_QA = { maxDrift: 24, maxLightBelowMid: 40_000, maxHolesInBody: 0, minVehicleArea: 1_000_000 };
+
+// One source per color and angle. Two files per slot differ only by a "(1)" suffix, so the first
+// wins, which is the rule V6 used and the frames the QA gate was measured against.
+const studioSlots = new Map();
 for (const filename of studioFiles) {
   if (filename.includes("Concrete-Grey")) continue;
   const color = STUDIO_COLORS.find(([needle]) => filename.includes(needle))?.[1];
   const angle = STUDIO_ANGLES.find(([needle]) => filename.includes(needle))?.[1];
   if (!color || !angle) throw new Error(`Could not normalize studio frame ${filename}`);
   if (STUDIO_STILL_ONLY[color] && STUDIO_STILL_ONLY[color] !== angle) continue;
-  for (const width of STUDIO_WIDTHS) {
-    const output = resolve(outputRoot, `brawley/walkaround/${color}/${angle}-${width}.webp`);
-    // Two sources per slot differ only by a "(1)" suffix, so the first write wins.
-    if (studioWritten.has(output)) continue;
-    studioWritten.add(output);
-    await encode(resolve(studioDir, filename), output, { width, transform: `${width}w studio walkaround frame, ${color} ${angle}; native 16:9, no crop; white studio background` });
+  const slot = `${color}/${angle}`;
+  if (!studioSlots.has(slot)) studioSlots.set(slot, { color, angle, filename });
+}
+
+const studioPath = (color, angle, width) => resolve(outputRoot, `brawley/walkaround/${color}/${angle}-${width}.webp`);
+const studioQaReport = [];
+const studioFallbackColors = [];
+let studioWritten = 0;
+
+// Grouped by color because the plan's fallback is per color, not per frame: a color that fails on one
+// angle ships all eight angles on the white stage, so the viewer never mixes two stages in one
+// rotation. Frames are keyed and judged one at a time, so only one full-resolution buffer is ever
+// held in memory.
+for (const [, colorName] of STUDIO_COLORS) {
+  const slots = [...studioSlots.values()].filter((slot) => slot.color === colorName);
+  if (!slots.length) continue;
+  const keyedFor = [];
+  const failures = [];
+  for (const slot of slots) {
+    const input = resolve(studioDir, slot.filename);
+    const raw = await sharp(input).removeAlpha().raw().toBuffer({ resolveWithObject: true });
+    const keyed = keyStudioFrame({ data: raw.data, width: raw.info.width, height: raw.info.height, channels: raw.info.channels });
+    const want = STUDIO_INK_BOXES[slot.angle];
+    if (!want) throw new Error(`No expected ink box recorded for the ${slot.angle} angle`);
+    const drift = Math.max(
+      Math.abs(keyed.inkBox.left - want.left), Math.abs(keyed.inkBox.top - want.top),
+      Math.abs(keyed.inkBox.width - want.width), Math.abs(keyed.inkBox.height - want.height),
+    );
+    const reasons = [];
+    if (drift > STUDIO_QA.maxDrift) reasons.push(`ink box drifted ${drift}px`);
+    if (keyed.metrics.holesInBody > STUDIO_QA.maxHolesInBody) reasons.push(`${keyed.metrics.holesInBody} keyed pixels enclosed above the vehicle midline`);
+    if (keyed.metrics.lightBelowMid > STUDIO_QA.maxLightBelowMid) reasons.push(`${keyed.metrics.lightBelowMid} light pixels survive below the midline`);
+    if (keyed.metrics.vehicleArea < STUDIO_QA.minVehicleArea) reasons.push(`vehicle region is only ${keyed.metrics.vehicleArea} pixels`);
+    studioQaReport.push({ slot: `${colorName}/${slot.angle}`, drift, ...keyed.metrics, inkBox: keyed.inkBox, reasons });
+    if (reasons.length) failures.push(`${colorName}/${slot.angle}: ${reasons.join("; ")}`);
+    keyedFor.push({ slot, keyed, drift, input, sourceMeta: raw.info });
+  }
+
+  const shipKeyed = failures.length === 0;
+  if (!shipKeyed) {
+    studioFallbackColors.push(colorName);
+    console.warn(`Keying QA failed for ${colorName}, shipping it on the white stage:\n  ${failures.join("\n  ")}`);
+  }
+  for (const entry of keyedFor) {
+    const { slot, keyed, drift, input } = entry;
+    for (const width of STUDIO_WIDTHS) {
+      const output = studioPath(slot.color, slot.angle, width);
+      if (shipKeyed) {
+        await mkdir(dirname(output), { recursive: true });
+        const info = await sharp(keyed.data, { raw: { width: keyed.width, height: keyed.height, channels: 3 } })
+          .resize({ width, withoutEnlargement: true })
+          .webp({ quality: 80, effort: 6, smartSubsample: true })
+          .toFile(output);
+        record(output, input, `${width}w studio walkaround frame, ${slot.color} ${slot.angle}; native 16:9, no crop; ${keyingNote()}; ink box drift ${drift}px`, {
+          source_width: keyed.width,
+          source_height: keyed.height,
+          output_width: info.width,
+          output_height: info.height,
+          crop_window: "full frame",
+          verified_clean: "yes",
+        });
+      } else {
+        await encode(input, output, { width, transform: `${width}w studio walkaround frame, ${slot.color} ${slot.angle}; native 16:9, no crop; white studio background; keying QA fallback` });
+      }
+      studioWritten += 1;
+    }
   }
 }
-console.log(`Delivered ${studioWritten.size} walkaround frames.`);
+await writeFile(resolve(websiteRoot, "work/v9-keying-qa.json"), JSON.stringify({ params: KEYING, gate: STUDIO_QA, expected: STUDIO_INK_BOXES, fallbackColors: studioFallbackColors, frames: studioQaReport }, null, 2));
+console.log(`Delivered ${studioWritten} walkaround frames. Keyed onto ${DARK_PAPER}; white-stage fallbacks: ${studioFallbackColors.length ? studioFallbackColors.join(", ") : "none"}.`);
 
 await mkdir(brandRoot, { recursive: true });
 const logoPdf = resolve(assetsRoot, "vanderhall logos/vanderhall logo with symbols.pdf");
@@ -489,4 +622,12 @@ await cp(canonicalBrawleyManual, resolve(manualsOutput, "2026-brawley-owners-man
 record(resolve(manualsOutput, "2026-brawley-owners-manual.pdf"), canonicalBrawleyManual, "existing canonical 2026 owner manual");
 await writeFile(resolve(websiteRoot, "assets/build-manifest.json"), JSON.stringify(manifest, null, 2));
 
+// The canvas key selects itself, so what it claimed is the evidence that it selected correctly: a
+// sheet gives up most of its area, a full-bleed render gives up almost none, and anything in between
+// is worth a look at the visual pass.
+const keyedSheets = conceptKeying.filter((entry) => entry.claimedFraction >= 0.05);
+const keyedRenders = conceptKeying.filter((entry) => entry.claimedFraction < 0.05);
+console.log(`Canvas key: ${keyedSheets.length} sheet deliveries gave up 5 percent or more of their area, ${keyedRenders.length} full-bleed deliveries gave up less.`);
+console.log(`  sheets: ${[...new Set(keyedSheets.map((entry) => entry.output.replace(/-\d+\.webp$/, "").replace("assets/images/v3/concepts/", "")))].join(", ")}`);
+console.log(`  largest claim among the full-bleed set: ${Math.max(0, ...keyedRenders.map((entry) => entry.claimedFraction))}`);
 console.log(`Encoded ${manifest.length} traced assets.`);

@@ -188,6 +188,8 @@ them deliberately instead of rediscovering them.
 | Provo is the headquarters | `/faq/` | The site elsewhere says hand-built in Provo, which is manufacturing. Only the FAQ called it headquarters. |
 | Brawley is now delivering | Republished in V6 | Appears on `/brawley/gts/` as "Now delivering in select regions.", the manufacturer's own wording, read from the live site 2026-08-05. |
 | Santarosa is at reservation stage | vehicle card status chip | Same. Note the reservation wording itself was never legally approved, which is a separate open item under Pricing. |
+| Vanderhall has built vehicles since 2010 | homepage hero, until V9 | V9 replaced the Provo and since-2010 hero with Owen's own copy, so 2010 is no longer visible text anywhere on the site. The `foundingDate` field left `organizationSchema()` with it, because this project's rule is that structured data may only restate what a visitor can read. A build check now fails if either returns. |
+| Provo as the place of manufacture, in the hero | homepage hero, until V9 | Provo itself is NOT lost: the footer's "Hand-built in Provo, Utah." line appears on every page, and `/vehicles/` and the Brawley GTS copy still say it. That footer line is what keeps the schema's Provo address legitimate, so a check asserts it on all 23 pages. |
 
 Owen confirmed on 2026-08-04 that losing the five FAQ answers is acceptable.
 
@@ -196,6 +198,42 @@ Owen confirmed on 2026-08-04 that losing the five FAQ answers is acceptable.
 | File | Problem |
 |---|---|
 | `Assets/Legacy Website Selection/Santarosa/santarosa-action-winding-road.jpg` | Appears to carry a tiled stock-agency watermark across the sky. Not delivered anywhere. Must not be used until rights are confirmed. |
+
+## Studio frames keyed onto the dark page. NEW, from V9
+
+V9 made the site dark only, which turned the studio backdrop into a problem: 130 delivered
+walkaround frames were photographed on white, and a white rectangle behind a vehicle on a dark page
+is a plate. They are now keyed onto the page paper (`#0E0E10`) by
+`scripts/lib/key-studio-frame.mjs`, and the nine concept hub cards are keyed the same way.
+
+This is a derived image, so its provenance matters. What the keying does and does not do:
+
+- It never deletes and never introduces an alpha channel. Backdrop pixels are multiplied by their own
+  luminance against the paper, so pure white lands exactly on the paper and the contact shadow becomes
+  a darker pool, which is what a shadow does. Nothing is invented and no pixel of the vehicle is
+  repainted.
+- The backdrop is identified by connectivity to the frame edge, not by color, because every one of the
+  130 frames has a roof at exactly `rgb(255,255,255)`, pixel identical to the backdrop behind it. A
+  key by color alone punches a hole through the roof on all nine paint colors.
+- Every frame passes an automated gate before delivery: its vehicle ink box must sit within 24px of
+  the per-angle median measured across all nine colors, no keyed region may be enclosed above the
+  vehicle's midline, and the vehicle region must exceed a million pixels. Measured worst cases across
+  the set were 13px of drift and zero enclosed regions. A color that fails ships all eight of its
+  angles on the white stage instead, and `assets/build-manifest.json` records which happened per file.
+  No color needed the fallback.
+
+**Vanderhall's original renders with an alpha channel would make this obsolete.** That ask is on the
+visit list (section C, item 6). If they arrive, delete the keying rather than keep both.
+
+**Known residual, concept detail slides.** The sheet-style concept slides had their white canvas keyed
+too, which removed the plate. What remains on some of them is white studio floor enclosed under the
+vehicle, which the border-seeded pass cannot reach because the shadow ring seals it off. On the hub
+cards this was solved with the full studio keying; on the composite slides it is not, because those
+slides put dark render panels beside light ones and a bright region there is sometimes real content: a
+sunlit window in the Brawley R interior render measures 89 percent pure white, and the enclosed floor
+beside it measures 87 percent, so no threshold separates them. Choosing between them is a design call,
+not a measurement. Affected: `brawley-r/gallery-1`, `coachella/gallery-1`, `coachella/gallery-2`,
+`indio/gallery-1`, `laduna/gallery-1`, `yuma/gallery-1`, `balboa/gallery-1`.
 
 ## Baked disclaimer text in source photography
 

@@ -1,22 +1,6 @@
+// The theme block is gone with light mode. `root` stays because the textarea autosize reads a
+// spacing token off it further down.
 const root = document.documentElement;
-
-const updateThemeLabels = () => {
-  const current = root.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-  document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
-    button.setAttribute("aria-label", `Use ${current === "dark" ? "light" : "dark"} theme`);
-  });
-};
-
-document.querySelectorAll("[data-theme-toggle]").forEach((button) => {
-  button.addEventListener("click", () => {
-    const current = root.dataset.theme || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    const next = current === "dark" ? "light" : "dark";
-    root.dataset.theme = next;
-    try { localStorage.setItem("vhw.theme", next); } catch (error) {}
-    updateThemeLabels();
-  });
-});
-updateThemeLabels();
 
 const header = document.querySelector("[data-header]");
 const updateHeader = () => header?.classList.toggle("is-scrolled", window.scrollY > 8);
@@ -201,6 +185,67 @@ document.querySelectorAll("[data-walkaround]").forEach((viewer) => {
       swatches[next].focus();
       select(swatches[next]);
     });
+  });
+});
+
+// Word cascade. The words of each section heading and lede become inline-block spans carrying a
+// normalised position, and CSS animates them along the element's own view timeline. See site.css.
+//
+// The built HTML is untouched by this, which is the point: every string assertion in the check suite
+// keeps passing, and a search engine indexes whole headings.
+//
+// Hero and page-header h1s are excluded deliberately, for two mechanical reasons rather than taste.
+// A top-of-page element is already past its entry range at scroll zero, so a view() reveal on it
+// resolves instantly and buys nothing. And this file loads after the load event, so splitting text
+// that has already painted would visibly re-hide words the visitor is reading, which is the one
+// failure mode that reads broken rather than premium. The guard below is what enforces it: only a
+// block that sits entirely under the fold at split time is touched. Motion here is earned by
+// scrolling, and the first viewport stays still.
+if (!matchMedia("(prefers-reduced-motion: reduce)").matches && CSS.supports("animation-timeline: view()")) {
+  document.querySelectorAll(".section-heading h2, .lede").forEach((element) => {
+    if (element.dataset.split) return;
+    // Text-only targets. An element with element children would have its markup rebuilt by the split.
+    if (element.firstElementChild) return;
+    if (element.getBoundingClientRect().top < innerHeight) return;
+    const words = element.textContent.split(/(\s+)/).filter((part) => part.length);
+    if (words.filter((part) => part.trim()).length < 2) return;
+    const total = words.filter((part) => part.trim()).length;
+    const fragment = document.createDocumentFragment();
+    let index = 0;
+    for (const part of words) {
+      if (!part.trim()) {
+        // Whitespace stays a real text node, so textContent is unchanged and words still wrap.
+        fragment.append(part);
+        continue;
+      }
+      const span = document.createElement("span");
+      span.className = "word";
+      span.style.setProperty("--wf", total > 1 ? String(index / (total - 1)) : "0");
+      span.textContent = part;
+      fragment.append(span);
+      index += 1;
+    }
+    element.replaceChildren(fragment);
+    element.dataset.split = "true";
+    element.classList.add("is-split");
+    // Moves the container's own reveal onto its siblings rather than stacking two animations.
+    const heading = element.closest(".section-heading");
+    if (heading) heading.dataset.split = "true";
+  });
+}
+
+// The concept band. Its own reduced-motion guard rather than relying on the stylesheet's: under
+// reduced motion the band stays a static filmstrip and the pause button stays hidden, because a
+// control that stops something already stopped is worse than no control.
+document.querySelectorAll("[data-marquee]").forEach((band) => {
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const toggle = band.querySelector("[data-marquee-toggle]");
+  if (!toggle) return;
+  toggle.hidden = false;
+  band.dataset.ready = "true";
+  toggle.addEventListener("click", () => {
+    const paused = band.classList.toggle("is-paused");
+    toggle.setAttribute("aria-pressed", String(paused));
   });
 });
 

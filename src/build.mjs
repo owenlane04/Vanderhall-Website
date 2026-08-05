@@ -7,6 +7,7 @@ import {
   backLink,
   buttonLink,
   conceptCard,
+  conceptMarquee,
   eyebrow,
   figureBand,
   hero,
@@ -130,14 +131,24 @@ const brawleyGtsPage = (model) => {
 
 const homePage = () => {
   const indio = concepts[0];
+  // Owen's copy. D-V9-5 approved one long sentence as the h1; he then asked in chat on 2026-08-05 for
+  // a shorter title with the reference detail moved into the descriptor beneath it. Not one word is
+  // new: the vehicle types and the experience line are his, redistributed. The title is a phrase again
+  // rather than a full sentence, which is what the display-xl step is for.
+  //
+  // This is also why organizationSchema below publishes no founding date: the markup may only restate
+  // visible text, and 2010 left the site with the old Provo hero. Provo survives in the footer line on
+  // every page, which is what keeps the schema's address legitimate.
   const heroContent = `${eyebrow("VANDERHALL MOTOR WORKS")}
-      <h1>Hand-built in Provo, Utah.</h1>
-      <p class="hero__descriptor">Three-wheel gas roadsters and electric vehicles, built by Vanderhall since 2010.</p>
+      <h1>Handcrafted electric vehicles.</h1>
+      <p class="hero__descriptor">Vanderhall builds electric UTVs, side-by-sides, and three-wheeled autocycles. Experience performance, comfort, and style.</p>
       <div class="hero__actions">${buttonLink("Explore vehicles", "/vehicles/", "inverse")}</div>`;
   const body = `<div class="page">
     ${hero({ src: "/assets/images/v3/heroes/home/home-wide-1920.webp", srcset: "/assets/images/v3/heroes/home/home-wide-960.webp 960w, /assets/images/v3/heroes/home/home-wide-1280.webp 1280w, /assets/images/v3/heroes/home/home-wide-1920.webp 1920w, /assets/images/v3/heroes/home/home-wide-2560.webp 2560w", tallSrcset: "/assets/images/v3/heroes/home/home-tall-480.webp 480w, /assets/images/v3/heroes/home/home-tall-720.webp 720w, /assets/images/v3/heroes/home/home-tall-800.webp 800w, /assets/images/v3/heroes/home/home-tall-960.webp 960w", alt: "Tan Vanderhall Brawley climbing a rock ledge above a mountain lake", focal: "50% 50%", content: heroContent })}
     <section class="section" id="vehicles">
-      ${sectionHeading("VEHICLES", "Gas and electric, built in Provo.")}
+      ${/* The old heading read "Gas and electric, built in Provo.", which collided with the new
+            hero's electric positioning the moment both sat on the same screen. */
+        sectionHeading("VEHICLES", "The Vanderhall lineup.")}
       <!-- Every section here sits below the hero, so none of them competes with it for
            bandwidth. The hero is the only eagerly fetched image on this page. -->
       <div class="vehicle-scroll">${models.map((model, index) => vehicleSection(model, { index, copy: model.summary })).join("")}</div>
@@ -151,7 +162,9 @@ const homePage = () => {
       { title: "Talk with Vanderhall", body: "Tell Vanderhall where you are and which vehicle interests you.", label: "Request info", href: "/dealers/" },
     ])}</section>
   </div>`;
-  return shell({ title: "Home", description: "Vanderhall Motor Works builds three-wheel gas roadsters and electric vehicles in Provo, Utah.", path: "/", body, schema: organizationSchema() });
+  // The description is the descriptor's own words. It used to be the h1, which worked while the h1 was
+  // a full sentence; a three-word title is not a description, and the line beneath it now is.
+  return shell({ title: "Home", description: "Vanderhall builds handcrafted electric UTVs, side-by-sides, and three-wheeled autocycles.", path: "/", body, schema: organizationSchema() });
 };
 
 const vehiclesPage = () => {
@@ -169,6 +182,9 @@ const vehiclesPage = () => {
 const conceptsPage = () => {
   const body = `<div class="page">
     ${pageHeader("CONCEPTS", "Design studies", "These nine vehicles are Vanderhall concepts. They are not offered for sale, and no pricing or specifications are published for them.", "", PARENTS.concepts)}
+    ${/* Decorative, between the header and the index it introduces. A direct child of .page so the
+          bleed class can take the full grid column. */
+      conceptMarquee(concepts)}
     <section class="section--tight"><div class="card-grid card-grid--concepts">${concepts.map((concept, index) => conceptCard(concept, { eager: index < 3 })).join("")}</div></section>
   </div>`;
   return shell({ title: "Concepts", description: "Vanderhall concept vehicles and design studies, not offered for sale.", path: "/concepts", body });
@@ -331,7 +347,7 @@ await mkdir(resolve(websiteRoot, "scripts"), { recursive: true });
 await writeFile(resolve(websiteRoot, "styles/bundle.css"), (await Promise.all(["tokens.css", "layout.css", "site.css"].map((file) => readFile(resolve(sourceRoot, "styles", file), "utf8")))).join("\n"));
 await cp(resolve(sourceRoot, "scripts/site.js"), resolve(websiteRoot, "scripts/site.js"));
 await writeFile(resolve(websiteRoot, "robots.txt"), "User-agent: *\nAllow: /\n");
-await writeFile(resolve(websiteRoot, "site.webmanifest"), JSON.stringify({ name: "Vanderhall Motor Works", short_name: "Vanderhall", icons: [{ src: "/assets/brand/icon-192.png", sizes: "192x192", type: "image/png" }, { src: "/assets/brand/icon-512.png", sizes: "512x512", type: "image/png" }], theme_color: "#0E0E10", background_color: "#FFFFFF", display: "standalone" }, null, 2));
+await writeFile(resolve(websiteRoot, "site.webmanifest"), JSON.stringify({ name: "Vanderhall Motor Works", short_name: "Vanderhall", icons: [{ src: "/assets/brand/icon-192.png", sizes: "192x192", type: "image/png" }, { src: "/assets/brand/icon-512.png", sizes: "512x512", type: "image/png" }], theme_color: "#0E0E10", background_color: "#0E0E10", display: "standalone" }, null, 2));
 await writeFile(resolve(websiteRoot, "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${routes.map((route) => `<url><loc>https://vanderhall-website.vercel.app/${route ? `${route}/` : ""}</loc></url>`).join("")}</urlset>`);
 
 console.log(`Built ${pages.size} HTML pages.`);
