@@ -8,7 +8,8 @@
     "build": "node src/build.mjs && node scripts/prepare-vercel.mjs",
     "check:links": "node scripts/check-links.mjs",
     "check:content": "node scripts/check-content.mjs",
-    "check": "npm run check:links && npm run check:content",
+    "check:video": "node scripts/check-video.mjs",
+    "check": "npm run check:links && npm run check:content && npm run check:video",
     "verify:browser": "node scripts/verify-browser.mjs"
   },
   "devDependencies": {

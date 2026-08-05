@@ -15,7 +15,7 @@ const report = { routes: [], accessibility: {}, heroes: {}, zoom200: {}, forms: 
 const failures = [];
 const conceptSlugs = ["indio", "coachella", "brawley-r", "santarosa-r", "speedster", "yuma", "yuma-defense", "laduna", "balboa"];
 const conceptRoutes = conceptSlugs.map((slug) => `/concepts/${slug}/`);
-const routes = ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/santarosa/", "/carmel/", "/venice/", "/concepts/", ...conceptRoutes, "/dealers/", "/recommend-dealer/", "/dealer-inquiry/", "/owners/", "/404/"];
+const routes = ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/santarosa/", "/carmel/", "/venice/", "/concepts/", ...conceptRoutes, "/dealers/", "/recommend-dealer/", "/dealer-inquiry/", "/owners/", "/privacy/", "/404/"];
 
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 const page = await context.newPage();
@@ -86,7 +86,9 @@ for (const [route, destination] of [["/about/", "/"], ["/contact/", "/dealers/"]
 await probeContext.close();
 
 // /carmel/ joins the list in V8: it had never been audited, and it now publishes figures and a tag.
-for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/santarosa/", "/venice/", "/carmel/", "/recommend-dealer/", "/dealer-inquiry/", "/concepts/", "/concepts/indio/", "/owners/", "/dealers/", "/404/"]) {
+// /privacy/ joins the list in V10: it is the site's only page of running legal copy, its own list
+// markup, and a long wrapping link, so it is the page most likely to fail on contrast or reflow.
+for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/santarosa/", "/venice/", "/carmel/", "/recommend-dealer/", "/dealer-inquiry/", "/concepts/", "/concepts/indio/", "/owners/", "/dealers/", "/privacy/", "/404/"]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   await page.addScriptTag({ content: axe.source });
   const result = await page.evaluate(async () => axe.run(document, { resultTypes: ["violations"] }));
@@ -506,7 +508,7 @@ if (schema.canonical !== `${base}/brawley/gts/`.replace("127.0.0.1:4173", "vande
 await page.goto(`${base}/`, { waitUntil: "load" });
 await page.evaluate(() => { localStorage.clear(); });
 
-for (const [route, name] of [["/", "home"], ["/vehicles/", "vehicles"], ["/venice/", "venice"], ["/carmel/", "carmel"], ["/santarosa/", "santarosa"], ["/brawley/", "brawley"], ["/brawley/gts/", "brawley-gts"], ["/concepts/", "concepts"], ["/concepts/indio/", "indio"], ["/concepts/brawley-r/", "brawley-r"], ["/concepts/balboa/", "balboa"], ["/concepts/yuma/", "yuma"], ["/owners/", "owners"], ["/dealers/", "dealers"], ["/recommend-dealer/", "recommend-dealer"]]) {
+for (const [route, name] of [["/", "home"], ["/vehicles/", "vehicles"], ["/venice/", "venice"], ["/carmel/", "carmel"], ["/santarosa/", "santarosa"], ["/brawley/", "brawley"], ["/brawley/gts/", "brawley-gts"], ["/concepts/", "concepts"], ["/concepts/indio/", "indio"], ["/concepts/brawley-r/", "brawley-r"], ["/concepts/balboa/", "balboa"], ["/concepts/yuma/", "yuma"], ["/owners/", "owners"], ["/dealers/", "dealers"], ["/recommend-dealer/", "recommend-dealer"], ["/privacy/", "privacy"]]) {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   await loadLazyMedia(page);
@@ -699,6 +701,362 @@ if (report.motion.wordCascade.totalSplit < 3) failures.push(`The word cascade re
 if (report.motion.wordCascade.totalWords < 20) failures.push(`The word cascade split only ${report.motion.wordCascade.totalWords} words across four routes`);
 await motionContext.close();
 
+// V10. Everything below is new in this version: the renamed action, the footer's destinations, the
+// single-title page headers, the policy page, and the three ambient videos.
+
+// The ambient video, in a context that asks for motion. Requests are recorded from before the first
+// navigation, because the claim being tested is about ordering and timing, not just about what
+// eventually loaded: the poster must be asked for before any video source, and no video source may be
+// requested before the load event, which is when site.js runs.
+report.ambient = { routes: {} };
+const videoContext = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: "no-preference" });
+const AMBIENT_PLACEMENTS = [["/", ".hero", ".hero__image"], ["/brawley/", ".ambient", ".ambient__poster"], ["/brawley/gts/", ".ambient", ".ambient__poster"]];
+for (const [route, blockSelector, posterSelector] of AMBIENT_PLACEMENTS) {
+  const videoPage = await videoContext.newPage();
+  // Posters and videos are both served out of /assets/video/, so they are recorded as one ordered
+  // list and separated by extension. Keeping the order is the point: the poster must be asked for
+  // first, and no video source may be asked for before the load event.
+  const requests = [];
+  videoPage.on("request", (request) => {
+    const url = new URL(request.url()).pathname;
+    if (url.startsWith("/assets/video/")) requests.push(url);
+  });
+  const videoSourcesOf = (list) => list.filter((url) => /\.(?:webm|mp4)$/.test(url));
+  // Captured with a buffered observer so the entry is not missed by starting to listen too late.
+  await videoPage.addInitScript(() => {
+    window.__lcp = null;
+    new PerformanceObserver((list) => {
+      const entry = list.getEntries().at(-1);
+      window.__lcp = { url: entry?.url || null, tag: entry?.element?.tagName || null, className: entry?.element?.className || null };
+    }).observe({ type: "largest-contentful-paint", buffered: true });
+  });
+  await videoPage.goto(`${base}${route}`, { waitUntil: "load" });
+  // The state at the load event, before site.js has had a chance to run. No video may exist yet.
+  const atLoad = videoSourcesOf(requests).length;
+  const block = videoPage.locator(blockSelector).first();
+  if (route !== "/") await block.scrollIntoViewIfNeeded();
+  // Waiting for the fade to finish, not merely for it to start. data-painted is set on the first
+  // presented frame and the cross-fade runs for --dur-4 after that, so reading opacity the moment the
+  // attribute appears catches the transition at zero and reports a working fade as a broken one.
+  await videoPage.waitForFunction((selector) => {
+    const node = document.querySelector(selector);
+    return node?.hasAttribute("data-painted") && Number(getComputedStyle(node.querySelector("[data-ambient-video]")).opacity) > 0.99;
+  }, blockSelector, { timeout: 15000 }).catch(() => {});
+  const shape = await block.evaluate((node, selector) => {
+    const video = node.querySelector("[data-ambient-video]");
+    const toggle = node.querySelector("[data-ambient-toggle]");
+    const poster = node.querySelector(selector);
+    return {
+      painted: node.hasAttribute("data-painted"),
+      paused: video.paused,
+      muted: video.muted,
+      loop: video.loop,
+      currentSrc: new URL(video.currentSrc || "http://x/none", "http://x").pathname,
+      readyState: video.readyState,
+      toggleVisible: Boolean(toggle && !toggle.hidden),
+      toggleLabel: toggle?.textContent,
+      posterStillThere: Boolean(poster.getClientRects().length),
+      // Same box to the pixel. A poster and a video that disagree would shift the page the moment one
+      // replaced the other, which is the failure the shared 1900 by 900 declaration exists to prevent.
+      //
+      // Layout boxes, not client rects: the hero poster carries V9's hero-drift, which scales it by
+      // 1.08, so its client rect is deliberately larger than its layout box and comparing rects would
+      // report a working hero as broken. offsetWidth ignores transforms, which is what makes it the
+      // right measure of "the same box".
+      boxesMatch: poster.offsetWidth === video.offsetWidth && poster.offsetHeight === video.offsetHeight,
+      objectFit: getComputedStyle(video).objectFit,
+      videoOpacity: Number(getComputedStyle(video).opacity),
+    };
+  }, posterSelector);
+  const lcp = await videoPage.evaluate(() => window.__lcp);
+  report.ambient.routes[route] = { atLoad, requests: [...requests], shape, lcp };
+
+  const videoSources = videoSourcesOf(requests);
+  const firstPoster = requests.findIndex((url) => url.endsWith(".webp"));
+  const firstVideo = requests.findIndex((url) => /\.(?:webm|mp4)$/.test(url));
+  if (atLoad !== 0) failures.push(`${route}: ${atLoad} video sources were requested before the load event, competing with the poster`);
+  if (!videoSources.length) failures.push(`${route}: no video source was ever requested in a context that asks for motion`);
+  // The poster is the first paint and must therefore be the first request of the pair.
+  if (firstPoster === -1 || (firstVideo !== -1 && firstVideo < firstPoster)) failures.push(`${route}: a video source was requested before the poster: ${requests.join(", ")}`);
+  // WebM first. An H.264 request in Chrome would mean the source order had been lost.
+  if (videoSources.length && !videoSources[0].endsWith(".webm")) failures.push(`${route}: the first video source requested was ${videoSources[0]}, not the WebM`);
+  if (videoSources.some((url) => url.endsWith(".mp4"))) failures.push(`${route}: Chrome fell through to the H.264 file: ${videoSources.join(", ")}`);
+  if (!shape.painted || shape.videoOpacity < 0.99) failures.push(`${route}: the video never faded in over its poster: ${JSON.stringify(shape)}`);
+  if (shape.paused) failures.push(`${route}: the ambient video is not playing`);
+  if (!shape.muted || !shape.loop) failures.push(`${route}: the ambient video must be muted and looping`);
+  if (!shape.currentSrc.endsWith(".webm")) failures.push(`${route}: the playing source is ${shape.currentSrc}`);
+  if (!shape.toggleVisible || shape.toggleLabel !== "Pause") failures.push(`${route}: the control must be revealed reading Pause once playback starts, got ${JSON.stringify(shape.toggleLabel)}`);
+  if (!shape.posterStillThere) failures.push(`${route}: the poster was removed, so there is nothing under the video`);
+  if (!shape.boxesMatch || shape.objectFit !== "cover") failures.push(`${route}: the video and its poster do not share one box: ${JSON.stringify(shape)}`);
+  await videoPage.close();
+}
+// The homepage's LCP must stay the poster image. A decoded video frame becoming the LCP element would
+// mean the largest paint had moved behind the load event and the video gate.
+const homeLcp = report.ambient.routes["/"].lcp;
+if (!homeLcp?.url?.includes("/assets/video/brawley/brawley-canyon-hero-poster-")) failures.push(`The homepage LCP element must be the hero poster, got ${JSON.stringify(homeLcp)}`);
+
+// The control, exercised. Pressing it must stop the film and say so; pressing it again must start it.
+const togglePage = await videoContext.newPage();
+await togglePage.goto(`${base}/`, { waitUntil: "networkidle" });
+await togglePage.waitForFunction(() => document.querySelector(".hero")?.hasAttribute("data-painted"), null, { timeout: 15000 });
+const heroVideoState = () => togglePage.locator(".hero__video").evaluate((video) => ({ paused: video.paused, time: video.currentTime }));
+await togglePage.locator("[data-ambient-toggle]").click();
+report.ambient.afterPause = { ...await heroVideoState(), label: await togglePage.locator("[data-ambient-toggle]").textContent() };
+if (!report.ambient.afterPause.paused || report.ambient.afterPause.label !== "Play") failures.push(`The hero control did not pause the loop: ${JSON.stringify(report.ambient.afterPause)}`);
+await togglePage.locator("[data-ambient-toggle]").click();
+report.ambient.afterResume = { ...await heroVideoState(), label: await togglePage.locator("[data-ambient-toggle]").textContent() };
+if (report.ambient.afterResume.paused || report.ambient.afterResume.label !== "Pause") failures.push(`The hero control did not resume the loop: ${JSON.stringify(report.ambient.afterResume)}`);
+
+// A choice to pause has to survive scrolling away and coming back, which is what separates the
+// visitor's intent from the viewport's housekeeping.
+await togglePage.locator("[data-ambient-toggle]").click();
+await togglePage.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+await togglePage.waitForTimeout(300);
+await togglePage.evaluate(() => scrollTo(0, 0));
+await togglePage.waitForTimeout(600);
+report.ambient.choiceSurvivesScroll = await heroVideoState();
+if (!report.ambient.choiceSurvivesScroll.paused) failures.push("A manually paused loop restarted itself after the visitor scrolled away and back");
+await togglePage.close();
+
+// Offscreen and hidden. Neither is a state the visitor chose, so both stop the film and both release
+// it again. Verified on /brawley/, where the block genuinely leaves the viewport.
+const offscreenPage = await videoContext.newPage();
+await offscreenPage.goto(`${base}/brawley/`, { waitUntil: "networkidle" });
+await offscreenPage.locator(".ambient").scrollIntoViewIfNeeded();
+await offscreenPage.waitForFunction(() => document.querySelector(".ambient")?.hasAttribute("data-painted"), null, { timeout: 15000 });
+const ambientPaused = () => offscreenPage.locator(".ambient__video").evaluate((video) => video.paused);
+report.ambient.offscreen = { playingInView: !await ambientPaused() };
+// To the foot of the page, not to the top. The observer carries a 200px rootMargin so a block that is
+// merely below the first viewport is still counted as in view, deliberately: it gives a block a moment
+// to start moving before it is looked at. Scrolling to the top therefore does not take the /brawley/
+// block out of view at a 1000px viewport, which is what made the first run of this check report a
+// working pause as a failure.
+await offscreenPage.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+await offscreenPage.waitForTimeout(600);
+report.ambient.offscreen.pausedOffscreen = await ambientPaused();
+await offscreenPage.locator(".ambient").scrollIntoViewIfNeeded();
+await offscreenPage.waitForTimeout(600);
+report.ambient.offscreen.resumedOnReturn = !await ambientPaused();
+if (!report.ambient.offscreen.playingInView || !report.ambient.offscreen.pausedOffscreen || !report.ambient.offscreen.resumedOnReturn) {
+  failures.push(`Offscreen pause and resume failed: ${JSON.stringify(report.ambient.offscreen)}`);
+}
+// Tab hidden. Dispatched rather than really backgrounding the tab, because a headless page has no
+// window manager to background it, and the handler under test is the visibilitychange listener.
+await offscreenPage.evaluate(() => {
+  Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+  document.dispatchEvent(new Event("visibilitychange"));
+});
+await offscreenPage.waitForTimeout(200);
+report.ambient.hiddenTab = { pausedWhenHidden: await ambientPaused() };
+await offscreenPage.evaluate(() => {
+  Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });
+  document.dispatchEvent(new Event("visibilitychange"));
+});
+await offscreenPage.waitForTimeout(400);
+report.ambient.hiddenTab.resumedWhenVisible = !await ambientPaused();
+if (!report.ambient.hiddenTab.pausedWhenHidden || !report.ambient.hiddenTab.resumedWhenVisible) {
+  failures.push(`Hidden-tab pause and resume failed: ${JSON.stringify(report.ambient.hiddenTab)}`);
+}
+await offscreenPage.close();
+await videoContext.close();
+
+// Save-Data. A visitor who has asked their browser to spend less data gets the poster and no control,
+// exactly as a reduced-motion visitor does. The header cannot be set from Playwright's context in a
+// way the page can read, so the property the island actually consults is defined before any script
+// runs, which is the same thing site.js sees.
+const saveDataContext = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: "no-preference" });
+await saveDataContext.addInitScript(() => {
+  Object.defineProperty(navigator, "connection", { configurable: true, get: () => ({ saveData: true, effectiveType: "3g" }) });
+});
+const saveDataPage = await saveDataContext.newPage();
+const saveDataRequests = [];
+saveDataPage.on("request", (request) => { if (new URL(request.url()).pathname.startsWith("/assets/video/")) saveDataRequests.push(new URL(request.url()).pathname); });
+await saveDataPage.goto(`${base}/`, { waitUntil: "networkidle" });
+await saveDataPage.waitForTimeout(800);
+report.ambient.saveData = {
+  videoRequests: saveDataRequests.filter((url) => /\.(?:webm|mp4)$/.test(url)),
+  posterRequests: saveDataRequests.filter((url) => url.endsWith(".webp")).length,
+  toggleVisible: await saveDataPage.locator("[data-ambient-toggle]").isVisible(),
+  painted: await saveDataPage.locator(".hero").evaluate((hero) => hero.hasAttribute("data-painted")),
+  posterVisible: await saveDataPage.locator(".hero__image").evaluate((image) => Boolean(image.naturalWidth) && Boolean(image.getClientRects().length)),
+};
+const saveData = report.ambient.saveData;
+if (saveData.videoRequests.length) failures.push(`Save-Data requested ${saveData.videoRequests.length} video sources: ${saveData.videoRequests.join(", ")}`);
+if (saveData.toggleVisible || saveData.painted) failures.push("Save-Data must show no video control and never fade a video in");
+if (!saveData.posterVisible || saveData.posterRequests === 0) failures.push("Save-Data must still render the poster");
+await saveDataContext.close();
+
+// Reduced motion. Same contract as Save-Data: the poster, and no control.
+//
+// emulateMedia is applied to this page explicitly rather than inherited. The suite's default page
+// carries the preference, but it was set with page.emulateMedia rather than on the context, so a page
+// opened from that context does NOT inherit it. Relying on the inheritance is what made the first run
+// of this check load and play all three videos while claiming to be testing reduced motion.
+report.reducedMotion.ambient = {};
+for (const [route, blockSelector, posterSelector] of AMBIENT_PLACEMENTS) {
+  const reducedPage = await context.newPage();
+  await reducedPage.emulateMedia({ reducedMotion: "reduce" });
+  const reducedRequests = [];
+  reducedPage.on("request", (request) => { if (/\/assets\/video\/.+\.(?:webm|mp4)$/.test(request.url())) reducedRequests.push(request.url()); });
+  await reducedPage.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  await reducedPage.locator(blockSelector).first().scrollIntoViewIfNeeded();
+  await reducedPage.waitForTimeout(600);
+  const shape = await reducedPage.locator(blockSelector).first().evaluate((node, selector) => {
+    const poster = node.querySelector(selector);
+    return {
+      painted: node.hasAttribute("data-painted"),
+      paused: node.querySelector("[data-ambient-video]").paused,
+      readyState: node.querySelector("[data-ambient-video]").readyState,
+      toggleHidden: node.querySelector("[data-ambient-toggle]").hidden,
+      posterVisible: Boolean(poster.naturalWidth) && Boolean(poster.getClientRects().length),
+    };
+  }, posterSelector);
+  report.reducedMotion.ambient[route] = { requests: reducedRequests, shape };
+  if (reducedRequests.length) failures.push(`${route}: reduced motion requested ${reducedRequests.length} video sources`);
+  // readyState 0 is the proof that nothing was loaded, not merely that nothing was played.
+  if (shape.readyState !== 0 || shape.painted || !shape.paused) failures.push(`${route}: reduced motion must leave the video unloaded: ${JSON.stringify(shape)}`);
+  if (!shape.toggleHidden) failures.push(`${route}: reduced motion must leave the video control hidden`);
+  if (!shape.posterVisible) failures.push(`${route}: reduced motion must still render the poster`);
+  await reducedPage.close();
+}
+
+// The renamed action, and the one form it leads to.
+await page.setViewportSize({ width: 1440, height: 1000 });
+await page.goto(`${base}/`, { waitUntil: "networkidle" });
+report.interactions.contactRename = await page.evaluate(() => ({
+  headerLabel: document.querySelector(".header-request")?.textContent,
+  retired: document.body.innerText.includes("Request info"),
+  headerHref: document.querySelector(".header-request")?.getAttribute("href"),
+}));
+const rename = report.interactions.contactRename;
+if (rename.headerLabel !== "Contact" || rename.retired || rename.headerHref !== "/dealers/") failures.push(`Contact rename failed: ${JSON.stringify(rename)}`);
+await page.goto(`${base}/dealers/`, { waitUntil: "networkidle" });
+report.interactions.contactHeading = await page.locator(".form-heading").innerText();
+if (report.interactions.contactHeading !== "Contact Vanderhall") failures.push(`The dealers form heading is ${report.interactions.contactHeading}`);
+
+// The footer's new destinations, read off the rendered page rather than the markup, and asserted on a
+// sample of routes because the footer is generated once for all of them.
+report.interactions.footer = {};
+for (const route of ["/", "/brawley/gts/", "/privacy/", "/concepts/indio/"]) {
+  await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  report.interactions.footer[route] = await page.evaluate(() => {
+    const hrefs = (selector) => [...document.querySelectorAll(selector)].map((anchor) => anchor.getAttribute("href"));
+    const social = [...document.querySelectorAll(".footer-social a")];
+    return {
+      social: hrefs(".footer-social a"),
+      socialNames: social.map((anchor) => ({ visible: anchor.textContent, accessible: anchor.getAttribute("aria-label") })),
+      legal: hrefs(".footer-legal__links a"),
+      app: hrefs(".footer-links a").filter((href) => href.includes("apps.apple.com") || href.includes("play.google.com")),
+      tracked: hrefs("a").filter((href) => href && /[?&](?:_gl|_ga|_gcl_au|utm_[a-z]+|fref)=/.test(href)),
+      // The links a visitor can actually reach with a keyboard, which is the only test that matters
+      // for a row of small text links.
+      focusable: social.filter((anchor) => anchor.tabIndex >= 0).length,
+    };
+  });
+  const footer = report.interactions.footer[route];
+  if (footer.social.length !== 6) failures.push(`${route}: expected six social links in the footer, found ${footer.social.length}`);
+  if (footer.legal.length !== 3 || !footer.legal.includes("/privacy/")) failures.push(`${route}: the footer legal row must carry three links including /privacy/, got ${footer.legal.join(", ")}`);
+  if (footer.app.length !== 2) failures.push(`${route}: expected two app store links, found ${footer.app.length}`);
+  if (footer.tracked.length) failures.push(`${route}: a footer link carries tracking parameters: ${footer.tracked.join(", ")}`);
+  if (footer.focusable !== 6) failures.push(`${route}: ${6 - footer.focusable} social links are not reachable by keyboard`);
+  for (const name of footer.socialNames) {
+    if (!name.accessible?.includes(name.visible)) failures.push(`${route}: the accessible name ${name.accessible} does not contain the visible label ${name.visible}`);
+  }
+}
+// The legal links resolve. The two external ones are checked by request rather than by navigation, so
+// a Vanderhall system that has moved a page fails here instead of on a visitor's screen.
+report.interactions.legalTargets = [];
+for (const href of ["https://portal.vanderhallusa.com/safety_notices", "https://dealer.vanderhallusa.com/careers", `${base}/privacy/`]) {
+  try {
+    const response = await page.request.get(href, { maxRedirects: 5, timeout: 20000 });
+    report.interactions.legalTargets.push({ href, status: response.status() });
+    if (response.status() >= 400) failures.push(`A footer legal destination returned ${response.status()}: ${href}`);
+  } catch (error) {
+    report.interactions.legalTargets.push({ href, error: String(error).slice(0, 120) });
+    failures.push(`A footer legal destination could not be reached: ${href}`);
+  }
+}
+
+// One title per page header, and the accent mark that replaced the caps label. Read from computed
+// style, because the mark is a ::before and there is nothing in the markup to find.
+report.interactions.pageHeaders = {};
+for (const route of ["/vehicles/", "/concepts/", "/dealers/", "/recommend-dealer/", "/dealer-inquiry/", "/owners/", "/privacy/"]) {
+  await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  report.interactions.pageHeaders[route] = await page.evaluate(() => {
+    const header = document.querySelector(".page-header");
+    const heading = header.querySelector("h1");
+    const mark = getComputedStyle(heading, "::before");
+    const accent = getComputedStyle(document.documentElement).getPropertyValue("--accent").trim();
+    return {
+      titles: header.querySelectorAll("h1, h2, .eyebrow").length,
+      title: heading.textContent,
+      markWidth: Math.round(parseFloat(mark.width)),
+      markHeight: Math.round(parseFloat(mark.height)),
+      markIsAccent: mark.backgroundColor,
+      accentToken: accent,
+      // The title's left edge has to stay on the page's content edge. An inline mark would indent it,
+      // which is why the mark sits above the title rather than beside it.
+      markDisplay: mark.display,
+      // The rendered left edge of the title's TEXT, measured with a range over the heading's own child
+      // nodes, which excludes the ::before. The heading's bounding box is the wrong measure and
+      // mutation testing proved it: switching the mark to display: inline-block indents every title by
+      // the mark's width plus its margin, and the box's left edge does not move at all, so the check
+      // passed on a visibly broken layout. What is being asserted is where the words start.
+      titleLeft: (() => {
+        const range = document.createRange();
+        range.selectNodeContents(heading);
+        const rect = range.getClientRects()[0];
+        return rect ? Math.round(rect.left) : null;
+      })(),
+      // A content-column section, explicitly not a .bleed one. On /concepts/ the first child after the
+      // header is the full-bleed concept band, which starts at x=0 by design, and comparing the title
+      // to that reported a correctly aligned title as 120px indented.
+      bodyLeft: Math.round(document.querySelector(".page > section:not(.bleed)").getBoundingClientRect().left),
+    };
+  });
+  const header = report.interactions.pageHeaders[route];
+  if (header.titles !== 1) failures.push(`${route}: the page header carries ${header.titles} titles, expected one`);
+  if (header.markWidth < 8 || header.markHeight < 1) failures.push(`${route}: the title's accent mark did not render: ${JSON.stringify(header)}`);
+  if (header.markIsAccent !== "rgb(224, 138, 85)") failures.push(`${route}: the title mark is ${header.markIsAccent}, not the accent token ${header.accentToken}`);
+  // The outcome, then the mechanism. The first is what a visitor sees; the second names the cause when
+  // it breaks, because an indented title is almost always a mark that has gone inline.
+  if (header.titleLeft === null || Math.abs(header.titleLeft - header.bodyLeft) > 1) failures.push(`${route}: the title's text starts ${header.titleLeft - header.bodyLeft}px off the content edge`);
+  if (header.markDisplay !== "block") failures.push(`${route}: the title mark is ${header.markDisplay}, which puts it inline with the title instead of above it`);
+}
+if (report.interactions.pageHeaders["/concepts/"].title !== "Concepts") failures.push(`The concepts page title is ${report.interactions.pageHeaders["/concepts/"].title}`);
+if (report.interactions.pageHeaders["/owners/"].title !== "Owner resources") failures.push(`The owners page title is ${report.interactions.pageHeaders["/owners/"].title}`);
+
+// The policy page. The claim worth testing is that a long legal document renders as one readable
+// column and that its longest link cannot widen a phone.
+report.interactions.privacy = {};
+for (const width of [320, 390, 768, 1440]) {
+  await page.setViewportSize({ width, height: 900 });
+  await page.goto(`${base}/privacy/`, { waitUntil: "networkidle" });
+  report.interactions.privacy[width] = await page.evaluate(() => ({
+    sections: document.querySelectorAll(".policy__section").length,
+    headings: document.querySelectorAll(".policy h2").length,
+    paragraphs: document.querySelectorAll(".policy p").length,
+    listItems: document.querySelectorAll(".policy li").length,
+    references: [...document.querySelectorAll(".policy__url a")].map((anchor) => anchor.getAttribute("href")),
+    noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1,
+    backLink: document.querySelector(".back-nav a")?.getAttribute("href"),
+    // Running legal copy on one narrow measure. A policy set to the full 1200px column would be
+    // unreadable, and this is the page most likely to lose the narrow class in an edit.
+    measure: Math.round(document.querySelector(".policy p").getBoundingClientRect().width),
+  }));
+  const policy = report.interactions.privacy[width];
+  if (policy.sections !== 13 || policy.headings !== 12) failures.push(`/privacy/ at ${width}px renders ${policy.sections} sections and ${policy.headings} headings, expected 13 and 12`);
+  // 44 paragraphs and 21 items across 8 lists. Stated here rather than read from the data, so this
+  // assertion stays independent of the module it is checking; check-content compares the strings.
+  if (policy.paragraphs !== 46) failures.push(`/privacy/ at ${width}px renders ${policy.paragraphs} paragraphs, expected 46`);
+  if (policy.listItems !== 21) failures.push(`/privacy/ at ${width}px renders ${policy.listItems} list items, expected 21`);
+  if (policy.references.length !== 2) failures.push(`/privacy/ at ${width}px renders ${policy.references.length} references, expected 2`);
+  if (!policy.noHorizontalScroll) failures.push(`/privacy/ widened the document at ${width}px, most likely on one of its long reference URLs`);
+  if (policy.backLink !== "/") failures.push(`/privacy/ back link leads to ${policy.backLink}, expected /`);
+  if (policy.measure > 820) failures.push(`/privacy/ at ${width}px sets its copy to ${policy.measure}px, wider than the narrow measure`);
+}
+await page.setViewportSize({ width: 1440, height: 1000 });
+
 const noJsContext = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1280, height: 900 } });
 const noJsPage = await noJsContext.newPage();
 const noJsResponse = await noJsPage.goto(`${base}/brawley/`, { waitUntil: "load" });
@@ -780,6 +1138,60 @@ report.noJs.wordCascade = await noJsPage.evaluate(() => ({
 const noJsCascade = report.noJs.wordCascade;
 if (noJsCascade.words !== 0 || noJsCascade.split !== 0) failures.push(`No-JS pages must carry no word spans, found ${noJsCascade.words}`);
 if (!noJsCascade.ledeVisible || (noJsCascade.lede ?? "").length < 80) failures.push(`No-JS lede must render whole: ${JSON.stringify(noJsCascade.lede)}`);
+
+// Without JavaScript no video may be requested at all, and this is the strongest form of that claim:
+// the sources carry data-src rather than src, so there is nothing in the markup for the parser to
+// fetch. What the visitor gets is the poster, which is a real photograph, and no control.
+report.noJs.ambient = {};
+for (const [route, blockSelector, posterSelector] of [["/", ".hero", ".hero__image"], ["/brawley/", ".ambient", ".ambient__poster"], ["/brawley/gts/", ".ambient", ".ambient__poster"]]) {
+  const noJsVideoRequests = [];
+  const listener = (request) => { if (/\/assets\/video\/.+\.(?:webm|mp4)$/.test(request.url())) noJsVideoRequests.push(request.url()); };
+  noJsPage.on("request", listener);
+  await noJsPage.goto(`${base}${route}`, { waitUntil: "load" });
+  await noJsPage.locator(blockSelector).first().scrollIntoViewIfNeeded();
+  const shape = await noJsPage.locator(blockSelector).first().evaluate((node, selector) => {
+    const poster = node.querySelector(selector);
+    return {
+      posterLoaded: Boolean(poster.naturalWidth),
+      posterVisible: Boolean(poster.getClientRects().length),
+      toggleHidden: node.querySelector("[data-ambient-toggle]").hidden,
+      toggleVisible: Boolean(node.querySelector("[data-ambient-toggle]").getClientRects().length),
+      painted: node.hasAttribute("data-painted"),
+      readyState: node.querySelector("[data-ambient-video]").readyState,
+      sourcesWithSrc: node.querySelectorAll("[data-ambient-video] source[src]").length,
+    };
+  }, posterSelector);
+  noJsPage.off("request", listener);
+  report.noJs.ambient[route] = { videoRequests: noJsVideoRequests, shape };
+  if (noJsVideoRequests.length) failures.push(`No-JS ${route} requested ${noJsVideoRequests.length} video sources`);
+  if (shape.sourcesWithSrc !== 0 || shape.readyState !== 0) failures.push(`No-JS ${route} left a resolvable video source in the markup: ${JSON.stringify(shape)}`);
+  if (!shape.posterLoaded || !shape.posterVisible) failures.push(`No-JS ${route} does not render its poster`);
+  if (!shape.toggleHidden || shape.toggleVisible || shape.painted) failures.push(`No-JS ${route} shows a video control it cannot drive`);
+}
+
+// The policy page has to be complete without script, because it is a legal document.
+await noJsPage.goto(`${base}/privacy/`, { waitUntil: "load" });
+report.noJs.privacy = await noJsPage.evaluate(() => ({
+  sections: document.querySelectorAll(".policy__section").length,
+  paragraphs: document.querySelectorAll(".policy p").length,
+  listItems: document.querySelectorAll(".policy li").length,
+  words: document.querySelectorAll(".word").length,
+  textLength: document.querySelector(".policy").innerText.trim().length,
+}));
+const noJsPrivacy = report.noJs.privacy;
+if (noJsPrivacy.sections !== 13 || noJsPrivacy.paragraphs !== 46 || noJsPrivacy.listItems !== 21) failures.push(`No-JS /privacy/ is incomplete: ${JSON.stringify(noJsPrivacy)}`);
+// The whole policy is about 9,900 characters of rendered text. The floor is set just under that, so
+// losing any one of the thirteen sections drops below it, and no word may be split into spans: the
+// cascade must never touch a legal document.
+if (noJsPrivacy.words !== 0 || noJsPrivacy.textLength < 9500) failures.push(`No-JS /privacy/ must render the whole policy as plain text: ${JSON.stringify(noJsPrivacy)}`);
+
+// Every footer destination must be a plain link with no script anywhere near it.
+report.noJs.footer = await noJsPage.evaluate(() => ({
+  social: document.querySelectorAll(".footer-social a[href]").length,
+  legal: document.querySelectorAll(".footer-legal__links a[href]").length,
+  privacyHref: [...document.querySelectorAll(".footer-legal__links a")].map((anchor) => anchor.getAttribute("href")).includes("/privacy/"),
+}));
+if (report.noJs.footer.social !== 6 || report.noJs.footer.legal !== 3 || !report.noJs.footer.privacyHref) failures.push(`No-JS footer links failed: ${JSON.stringify(report.noJs.footer)}`);
 
 await noJsPage.goto(`${base}/`, { waitUntil: "load" });
 report.noJs.vehiclesHref = await noJsPage.getByRole("link", { name: "Vehicles", exact: true }).first().getAttribute("href");

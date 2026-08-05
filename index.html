@@ -12,7 +12,7 @@
   <link rel="manifest" href="/site.webmanifest">
   <link rel="canonical" href="https://vanderhall-website.vercel.app/">
   <link rel="stylesheet" href="/styles/bundle.css">
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://vanderhall-website.vercel.app/#organization","name":"Vanderhall Motor Works","url":"https://vanderhall-website.vercel.app/","logo":"https://vanderhall-website.vercel.app/assets/brand/vanderhall-lockup-horizontal.svg","address":{"@type":"PostalAddress","addressLocality":"Provo","addressRegion":"UT","addressCountry":"US"}},{"@type":"WebSite","@id":"https://vanderhall-website.vercel.app/#website","url":"https://vanderhall-website.vercel.app/","name":"Vanderhall Motor Works","publisher":{"@id":"https://vanderhall-website.vercel.app/#organization"},"inLanguage":"en-US"}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://vanderhall-website.vercel.app/#organization","name":"Vanderhall Motor Works","url":"https://vanderhall-website.vercel.app/","logo":"https://vanderhall-website.vercel.app/assets/brand/vanderhall-lockup-horizontal.svg","address":{"@type":"PostalAddress","addressLocality":"Provo","addressRegion":"UT","addressCountry":"US"},"sameAs":["https://www.facebook.com/vanderhallusa/","https://www.instagram.com/vanderhall/","https://twitter.com/vanderhallusa","https://www.linkedin.com/company/vanderhall","https://www.tiktok.com/@vanderhallusa","https://www.youtube.com/@VanderhallUSA"]},{"@type":"WebSite","@id":"https://vanderhall-website.vercel.app/#website","url":"https://vanderhall-website.vercel.app/","name":"Vanderhall Motor Works","publisher":{"@id":"https://vanderhall-website.vercel.app/#organization"},"inLanguage":"en-US"}]}</script>
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -23,7 +23,7 @@
         <a class="nav-link" href="/vehicles/">Vehicles</a><a class="nav-link" href="/concepts/">Concepts</a><a class="nav-link" href="/owners/">Owners</a><a class="nav-link" href="/dealers/">Dealers</a>
       </nav>
       <div class="site-header__actions">
-        <a class="button button--primary header-request" href="/dealers/">Request info</a>
+        <a class="button button--primary header-request" href="/dealers/">Contact</a>
         <button class="icon-button menu-button" type="button" data-open-menu aria-label="Open menu" aria-expanded="false"><span aria-hidden="true">☰</span></button>
       </div>
     </div>
@@ -32,18 +32,19 @@
     <div class="sheet__top"><img class="brand brand--sheet" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" alt="Vanderhall" width="211" height="22"><button class="icon-button" type="button" data-close-menu aria-label="Close menu">×</button></div>
     <nav class="mobile-nav" aria-label="Mobile primary">
       <a href="/vehicles/">Vehicles</a><a href="/concepts/">Concepts</a><a href="/owners/">Owners</a><a href="/dealers/">Dealers</a>
-      <a class="button button--primary" href="/dealers/">Request info</a>
+      <a class="button button--primary" href="/dealers/">Contact</a>
     </nav>
   </div>
   <div class="sheet-backdrop" data-sheet-backdrop hidden></div>
   <main id="main"><div class="page">
-    <section class="hero bleed" style="--hero-focal:50% 50%">
-    <div class="hero__media"><picture><source media="(max-width: 767px)" srcset="/assets/images/v3/heroes/home/home-tall-480.webp 480w, /assets/images/v3/heroes/home/home-tall-720.webp 720w, /assets/images/v3/heroes/home/home-tall-800.webp 800w, /assets/images/v3/heroes/home/home-tall-960.webp 960w" sizes="100vw"><img class="hero__image" src="/assets/images/v3/heroes/home/home-wide-1920.webp" srcset="/assets/images/v3/heroes/home/home-wide-960.webp 960w, /assets/images/v3/heroes/home/home-wide-1280.webp 1280w, /assets/images/v3/heroes/home/home-wide-1920.webp 1920w, /assets/images/v3/heroes/home/home-wide-2560.webp 2560w" sizes="100vw" width="1920" height="823" alt="Tan Vanderhall Brawley climbing a rock ledge above a mountain lake" loading="eager" fetchpriority="high" decoding="async"></picture></div>
+    <section class="hero bleed" style="--hero-focal:58% 45%" data-ambient>
+    <div class="hero__media"><picture><img class="hero__image" src="/assets/video/brawley/brawley-canyon-hero-poster-1900.webp" srcset="/assets/video/brawley/brawley-canyon-hero-poster-960.webp 960w, /assets/video/brawley/brawley-canyon-hero-poster-1280.webp 1280w, /assets/video/brawley/brawley-canyon-hero-poster-1900.webp 1900w" sizes="100vw" width="1900" height="900" alt="Red Vanderhall Brawley driving head-on through dust on a canyon trail at sunrise" loading="eager" fetchpriority="high" decoding="async"></picture><video class="hero__video" muted loop playsinline preload="none" tabindex="-1" aria-hidden="true" data-ambient-video><source data-src="/assets/video/brawley/brawley-canyon-hero-36-46.webm" type="video/webm"><source data-src="/assets/video/brawley/brawley-canyon-hero-36-46.mp4" type="video/mp4"></video></div>
     <div class="hero__scrim" aria-hidden="true"></div>
     <div class="hero__content"><p class="eyebrow">VANDERHALL MOTOR WORKS</p>
       <h1>Handcrafted electric vehicles.</h1>
       <p class="hero__descriptor">Vanderhall builds electric UTVs, side-by-sides, and three-wheeled autocycles. Experience performance, comfort, and style.</p>
       <div class="hero__actions"><a class="button button--inverse" href="/vehicles/">Explore vehicles</a></div></div>
+    <div class="hero__bar"><button class="hero__toggle" type="button" data-ambient-toggle hidden>Pause</button></div>
   </section>
     <section class="section" id="vehicles">
       <div class="section-heading"><p class="eyebrow">VEHICLES</p><h2>The Vanderhall lineup.</h2></div>
@@ -96,7 +97,8 @@
   </section></div>
     </section>
     <section class="section split">
-      <div class="split__body"><div class="section-heading"><p class="eyebrow">CONCEPTS</p><h2>Design studies</h2></div><p>Nine Vanderhall concept vehicles. They are not offered for sale.</p><div class="cluster"><a class="button button--secondary" href="/concepts/">View concepts</a></div></div>
+      
+      <div class="split__body"><div class="section-heading section-heading--marked"><h2>Concepts</h2></div><p>Nine Vanderhall concept vehicles. They are not offered for sale.</p><div class="cluster"><a class="button button--secondary" href="/concepts/">View concepts</a></div></div>
       <a class="split__media" href="/concepts/"><img src="/assets/images/v3/concepts/indio/hero-1440.webp" srcset="/assets/images/v3/concepts/indio/hero-960.webp 960w, /assets/images/v3/concepts/indio/hero-1440.webp 1440w, /assets/images/v3/concepts/indio/hero-2560.webp 2560w" width="1440" height="751" sizes="(min-width: 768px) 45vw, 92vw" alt="Green Vanderhall Indio concept side profile at the ocean at sunset" loading="lazy" decoding="async"></a>
     </section>
     <section class="section"><div class="pathways"><div class="pathway">
@@ -106,18 +108,24 @@
     </div><div class="pathway">
       <h2 class="pathway__title"><a class="pathway__link" href="/dealers/">Talk with Vanderhall</a></h2>
       <p>Tell Vanderhall where you are and which vehicle interests you.</p>
-      <span class="pathway__cue">Request info<span aria-hidden="true"> →</span></span>
+      <span class="pathway__cue">Contact<span aria-hidden="true"> →</span></span>
     </div></div></section>
   </div></main>
   <footer class="site-footer">
   <div class="footer-links">
     <div><h2>Vehicles</h2><a href="/brawley/">Brawley</a><a href="/santarosa/">Santarosa</a><a href="/carmel/">Carmel</a><a href="/venice/">Venice</a><a href="/concepts/">Concepts</a></div>
-    <div><h2>Owners</h2><a href="/owners/">Owner resources</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a></div>
+    <div><h2>Owners</h2><a href="/owners/">Owner resources</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a><a href="https://apps.apple.com/us/app/vanderhall/id6761500330">Vanderhall app for iPhone</a><a href="https://play.google.com/store/apps/details?id=com.vanderhall.customerapp">Vanderhall app for Android</a></div>
     <div><h2>Connect</h2><a href="/dealers/">Dealers</a><a href="/recommend-dealer/">Recommend a dealer</a><a href="/dealer-inquiry/">Become a dealer</a></div>
+  </div>
+  
+  <div class="footer-social">
+    <h2 class="sr-only">Vanderhall on social media</h2>
+    <ul><li><a href="https://www.facebook.com/vanderhallusa/" aria-label="Vanderhall on Facebook">Facebook</a></li><li><a href="https://www.instagram.com/vanderhall/" aria-label="Vanderhall on Instagram">Instagram</a></li><li><a href="https://twitter.com/vanderhallusa" aria-label="Vanderhall on Twitter">Twitter</a></li><li><a href="https://www.linkedin.com/company/vanderhall" aria-label="Vanderhall on LinkedIn">LinkedIn</a></li><li><a href="https://www.tiktok.com/@vanderhallusa" aria-label="Vanderhall on TikTok">TikTok</a></li><li><a href="https://www.youtube.com/@VanderhallUSA" aria-label="Vanderhall on YouTube">YouTube</a></li></ul>
   </div>
   <div class="footer-legal">
     <img class="footer-lockup" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" width="231" height="24" loading="lazy" decoding="async" alt="Vanderhall Motor Works">
     <span>© 2026 Vanderhall Motor Works. Hand-built in Provo, Utah.</span>
+    <ul class="footer-legal__links"><li><a href="https://portal.vanderhallusa.com/safety_notices">Safety notices</a></li><li><a href="https://dealer.vanderhallusa.com/careers">Careers</a></li><li><a href="/privacy/">Privacy policy</a></li></ul>
   </div>
 </footer>
   <script>addEventListener('load',()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{const s=document.createElement('script');s.src='/scripts/site.js';document.body.append(s)})),{once:true})</script>

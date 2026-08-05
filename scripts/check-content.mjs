@@ -6,6 +6,9 @@ import { fileURLToPath } from "node:url";
 // generator: importing the data proves the strings match, the counts prove the shape is right.
 import { modelBySlug, SPEC_DISCLAIMER } from "../src/data/models.mjs";
 import { conceptBySlug } from "../src/data/concepts.mjs";
+import { privacySections } from "../src/data/privacy.mjs";
+import { ambientVideos } from "../src/data/video.mjs";
+import { APP_LINKS, LEGAL_LINKS, SOCIAL_LINKS } from "../src/components.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const ignored = new Set(["node_modules", ".git", "public", ".vercel"]);
@@ -309,6 +312,7 @@ const BACK_TARGETS = {
   "/santarosa/index.html": "/vehicles/",
   "/brawley/index.html": "/vehicles/",
   "/brawley/gts/index.html": "/brawley/",
+  "/privacy/index.html": "/",
 };
 for (const page of builtPages) {
   const relative = page.path.replace(root, "");
@@ -423,7 +427,7 @@ for (const page of builtPages) {
 }
 
 const sitemap = await readFile(resolve(root, "sitemap.xml"), "utf8");
-for (const route of ["vehicles", "venice", "carmel", "santarosa", "brawley", "brawley/gts", "concepts", "owners", "dealers", "recommend-dealer", "dealer-inquiry", "concepts/indio", "concepts/coachella", "concepts/brawley-r", "concepts/santarosa-r", "concepts/speedster", "concepts/yuma", "concepts/yuma-defense", "concepts/laduna", "concepts/balboa"]) {
+for (const route of ["vehicles", "venice", "carmel", "santarosa", "brawley", "brawley/gts", "concepts", "owners", "dealers", "recommend-dealer", "dealer-inquiry", "privacy", "concepts/indio", "concepts/coachella", "concepts/brawley-r", "concepts/santarosa-r", "concepts/speedster", "concepts/yuma", "concepts/yuma-defense", "concepts/laduna", "concepts/balboa"]) {
   if (!sitemap.includes(`/${route}/`)) failures.push(`sitemap.xml is missing /${route}/`);
 }
 for (const route of ["/about/", "/faq/", "/contact/"]) {
@@ -455,6 +459,9 @@ if (manifest.some((entry) => entry.verified_clean !== "yes")) failures.push("Eve
 // V4 recorded verified_clean: yes on every row unconditionally, and six deliveries shipped the
 // legacy safety paragraph anyway. The flag is now derived from the delivered crop, so these
 // deliveries must each carry the derivation that proves the disclaimer band is outside it.
+// home-wide-2560.webp left this list in V10 with the ladder itself. The row proved that a delivered
+// crop excluded the source's baked safety paragraph, and there is no longer a delivered crop to prove
+// it about; the check above proves the whole ladder is gone instead.
 const CORRECTED = [
   "assets/images/v2/features/venice/motion-1280.webp",
   "assets/images/v2/features/venice/forest-road-1280.webp",
@@ -462,7 +469,6 @@ const CORRECTED = [
   "assets/images/v2/features/santarosa/sunset-1280.webp",
   "assets/images/brawley/lifestyle/desert-1280.webp",
   "assets/images/brawley/lifestyle/mountain-road-1280.webp",
-  "assets/images/v3/heroes/home/home-wide-2560.webp",
 ];
 for (const file of CORRECTED) {
   const entry = manifest.find((row) => row.delivered_file === file);
@@ -475,7 +481,11 @@ if (!v3Deliveries.length) failures.push("Build manifest has no V3 image deliveri
 if (v3Deliveries.some((entry) => !entry.source_width || !entry.output_width || entry.output_width > entry.source_width)) failures.push("A V3 image delivery is missing dimensions or exceeds source width");
 const excludedSources = ["yuma-slide-depart-angle.jpg", "vanderhall-balboa-ev-concept-desktop-scaled.jpg", "balboa-concept.png", "laduna-slide-2.jpg", "vanderhall-balboa-ev-concept-mobile.jpg"];
 for (const filename of excludedSources) if (manifest.some((entry) => entry.source_path.endsWith(filename))) failures.push(`Excluded source appears in the manifest: ${filename}`);
-for (const fragment of ["easter-sunset", "assets/images/v2/concepts", "assets/images/v3/vehicles"]) if (files.some((path) => path.includes(fragment))) failures.push(`Retired delivery remains: ${fragment}`);
+// V10 retires the lakeside home hero ladder with the homepage that used it. Both the files and the
+// encodeLadder calls that produced them are gone, so a future image run cannot quietly bring back
+// eight deliveries no page references.
+for (const fragment of ["easter-sunset", "assets/images/v2/concepts", "assets/images/v3/vehicles", "assets/images/v3/heroes/home"]) if (files.some((path) => path.includes(fragment))) failures.push(`Retired delivery remains: ${fragment}`);
+if (/heroes\/home/.test(await readFile(resolve(root, "scripts/process-images.mjs"), "utf8").then((text) => text.replace(/\/\/[^\n]*/g, "")))) failures.push("The retired home hero ladder is still encoded by the image pipeline");
 // The studio walkaround returns in V6: eight angles for each of the eight complete colours, plus
 // one still for Jean Grey, at two rungs each. Concrete Grey is not offered and is not delivered.
 const walkaroundRows = manifest.filter((entry) => entry.delivered_file.includes("brawley/walkaround"));
@@ -502,6 +512,206 @@ for (const url of referenced) {
 const deliveredImages = files.filter((path) => /\/assets\/(?:images|brand)\/.+\.(?:webp|svg|png)$/.test(path)).map((path) => path.replace(root, ""));
 const orphans = deliveredImages.filter((url) => !referenced.has(url) && !url.startsWith("/assets/brand/"));
 if (orphans.length) failures.push(`Delivered images that no page references: ${orphans.join(", ")}`);
+
+// V10-A. The label is Contact everywhere the visitor reads it. data-form-id and the #request-info
+// anchor are deliberately not renamed: they are the form's identity, not its label, and the endpoint
+// map is keyed on the former.
+if (combinedHtml.includes("Request info")) failures.push("The retired Request info label remains");
+if (combinedHtml.includes("Request information")) failures.push("The retired Request information heading remains");
+if (!dealersHtml.includes('<h2 class="form-heading">Contact Vanderhall</h2>')) failures.push("/dealers/ must head its form Contact Vanderhall");
+for (const page of builtPages) {
+  const headerButtons = (page.text.match(/class="button button--primary header-request" href="\/dealers\/">Contact</g) || []).length;
+  if (headerButtons !== 1) failures.push(`${page.path.replace(root, "")}: expected one Contact button in the header, found ${headerButtons}`);
+}
+
+// V10-B and V10-C. The footer is the same on all 24 pages, so every destination is asserted on every
+// one of them rather than on a sample.
+const TRACKING_PARAMS = ["_gl=", "_ga=", "_gcl_au=", "utm_source=", "utm_medium=", "utm_campaign=", "fref="];
+// Written out here rather than read from components.mjs, and this is the whole point of writing them
+// out. Mutation testing caught it: with the counts and the URLs both taken from SOCIAL_LINKS, deleting
+// TikTok from that constant deleted it from the page and from the expectation at the same time, and
+// every assertion still passed. These eleven destinations are Owen's, supplied on 2026-08-05, and this
+// list is the independent record of them. Changing a URL means changing it in two places on purpose.
+const EXPECTED_FOOTER_LINKS = [
+  ["Facebook", "https://www.facebook.com/vanderhallusa/"],
+  ["Instagram", "https://www.instagram.com/vanderhall/"],
+  ["Twitter", "https://twitter.com/vanderhallusa"],
+  ["LinkedIn", "https://www.linkedin.com/company/vanderhall"],
+  ["TikTok", "https://www.tiktok.com/@vanderhallusa"],
+  ["YouTube", "https://www.youtube.com/@VanderhallUSA"],
+  ["Vanderhall app for iPhone", "https://apps.apple.com/us/app/vanderhall/id6761500330"],
+  ["Vanderhall app for Android", "https://play.google.com/store/apps/details?id=com.vanderhall.customerapp"],
+  ["Safety notices", "https://portal.vanderhallusa.com/safety_notices"],
+  ["Careers", "https://dealer.vanderhallusa.com/careers"],
+  ["Privacy policy", "/privacy/"],
+];
+const EXPECTED_SOCIAL = 6;
+const EXPECTED_LEGAL = 3;
+// The generator must agree with the record, in both directions, so neither can drift alone.
+if (JSON.stringify([...SOCIAL_LINKS, ...APP_LINKS, ...LEGAL_LINKS]) !== JSON.stringify(EXPECTED_FOOTER_LINKS)) {
+  failures.push("The footer's link data no longer matches this script's independent record of Owen's destinations");
+}
+const FOOTER_LINKS = EXPECTED_FOOTER_LINKS;
+for (const page of builtPages) {
+  const relative = page.path.replace(root, "");
+  const footer = page.text.slice(page.text.indexOf("<footer"));
+  if (!footer) { failures.push(`${relative}: has no footer`); continue; }
+  for (const [label, href] of FOOTER_LINKS) {
+    if (!footer.includes(`href="${href}"`)) failures.push(`${relative}: the footer is missing the ${label} destination ${href}`);
+  }
+  const socialItems = (footer.match(/<li><a href="[^"]+" aria-label="Vanderhall on /g) || []).length;
+  if (socialItems !== EXPECTED_SOCIAL) failures.push(`${relative}: expected ${EXPECTED_SOCIAL} social links, found ${socialItems}`);
+  const legalItems = ((footer.match(/<ul class="footer-legal__links">([\s\S]*?)<\/ul>/) || [])[1] || "").match(/<li>/g) || [];
+  if (legalItems.length !== EXPECTED_LEGAL) failures.push(`${relative}: expected ${EXPECTED_LEGAL} legal links, found ${legalItems.length}`);
+  // The visible word must be inside the longer accessible name, or the label the visitor reads is not
+  // the label they can speak. WCAG 2.5.3, asserted rather than assumed.
+  for (const [label] of EXPECTED_FOOTER_LINKS.slice(0, EXPECTED_SOCIAL)) {
+    if (!footer.includes(`aria-label="Vanderhall on ${label}">${label}</a>`)) failures.push(`${relative}: ${label}'s accessible name must contain its visible text`);
+  }
+}
+// Owen pasted these URLs with his own session's analytics identifiers attached. Publishing one would
+// hand every visitor a copy of them, so the ban is on the whole built tree and on the source that
+// generates it, not on the footer alone.
+for (const path of textFiles.filter((file) => !CHECK_SCRIPTS.includes(file) && !file.startsWith(resolve(root, "work")))) {
+  const text = await readFile(path, "utf8");
+  for (const parameter of TRACKING_PARAMS) {
+    if (text.includes(parameter)) failures.push(`${path.replace(root, "")}: tracking parameter remains: ${parameter}`);
+  }
+}
+// Structured data may only restate visible text, and these are now visible on every page.
+const organization = homeSchemas[0]?.["@graph"]?.find((node) => node["@type"] === "Organization");
+if (JSON.stringify(organization?.sameAs) !== JSON.stringify(EXPECTED_FOOTER_LINKS.slice(0, EXPECTED_SOCIAL).map(([, href]) => href))) {
+  failures.push(`The organization schema's sameAs must be the six visible social destinations, found ${JSON.stringify(organization?.sameAs)}`);
+}
+
+// V10-D. The policy page reproduces Vanderhall's text, so the check is that all of it arrived: every
+// heading, every list item, and the exact paragraph count the data declares. A section quietly lost in
+// an edit is the failure this catches, and a legal document losing a clause silently is the reason it
+// is worth catching.
+const privacyHtml = pageBySuffix("/privacy/index.html");
+if (!privacyHtml) failures.push("/privacy/ was not built");
+else {
+  if (!privacyHtml.includes("<h1>Privacy policy</h1>")) failures.push("/privacy/ must carry its title");
+  // Sliced section by section rather than matched with one regex across the document, so the count is
+  // of paragraphs inside the policy and cannot be inflated by anything the page or footer adds later.
+  const policySections = privacyHtml.split('<section class="policy__section">').slice(1)
+    .map((chunk) => chunk.slice(0, chunk.indexOf("</section>")));
+  // 13 sections, 44 paragraphs and 21 list items, written out here rather than counted from the data.
+  // Mutation testing caught the circularity: with the expectation derived from privacySections,
+  // deleting a paragraph deleted the expectation with it and the check passed on a shortened legal
+  // document. That is the one failure mode on this page that actually matters.
+  if (policySections.length !== 13) failures.push(`/privacy/ must publish all 13 policy sections, found ${policySections.length}`);
+  if (privacySections.length !== 13) failures.push(`The policy data declares ${privacySections.length} sections, not the 13 this script expects`);
+  const policyBody = policySections.join("");
+  const paragraphs = policyBody.match(/<p>/g)?.length || 0;
+  if (paragraphs !== 44) failures.push(`/privacy/ must publish all 44 policy paragraphs, found ${paragraphs}`);
+  const items = policyBody.match(/<li>/g)?.length || 0;
+  if (items !== 21) failures.push(`/privacy/ must publish all 21 policy list items, found ${items}`);
+  for (const section of privacySections) {
+    if (section.heading && !privacyHtml.includes(`<h2>${section.heading.replaceAll("&", "&amp;")}</h2>`)) failures.push(`/privacy/ is missing the section heading: ${section.heading}`);
+    for (const block of section.blocks) {
+      if (block.type === "p" && !privacyHtml.includes(`<p>${block.text.replaceAll("&", "&amp;")}</p>`)) failures.push(`/privacy/ is missing a paragraph: ${block.text.slice(0, 48)}`);
+      if (block.type === "ul") for (const item of block.items) {
+        if (!privacyHtml.includes(`<li>${item.replaceAll("&", "&amp;")}</li>`)) failures.push(`/privacy/ is missing a list item: ${item.slice(0, 48)}`);
+      }
+      if (block.type === "url" && !privacyHtml.includes(`<a href="${block.href}">`)) failures.push(`/privacy/ is missing the reference ${block.href}`);
+    }
+  }
+  // The policy is the one page on the site with real list markers, and it is the only page allowed
+  // them: everywhere else a bulleted run would be a card grid or a specification group.
+  const listPages = builtPages.filter((page) => /<div class="policy">/.test(page.text));
+  if (listPages.length !== 1) failures.push(`Policy markup must appear on /privacy/ alone, found ${listPages.length} pages`);
+}
+
+// V10-F. One title per page header. The eyebrow is gone from all six, and what replaced it is CSS on
+// the heading, so the assertion is that no page-header contains a caps-register label any more. The
+// concept detail pages keep theirs, and are excluded by name because CONCEPT says something the
+// wordmark title does not.
+const MARKED_HEADERS = ["/vehicles/index.html", "/concepts/index.html", "/dealers/index.html", "/recommend-dealer/index.html", "/dealer-inquiry/index.html", "/owners/index.html", "/privacy/index.html"];
+for (const relative of MARKED_HEADERS) {
+  const html = pageBySuffix(relative);
+  const header = html.match(/<header class="page-header[^"]*">[\s\S]*?<\/header>/)?.[0];
+  if (!header) { failures.push(`${relative}: has no page header`); continue; }
+  if (!header.includes("page-header--marked")) failures.push(`${relative}: the page header must take the marked treatment`);
+  if (header.includes('class="eyebrow"')) failures.push(`${relative}: the page header still carries an eyebrow above its title`);
+  if ((header.match(/<h1>/g) || []).length !== 1) failures.push(`${relative}: the page header must carry exactly one title`);
+}
+// Only the words that no longer have a home anywhere. VEHICLES is deliberately absent from this list:
+// it is still the homepage lineup section's eyebrow, above a heading reading "The Vanderhall lineup.",
+// and that pair says two different things. The assertion that matters for the page headers is the one
+// above, that none of them contains a caps label at all.
+for (const retired of ["Design studies", ">OWNERS<", ">DEALERS<", ">CONCEPTS<", ">DEALER NETWORK<", ">INTERNATIONAL DEALERS<"]) {
+  if (combinedHtml.includes(retired)) failures.push(`A retired page-header eyebrow or title remains: ${retired}`);
+}
+if (!homeHtml.includes('<div class="section-heading section-heading--marked"><h2>Concepts</h2>')) failures.push("The homepage concepts section must carry one marked title reading Concepts");
+// The informational eyebrows stay. D-V10-4: deleting these would delete content, not repetition.
+for (const [route, text] of [["/brawley/gts/index.html", "ELECTRIC OFF-ROAD UTV"], ["/brawley/gts/index.html", "DISCLOSURES"], ["/concepts/indio/index.html", "CONCEPT"], ["/brawley/index.html", "IN DETAIL"]]) {
+  if (!pageBySuffix(route).includes(`<p class="eyebrow">${text}</p>`)) failures.push(`${route}: the informational ${text} eyebrow must stay`);
+}
+
+// V10-E. Three ambient blocks, on three routes, and nowhere else. Each one has to be complete in the
+// markup, because the markup is the whole no-JavaScript and reduced-motion experience.
+const AMBIENT_ROUTES = { "index.html": "hero", "/brawley/index.html": "figure", "/brawley/gts/index.html": "figure" };
+const ambientCount = (combinedHtml.match(/data-ambient(?=[\s>])/g) || []).length;
+if (ambientCount !== 3) failures.push(`Expected three ambient video blocks sitewide, found ${ambientCount}`);
+for (const page of builtPages) {
+  const relative = page.path.replace(root, "");
+  const key = page.path === resolve(root, "index.html") ? "index.html" : relative;
+  const expected = AMBIENT_ROUTES[key] ? 1 : 0;
+  const found = (page.text.match(/data-ambient(?=[\s>])/g) || []).length;
+  if (found !== expected) failures.push(`${relative}: expected ${expected} ambient video blocks, found ${found}`);
+  if (!expected && page.text.includes("/assets/video/")) failures.push(`${relative}: references video on a route with no approved placement`);
+}
+for (const [key, kind] of Object.entries(AMBIENT_ROUTES)) {
+  const html = key === "index.html" ? homeHtml : pageBySuffix(key);
+  const tag = html.match(/<video[^>]*>[\s\S]*?<\/video>/)?.[0] || "";
+  // WebM first so a browser that can decode VP9 never downloads the larger H.264 file.
+  const order = [...tag.matchAll(/<source data-src="([^"]+)"/g)].map((match) => match[1]);
+  if (order.length !== 2 || !order[0].endsWith(".webm") || !order[1].endsWith(".mp4")) failures.push(`${key}: ambient video must offer WebM first and MP4 second, found ${order.join(", ") || "none"}`);
+  // No src, only data-src. This is what makes the video unreachable to a parser, and therefore
+  // unreachable without script: it is the load gate, not a style.
+  if (/<source[^>]+\ssrc=/.test(tag)) failures.push(`${key}: an ambient source ships a src attribute, so the video loads before it is eligible`);
+  for (const required of ["muted", "loop", "playsinline", 'preload="none"']) {
+    if (!tag.includes(required)) failures.push(`${key}: ambient video is missing ${required}`);
+  }
+  if (tag.includes("autoplay")) failures.push(`${key}: ambient video must not declare autoplay`);
+  // Ships hidden. site.js reveals it only once playback has actually been attempted, which is the
+  // same rule the concept band's pause button follows.
+  if (!/data-ambient-toggle hidden>Pause<\/button>/.test(html)) failures.push(`${key}: the ambient control must ship hidden and labelled Pause`);
+  if (html.includes("data-painted")) failures.push(`${key}: data-painted must be set by the island, never shipped in the markup`);
+  const poster = kind === "hero"
+    ? html.match(/<img class="hero__image"[^>]*>/)?.[0]
+    : html.match(/<img class="ambient__poster"[^>]*>/)?.[0];
+  if (!poster) { failures.push(`${key}: the ambient block has no poster image`); continue; }
+  if (!/width="1900" height="900"/.test(poster)) failures.push(`${key}: the poster must declare the 1900 by 900 box the video shares`);
+  const rungs = [...poster.matchAll(/(\d+)w/g)].map((match) => match[1]);
+  if (JSON.stringify(rungs) !== JSON.stringify(["960", "1280", "1900"])) failures.push(`${key}: the poster must offer the three delivered rungs, found ${rungs.join(", ")}`);
+  // The homepage poster stays the LCP candidate; the two below-fold posters must not compete with it.
+  if (kind === "hero") {
+    if (!poster.includes('loading="eager"') || !poster.includes('fetchpriority="high"')) failures.push("The homepage poster must stay eager and high priority");
+  } else if (!poster.includes('loading="lazy"')) {
+    failures.push(`${key}: a below-fold poster must be lazy`);
+  }
+}
+// Every delivered video file must exist, and nothing may be delivered that no page can reach. The
+// link checker cannot do this for us, because these URLs are in data-src by design.
+const videoUrls = new Set([...combinedHtml.matchAll(/data-src="([^"]+)"/g)].map((match) => match[1]));
+for (const video of ambientVideos) {
+  for (const url of [video.webm, video.mp4]) {
+    if (!videoUrls.has(url)) failures.push(`Delivered video that no page references: ${url}`);
+    if (!files.some((path) => path.replace(root, "") === url)) failures.push(`Referenced video is missing from the build: ${url}`);
+  }
+}
+const deliveredVideoFiles = files.filter((path) => /\/assets\/video\/.+\.(?:webm|mp4)$/.test(path)).map((path) => path.replace(root, ""));
+for (const url of deliveredVideoFiles) {
+  if (!videoUrls.has(url)) failures.push(`Delivered video that no page references: ${url}`);
+}
+if (deliveredVideoFiles.length !== 6) failures.push(`Expected six delivered video files, found ${deliveredVideoFiles.length}`);
+const deliveredPosters = files.filter((path) => /\/assets\/video\/.+\.webp$/.test(path)).map((path) => path.replace(root, ""));
+for (const url of deliveredPosters) {
+  if (!referenced.has(url)) failures.push(`Delivered poster that no page references: ${url}`);
+}
+if (deliveredPosters.length !== 9) failures.push(`Expected nine delivered posters, found ${deliveredPosters.length}`);
 
 if (failures.length) {
   console.error(`Content checks failed (${failures.length}):\n${failures.join("\n")}`);

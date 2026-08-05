@@ -249,6 +249,85 @@ document.querySelectorAll("[data-marquee]").forEach((band) => {
   });
 });
 
+// Ambient video, V10. Three loops: the homepage hero and one block each on /brawley/ and
+// /brawley/gts/. All three are silent, and none of them carries a src attribute in the markup, only
+// data-src. That is the load gate rather than a convention: a visitor who is not eligible for video,
+// or who has no JavaScript, cannot request a byte of it, because there is nothing for the parser to
+// fetch. This file itself runs after the load event, so no video can compete with the poster, the
+// stylesheet or the first paint either.
+//
+// Two refusals are honoured before anything else happens, and both mean no video and no control at
+// all rather than a stopped video and a button: reduced motion, and Save-Data. A control that offers
+// to pause something that was never going to move is worse than no control.
+if (!matchMedia("(prefers-reduced-motion: reduce)").matches && !navigator.connection?.saveData) {
+  document.querySelectorAll("[data-ambient]").forEach((block) => {
+    const video = block.querySelector("[data-ambient-video]");
+    const toggle = block.querySelector("[data-ambient-toggle]");
+    if (!video || !toggle) return;
+
+    // Two separate ideas, deliberately not one. `paused` is why the element is stopped right now;
+    // `chosen` is whether the visitor asked for it. Only the visitor's choice survives scrolling
+    // away and back, or the tab being hidden, which is what "resume only when it was not manually
+    // paused" means.
+    let chosenPause = false;
+    let inView = false;
+    let loaded = false;
+
+    const load = () => {
+      if (loaded) return;
+      loaded = true;
+      video.querySelectorAll("source[data-src]").forEach((source) => { source.src = source.dataset.src; });
+      video.load();
+    };
+
+    // Labelled from the element's real state, never from what was just asked of it, so a refused
+    // autoplay reveals a button reading Play rather than one reading Pause over a still poster.
+    const label = () => { toggle.textContent = video.paused ? "Play" : "Pause"; };
+    const reveal = () => { toggle.hidden = false; label(); };
+
+    const play = () => {
+      load();
+      // A rejected play() is an ordinary outcome on a browser or a power setting that declines
+      // autoplay, not an error: the poster is already correct, and the button becomes the way in.
+      video.play().catch(() => {}).finally(reveal);
+    };
+    const stop = () => { video.pause(); label(); };
+
+    // The first presented frame, not the play event. `playing` can fire before anything has been
+    // painted, and fading the video in over the poster at that moment shows a blank panel.
+    video.addEventListener("timeupdate", () => { block.dataset.painted = "true"; }, { once: true });
+    video.addEventListener("pause", label);
+    video.addEventListener("play", label);
+
+    toggle.addEventListener("click", () => {
+      chosenPause = !video.paused;
+      if (chosenPause) stop();
+      else play();
+      // Relabelled here, synchronously, rather than left to the play promise and the play event. Both
+      // of those resolve a task or more later, so pressing a button reading Play left it reading Play
+      // over a film that had already started, and the fix is feedback on the press rather than on the
+      // acknowledgement. play() sets paused to false before it returns, so this reads the real state,
+      // and if playback is then refused the promise's own relabel corrects it.
+      label();
+    });
+
+    new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        inView = entry.isIntersecting;
+        if (inView && !chosenPause && document.visibilityState === "visible") play();
+        else if (!inView) stop();
+      }
+      // rootMargin gives a below-fold block a moment to fetch before it arrives, so it is moving by
+      // the time it is looked at. The hero is already intersecting, so it starts here on load.
+    }, { rootMargin: "200px" }).observe(block);
+
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState !== "visible") stop();
+      else if (inView && !chosenPause) play();
+    });
+  });
+}
+
 const setError = (control, message) => {
   control.setAttribute("aria-invalid", "true");
   const error = control.closest(".field, .field-group")?.querySelector(".field__error");

@@ -19,7 +19,7 @@ export const sizeOf = (src) => {
   return size;
 };
 
-const escapeHtml = (value = "") => String(value)
+export const escapeHtml = (value = "") => String(value)
   .replaceAll("&", "&amp;")
   .replaceAll("<", "&lt;")
   .replaceAll(">", "&gt;")
@@ -38,13 +38,23 @@ export const backLink = ({ label, href }) => `<nav class="back-nav" aria-label="
 
 // On the single-purpose form pages the header takes the form's own column, so the page reads as one
 // document instead of a heading on the left with a form floating in the middle of it.
-export const pageHeader = (eyebrowText, title, intro, className = "", back = null) => `<header class="page-header${className ? ` ${className}` : ""}">${back ? backLink(back) : ""}${eyebrow(eyebrowText)}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(intro)}</p></header>`;
+//
+// V10 removed the eyebrow this used to take. Every one of the six calls passed a caps-register word
+// that the h1 directly beneath it then said again: CONCEPTS over "Design studies", OWNERS over
+// "Owner resources", VEHICLES over "Vehicles". Two titles, one of them small, is what Owen asked to
+// stop. What replaces it is the accent mark the eyebrow was already carrying in its ::before, now
+// standing on its own above the title. The mark is CSS on --marked, so there is no empty element in
+// the accessibility tree pretending to be a label.
+export const pageHeader = (title, intro, className = "", back = null) => `<header class="page-header page-header--marked${className ? ` ${className}` : ""}">${back ? backLink(back) : ""}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(intro)}</p></header>`;
 
 // Venice and Carmel only. Owen confirmed their status in chat on 2026-08-05; the two current
 // models carry no tag, because current is the default a visitor already assumes.
 export const pastModelTag = () => `<p class="model-tag">Past model</p>`;
 
-export const sectionHeading = (eyebrowText, title, intro = "") => `<div class="section-heading">${eyebrow(eyebrowText)}<h2>${escapeHtml(title)}</h2>${intro ? `<p>${escapeHtml(intro)}</p>` : ""}</div>`;
+// A null eyebrow takes the marked treatment instead, for the one section whose category word and
+// title were the same word. Everywhere else the eyebrow says something the title does not, which is
+// why V10 kept them: IN DETAIL, PAINT, SPECIFICATIONS and ORDER are categories, not repetitions.
+export const sectionHeading = (eyebrowText, title, intro = "") => `<div class="section-heading${eyebrowText ? "" : " section-heading--marked"}">${eyebrowText ? eyebrow(eyebrowText) : ""}<h2>${escapeHtml(title)}</h2>${intro ? `<p>${escapeHtml(intro)}</p>` : ""}</div>`;
 
 export const conceptCard = (concept, { eager = false, level = 2 } = {}) => {
   const { width, height } = sizeOf(concept.card.src);
@@ -235,11 +245,42 @@ export const walkaround = (gts) => {
   </section>`;
 };
 
-export const hero = ({ src, srcset, tallSrcset, alt, focal, align = "", content }) => `<section class="hero bleed${align === "end" ? " hero--content-end" : ""}" style="--hero-focal:${focal}">
-    <div class="hero__media"><picture>${tallSrcset ? `<source media="(max-width: 767px)" srcset="${tallSrcset}" sizes="100vw">` : ""}<img class="hero__image" src="${src}" srcset="${srcset}" sizes="100vw" width="1920" height="823" alt="${escapeHtml(alt)}" loading="eager" fetchpriority="high" decoding="async"></picture></div>
+// The sources of every ambient video ship with no src attribute at all, only data-src, and this is
+// the load gate rather than a convention. A page that is not eligible for video, or has no
+// JavaScript, cannot request a byte of it: there is nothing for the parser to fetch. That is also
+// why no video here carries autoplay or preload="auto". site.js supplies the src, once, after the
+// load event and once the block is near the viewport.
+const videoSources = ({ webm, mp4 }) => `<source data-src="${webm}" type="video/webm"><source data-src="${mp4}" type="video/mp4">`;
+
+// The control ships hidden and site.js reveals it when it has actually attempted playback, so a
+// visitor is never offered a pause for something that is not moving, and never left with motion and
+// no way to stop it. It is labelled from the real state of the element, not from an assumption:
+// if autoplay is refused, the same button reveals itself reading Play.
+const videoToggle = (className) => `<button class="${className}" type="button" data-ambient-toggle hidden>Pause</button>`;
+
+export const hero = ({ src, srcset, tallSrcset, alt, focal, align = "", content, width = 1920, height = 823, video = null }) => `<section class="hero bleed${align === "end" ? " hero--content-end" : ""}" style="--hero-focal:${focal}"${video ? " data-ambient" : ""}>
+    <div class="hero__media"><picture>${tallSrcset ? `<source media="(max-width: 767px)" srcset="${tallSrcset}" sizes="100vw">` : ""}<img class="hero__image" src="${src}" srcset="${srcset}" sizes="100vw" width="${width}" height="${height}" alt="${escapeHtml(alt)}" loading="eager" fetchpriority="high" decoding="async"></picture>${video ? `<video class="hero__video" muted loop playsinline preload="none" tabindex="-1" aria-hidden="true" data-ambient-video>${videoSources(video)}</video>` : ""}</div>
     <div class="hero__scrim" aria-hidden="true"></div>
     <div class="hero__content">${content}</div>
+    ${video ? `<div class="hero__bar">${videoToggle("hero__toggle")}</div>` : ""}
   </section>`;
+
+// The two below-fold ambient blocks. The homepage hero takes its video through hero() instead,
+// because there the moving image sits behind page content rather than in a figure of its own.
+//
+// The poster is never removed and never covered by anything but the decoded video, which is what
+// keeps the switch invisible: same box, same crop, same focal point, so there is no frame in which
+// the layout has moved or the panel has gone black. The video fades in on its first presented frame.
+export const ambientVideo = ({ label, poster, webm, mp4, focal, sizes = "(min-width: 1280px) 1200px, 92vw" }) => `<figure class="ambient" data-ambient style="--ambient-focal:${focal}">
+    <div class="ambient__frame">
+      <img class="ambient__poster" src="${poster.src}" srcset="${poster.srcset}" sizes="${sizes}" width="${poster.width}" height="${poster.height}" alt="${escapeHtml(poster.alt)}" loading="lazy" decoding="async">
+      <video class="ambient__video" muted loop playsinline preload="none" tabindex="-1" aria-hidden="true" data-ambient-video>${videoSources({ webm, mp4 })}</video>
+    </div>
+    <figcaption class="ambient__bar">
+      <p class="eyebrow">${escapeHtml(label)}</p>
+      ${videoToggle("ambient__toggle")}
+    </figcaption>
+  </figure>`;
 
 // The purchase page's reference block, and the only spec table left on the site. Model pages pair
 // their groups with photographs instead. Imperial only since V8: the manufacturer's own pages
@@ -365,7 +406,7 @@ export const header = (path) => `<a class="skip-link" href="#main">Skip to conte
         ${navItems.map(([name, href, prefixes]) => `<a class="nav-link${isCurrent(path, prefixes) ? " is-current" : ""}" href="${href}"${isCurrent(path, prefixes) ? ' aria-current="page"' : ""}>${name}</a>`).join("")}
       </nav>
       <div class="site-header__actions">
-        <a class="button button--primary header-request" href="/dealers/">Request info</a>
+        <a class="button button--primary header-request" href="/dealers/">Contact</a>
         <button class="icon-button menu-button" type="button" data-open-menu aria-label="Open menu" aria-expanded="false"><span aria-hidden="true">☰</span></button>
       </div>
     </div>
@@ -374,20 +415,60 @@ export const header = (path) => `<a class="skip-link" href="#main">Skip to conte
     <div class="sheet__top"><img class="brand brand--sheet" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" alt="Vanderhall" width="211" height="22"><button class="icon-button" type="button" data-close-menu aria-label="Close menu">×</button></div>
     <nav class="mobile-nav" aria-label="Mobile primary">
       ${navItems.map(([name, href]) => `<a href="${href}">${name}</a>`).join("")}
-      <a class="button button--primary" href="/dealers/">Request info</a>
+      <a class="button button--primary" href="/dealers/">Contact</a>
     </nav>
   </div>
   <div class="sheet-backdrop" data-sheet-backdrop hidden></div>`;
 
+// Vanderhall's own destinations, supplied by Owen in chat on 2026-08-05. Every URL he pasted came
+// off his own screen carrying Google's cross-domain linker parameters, Facebook's referrer tag, or a
+// campaign source, all of which are artefacts of his own session and no part of any address. They are
+// stripped here, and check-content fails the build if one ever reaches the HTML: publishing them would
+// hand every visitor a copy of one person's analytics identifiers. The check bans the parameter names
+// as strings across this tree, which is why they are described here rather than written out.
+export const SOCIAL_LINKS = [
+  ["Facebook", "https://www.facebook.com/vanderhallusa/"],
+  ["Instagram", "https://www.instagram.com/vanderhall/"],
+  ["Twitter", "https://twitter.com/vanderhallusa"],
+  ["LinkedIn", "https://www.linkedin.com/company/vanderhall"],
+  ["TikTok", "https://www.tiktok.com/@vanderhallusa"],
+  ["YouTube", "https://www.youtube.com/@VanderhallUSA"],
+];
+
+// Text, not store badges. Apple and Google both licence their badge artwork under brand terms this
+// project has not cleared, and the same rule keeps the Brawley icon set on the open-items list for
+// want of a rights manifest.
+export const APP_LINKS = [
+  ["Vanderhall app for iPhone", "https://apps.apple.com/us/app/vanderhall/id6761500330"],
+  ["Vanderhall app for Android", "https://play.google.com/store/apps/details?id=com.vanderhall.customerapp"],
+];
+
+// Safety and Careers stay on Vanderhall's own systems, which are the systems that hold the notices
+// and the openings. Reproducing either here would mean this site publishing a safety notice or a job
+// that Vanderhall had already changed. The privacy policy is different: it is a fixed document, so
+// V10 reproduces it rather than sending a visitor to the old site to read it.
+export const LEGAL_LINKS = [
+  ["Safety notices", "https://portal.vanderhallusa.com/safety_notices"],
+  ["Careers", "https://dealer.vanderhallusa.com/careers"],
+  ["Privacy policy", "/privacy/"],
+];
+
 export const footer = () => `<footer class="site-footer">
   <div class="footer-links">
     <div><h2>Vehicles</h2>${models.map((model) => `<a href="/${model.slug}/">${model.name}</a>`).join("")}<a href="/concepts/">Concepts</a></div>
-    <div><h2>Owners</h2><a href="/owners/">Owner resources</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a></div>
+    <div><h2>Owners</h2><a href="/owners/">Owner resources</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a>${APP_LINKS.map(([label, href]) => `<a href="${href}">${escapeHtml(label)}</a>`).join("")}</div>
     <div><h2>Connect</h2><a href="/dealers/">Dealers</a><a href="/recommend-dealer/">Recommend a dealer</a><a href="/dealer-inquiry/">Become a dealer</a></div>
+  </div>
+  ${/* Caps register rather than glyph artwork. The visible word is the whole accessible name's first
+        half, so the longer label is additive and Label in Name holds. */""}
+  <div class="footer-social">
+    <h2 class="sr-only">Vanderhall on social media</h2>
+    <ul>${SOCIAL_LINKS.map(([label, href]) => `<li><a href="${href}" aria-label="Vanderhall on ${escapeHtml(label)}">${escapeHtml(label)}</a></li>`).join("")}</ul>
   </div>
   <div class="footer-legal">
     <img class="footer-lockup" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" width="231" height="24" loading="lazy" decoding="async" alt="Vanderhall Motor Works">
     <span>© 2026 Vanderhall Motor Works. Hand-built in Provo, Utah.</span>
+    <ul class="footer-legal__links">${LEGAL_LINKS.map(([label, href]) => `<li><a href="${href}">${escapeHtml(label)}</a></li>`).join("")}</ul>
   </div>
 </footer>`;
 
@@ -413,6 +494,10 @@ export const organizationSchema = () => jsonLd({
       // every page. The founding date left with the V9 hero copy, and this markup may only restate
       // text a visitor can read, so it left here too rather than outliving its source.
       address: { "@type": "PostalAddress", addressLocality: "Provo", addressRegion: "UT", addressCountry: "US" },
+      // Read from the same constant the footer renders, for the same reason the address may stay: a
+      // visitor can read every one of these on this page. The app store links are deliberately not
+      // here; sameAs is the organization's own profiles, and an app listing is a product page.
+      sameAs: SOCIAL_LINKS.map(([, href]) => href),
     },
     {
       "@type": "WebSite",

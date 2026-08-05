@@ -194,12 +194,13 @@ const encodeLadder = async (input, directory, base, widths, { extract, trim, key
   }
 };
 
-// V5 home hero: one Brawley on a rock ledge above a mountain lake, vehicle right of centre so
-// the headline sits over open ground on the left. The source carries the safety paragraph
-// across the bottom left, so both windows stop above it at y=1480 of 1620.
-const homeCover = resolve(v3Root, "Vehicle Cover Candidates/Brawley/brawley-lakeside.jpg");
-await encodeLadder(homeCover, "heroes/home", "home-wide", [960, 1280, 1920, 2560], { extract: { left: 0, top: 246, width: 2880, height: 1234 }, transform: "21:9 crop x=0..2880 y=246..1480; safety paragraph excluded; focal 50% 50%" });
-await encodeLadder(homeCover, "heroes/home", "home-tall", [480, 720, 800, 960], { extract: { left: 1120, top: 0, width: 1184, height: 1480 }, transform: "4:5 crop x=1120..2304 y=0..1480 centred on the vehicle; safety paragraph excluded" });
+// The V5 home hero ladder is retired in V10, not merely unused. It was one Brawley on a rock ledge
+// above a mountain lake, cut into a wide and a tall window that both stopped above the source's baked
+// safety paragraph at y=1480 of 1620. The homepage now opens on the approach loop's own poster frame,
+// because the still has to be the video's first frame or the switch to motion would change the
+// photograph. Encoding the lakeside crops anyway would leave eight delivered files that no page
+// references, and check-content asserts both that no such orphan exists and that this ladder's output
+// directory stays gone. The source photograph is untouched in the archive if it is ever wanted again.
 
 const santarosaCover = resolve(v3Root, "Vehicle Cover Candidates/Santarosa/santarosa-hangar.jpg");
 const brawleyCover = resolve(v3Root, "Vehicle Cover Candidates/Brawley/brawley-desert-three-quarter.jpg");
