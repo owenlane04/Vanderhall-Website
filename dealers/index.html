@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="How to reach a Vanderhall dealer, recommend one, or apply to become one.">
+  <meta name="description" content="Request information from Vanderhall, recommend a dealer, or apply to become one.">
   <title>Dealers | Vanderhall Motor Works</title>
   <link rel="icon" href="/assets/brand/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/assets/brand/favicon-32.png" sizes="32x32" type="image/png">
@@ -19,10 +19,10 @@
     <div class="site-header__inner">
       <a class="brand" href="/"><img src="/assets/brand/vanderhall-lockup-horizontal.svg" alt="Vanderhall home" width="269" height="28"></a>
       <nav class="desktop-nav" aria-label="Primary">
-        <a class="nav-link" href="/vehicles/">Vehicles</a><a class="nav-link" href="/concepts/">Concepts</a><a class="nav-link" href="/owners/">Owners</a><a class="nav-link" href="/faq/">Support</a>
+        <a class="nav-link" href="/vehicles/">Vehicles</a><a class="nav-link" href="/concepts/">Concepts</a><a class="nav-link" href="/owners/">Owners</a><a class="nav-link is-current" href="/dealers/" aria-current="page">Dealers</a>
       </nav>
       <div class="site-header__actions">
-        <a class="button button--primary header-request" href="/contact/">Request info</a>
+        <a class="button button--primary header-request" href="/dealers/">Request info</a>
         <button class="icon-button desktop-theme" type="button" data-theme-toggle aria-label="Use dark theme"><span aria-hidden="true">◐</span></button>
         <button class="icon-button menu-button" type="button" data-open-menu aria-label="Open menu" aria-expanded="false"><span aria-hidden="true">☰</span></button>
       </div>
@@ -31,25 +31,49 @@
   <div class="sheet" data-menu-sheet hidden aria-hidden="true">
     <div class="sheet__top"><img class="brand brand--sheet" src="/assets/brand/vanderhall-lockup-horizontal.svg" alt="Vanderhall" width="211" height="22"><button class="icon-button" type="button" data-close-menu aria-label="Close menu">×</button></div>
     <nav class="mobile-nav" aria-label="Mobile primary">
-      <a href="/vehicles/">Vehicles</a><a href="/concepts/">Concepts</a><a href="/owners/">Owners</a><a href="/faq/">Support</a>
-      <a class="button button--primary" href="/contact/">Request info</a>
+      <a href="/vehicles/">Vehicles</a><a href="/concepts/">Concepts</a><a href="/owners/">Owners</a><a href="/dealers/">Dealers</a>
+      <a class="button button--primary" href="/dealers/">Request info</a>
       <button class="button button--secondary" type="button" data-theme-toggle>Change theme</button>
     </nav>
   </div>
   <div class="sheet-backdrop" data-sheet-backdrop hidden></div>
   <main id="main"><div class="page">
-    <header class="page-header"><p class="eyebrow">DEALERS</p><h1>Vanderhall dealers</h1><p>Vanderhall vehicles are sold through a dealer network. Send a request and Vanderhall will help you find the nearest dealer.</p></header>
-    <section class="section--tight row-links row-links--three">
-      <div><h2>Looking for a vehicle</h2><p>Tell Vanderhall which vehicle interests you and where you are.</p><a class="text-link" href="/contact/">Request info<span aria-hidden="true"> →</span></a></div>
+    <header class="page-header"><p class="eyebrow">DEALERS</p><h1>Find your dealer.</h1><p>Vanderhall vehicles are sold through a dealer network. Tell Vanderhall where you are and which vehicle interests you, and someone will connect you with a dealer.</p></header>
+    <section class="section--tight narrow" id="request-info">
+      <h2 class="form-heading">Request information</h2>
+      <form class="lead-form" id="contact-lead" novalidate data-site-form data-form-id="request-info" data-endpoint="">
+  <p class="form-key">Fields marked * are required.</p>
+  <div class="form-error-summary" role="alert" tabindex="-1" hidden></div>
+    <div class="form-grid form-grid--pairs">
+      <div class="field"><label for="contact-lead-first">First name<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="contact-lead-first" name="first_name" autocomplete="given-name" required aria-required="true"><span class="field__error" id="contact-lead-first-error"></span></div>
+      <div class="field"><label for="contact-lead-last">Last name<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="contact-lead-last" name="last_name" autocomplete="family-name" required aria-required="true"><span class="field__error" id="contact-lead-last-error"></span></div>
+    </div>
+    <div class="field"><label for="contact-lead-email">Email<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="contact-lead-email" name="email" type="email" autocomplete="email" inputmode="email" required aria-required="true"><span class="field__error" id="contact-lead-email-error"></span></div>
+    <div class="field"><label for="contact-lead-phone">Phone</label><input id="contact-lead-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel"><span class="field__error" id="contact-lead-phone-error"></span></div>
+    <div class="field"><label for="contact-lead-zip">ZIP<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="contact-lead-zip" name="zip" autocomplete="postal-code" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" required aria-required="true"><span class="field__error" id="contact-lead-zip-error"></span></div>
+    <fieldset class="field-group"><legend>I'm interested in</legend><div class="checkbox-grid"><label class="check"><input type="checkbox" name="interest" value="venice"> <span>Venice</span></label><label class="check"><input type="checkbox" name="interest" value="carmel"> <span>Carmel</span></label><label class="check"><input type="checkbox" name="interest" value="santarosa"> <span>Santarosa</span></label><label class="check"><input type="checkbox" name="interest" value="brawley"> <span>Brawley</span></label><label class="check"><input type="checkbox" name="interest" value="concepts"> <span>Concepts</span></label><label class="check"><input type="checkbox" name="interest" value="not-sure-yet"> <span>Not sure yet</span></label></div></fieldset>
+    <div class="field"><label for="contact-lead-timeframe">Timeframe</label><select id="contact-lead-timeframe" name="timeframe"><option value="">Select a timeframe</option><option>Ready now</option><option>1 to 3 months</option><option>3 to 6 months</option><option>Just looking</option></select><span class="field__error" id="contact-lead-timeframe-error"></span></div>
+    <div class="field"><label for="contact-lead-message">Message</label><textarea id="contact-lead-message" name="message" rows="4"></textarea><span class="field__error" id="contact-lead-message-error"></span></div>
+    
+  <div class="honeypot" aria-hidden="true"><label>Company<input name="honeypot" tabindex="-1" autocomplete="off"></label></div>
+  <input type="hidden" name="render_timestamp" value="">
+  <input type="hidden" name="form_id" value="request-info">
+  <input type="hidden" name="page" value="">
+  <div class="form-submit-row"><button class="button button--primary" type="submit" data-submit-label="Send request">Send request</button></div>
+  <p class="form-status" tabindex="-1" aria-live="polite"></p>
+  <p class="form-note">This form is not connected yet, so nothing you enter here is sent.</p>
+  </form>
+    </section>
+    <section class="section--tight row-links">
       <div><h2>Know a dealer</h2><p>Recommend a dealer in your area for the Vanderhall network.</p><a class="text-link" href="/recommend-dealer/">Recommend a dealer<span aria-hidden="true"> →</span></a></div>
-      <div><h2>Selling Vanderhall</h2><p>Enquire about becoming an international Vanderhall dealer.</p><a class="text-link" href="/dealer-inquiry/">Become a dealer<span aria-hidden="true"> →</span></a></div>
+      <div><h2>Selling Vanderhall</h2><p>Inquire about becoming an international Vanderhall dealer.</p><a class="text-link" href="/dealer-inquiry/">Become a dealer<span aria-hidden="true"> →</span></a></div>
     </section>
   </div></main>
   <footer class="site-footer">
   <div class="footer-links">
     <div><h2>Vehicles</h2><a href="/venice/">Venice</a><a href="/carmel/">Carmel</a><a href="/santarosa/">Santarosa</a><a href="/brawley/">Brawley</a><a href="/concepts/">Concepts</a></div>
-    <div><h2>Owners</h2><a href="/owners/">Owner resources</a><a href="/faq/">Support</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a></div>
-    <div><h2>Connect</h2><a href="/contact/">Contact</a><a href="/dealers/">Dealers</a><a href="/recommend-dealer/">Recommend a dealer</a><a href="/dealer-inquiry/">Become a dealer</a></div>
+    <div><h2>Owners</h2><a href="/owners/">Owner resources</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a></div>
+    <div><h2>Connect</h2><a href="/dealers/">Dealers</a><a href="/recommend-dealer/">Recommend a dealer</a><a href="/dealer-inquiry/">Become a dealer</a></div>
   </div>
   <div class="footer-legal">
     <img class="footer-lockup" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" width="231" height="24" loading="lazy" decoding="async" alt="Vanderhall Motor Works">

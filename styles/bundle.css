@@ -385,29 +385,56 @@ p { color: var(--text-secondary); }
 .section-heading { display: flex; flex-direction: column; gap: var(--s-3); margin-bottom: var(--sf-m); }
 .section-heading p { max-width: var(--w-text); }
 
-.chip-row { display: flex; flex-wrap: wrap; gap: var(--s-2); }
-.chip { display: inline-flex; align-items: center; border-radius: var(--r-pill); padding: var(--s-1) var(--s-3); background: var(--surface-2); color: var(--text-secondary); }
-.chip--status { border: var(--hairline) solid color-mix(in srgb, var(--accent) 45%, transparent); background: var(--accent-quiet); color: var(--accent); }
-
 /* Cards */
 .card-grid { display: grid; grid-template-columns: 1fr; gap: var(--card-gap); }
 .card { position: relative; display: flex; min-width: 0; flex-direction: column; overflow: hidden; border: var(--hairline) solid var(--line); border-radius: var(--r-2); background: var(--paper); }
+/* Hub cards are delivered at exactly this ratio, so the slot never cover-crops them. */
 .card__media { position: relative; aspect-ratio: var(--ar-cutout); overflow: hidden; background: var(--surface-1); }
-.card__status { position: absolute; top: var(--s-3); left: var(--s-3); border-color: transparent; background: var(--pure-white); color: var(--accent-on-white); }
 .card__media img { width: 100%; height: 100%; object-fit: cover; object-position: var(--media-focal, 50% 50%); transition: transform var(--dur-4) var(--ease-out); }
 .card__body { display: flex; flex: 1; flex-direction: column; gap: var(--s-2); padding: var(--card-pad); }
 .card__title { font-size: var(--fs-display-s); }
 .card__link { text-decoration: none; }
 .card__link::after { content: ""; position: absolute; inset: 0; }
 .card__descriptor { font-size: var(--fs-body-sm); }
-.card__cue { margin-top: auto; padding-top: var(--s-4); color: var(--text-tertiary); }
 .card:hover { border-color: var(--ink-24); }
 .card:hover .card__media img { transform: scale(1.03); }
 .card:hover .card__title { text-decoration: underline; text-underline-offset: var(--s-2); }
 
-/* Gallery */
-.gallery { display: grid; grid-template-columns: 1fr; gap: var(--card-gap); }
-.gallery img { width: 100%; height: auto; aspect-ratio: var(--ar-feature); border-radius: var(--r-2); object-fit: cover; }
+/* Vehicle sections: one per vehicle, media and content alternating sides down the page. The
+   homepage renders the lead photograph only, the vehicles page adds two supporting frames. */
+.vehicle-scroll { display: flex; flex-direction: column; gap: var(--sf-l); }
+.vehicle-section { display: grid; grid-template-columns: 1fr; gap: var(--sf-m); align-items: center; }
+/* The name carries the section, so it takes the display-m step rather than the smaller
+   heading size its level would otherwise imply. */
+.vehicle-section__body :is(h2, h3) { font-size: var(--fs-display-m); line-height: var(--lh-heading); letter-spacing: var(--ls-display); }
+.vehicle-section__media { display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; }
+.vehicle-section__lead, .vehicle-section__support { overflow: hidden; border-radius: var(--r-2); background: var(--surface-1); }
+.vehicle-section__lead { aspect-ratio: var(--ar-feature); }
+.vehicle-section__row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-3); }
+.vehicle-section__support { aspect-ratio: var(--ar-feature); }
+.vehicle-section__media img { width: 100%; height: 100%; object-fit: cover; }
+.vehicle-section__body { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-4); min-width: 0; }
+.vehicle-section__body p { max-width: var(--w-text); }
+
+/* Photo modules: one photograph, a label in the caps register, one or two sentences. The
+   rhythm is one step tighter than the V5 plan proposed, because at the planned --sf-xl the
+   captions read as stranded rather than paced. */
+.photo-scroll { display: flex; flex-direction: column; gap: var(--sf-l); }
+.photo-module { display: grid; grid-template-columns: 1fr; gap: var(--sf-s); margin: 0; align-items: center; }
+.photo-module__media { aspect-ratio: var(--ar-feature); overflow: hidden; border-radius: var(--r-2); background: var(--surface-1); }
+.photo-module__media img { width: 100%; height: 100%; object-fit: cover; }
+.photo-module__body { display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; }
+.photo-module__body p:last-child { max-width: var(--w-text); font-size: var(--fs-body-lg); }
+
+/* Sticky model bar: where you are, and the one thing you can do. */
+.model-bar { position: sticky; z-index: var(--z-sticky); top: var(--header-h); border-bottom: var(--hairline) solid var(--line); background: var(--frost-bg); backdrop-filter: var(--frost-blur); }
+/* Padded to land on the same optical line as the content column of .page at every width. */
+.model-bar__inner { display: flex; width: min(100%, calc(var(--w-content) + 2 * var(--gutter))); min-height: var(--hit-target); align-items: center; justify-content: space-between; gap: var(--s-4); margin-inline: auto; padding-inline: var(--gutter); }
+.model-bar__name { font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); text-transform: uppercase; }
+.model-bar__action { display: inline-flex; min-height: var(--hit-target); align-items: center; color: var(--text-secondary); font-size: var(--fs-body-sm); font-weight: var(--wt-medium); text-decoration: none; }
+.model-bar__action:hover { color: var(--text-primary); text-decoration: underline; text-underline-offset: var(--s-2); }
+.model-bar__action span { transition: transform var(--dur-2) var(--ease-out); }
+.model-bar__action:hover span { transform: translateX(var(--s-1)); }
 
 /* Hero */
 .hero { position: relative; display: block; overflow: clip; background: var(--dark-paper); color: var(--dark-ink); }
@@ -467,7 +494,10 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 .form-error-summary a { color: inherit; }
 .form-status { font-size: var(--fs-body-sm); }
 .form-key, .field__help, .form-note { color: var(--text-tertiary); font-size: var(--fs-caption); }
-.form-note { max-width: var(--w-text); }
+/* Quiet footnote under the submit row rather than a bordered note, which is the difference
+   between looking unfinished and looking careful. */
+.form-note { max-width: var(--w-text); margin-top: calc(var(--form-gap) * -0.5); }
+.form-heading { margin-bottom: var(--sf-s); font-size: var(--fs-display-s); }
 .form-fieldset { display: flex; min-width: 0; flex-direction: column; gap: var(--form-gap); margin: 0; border: 0; padding: 0; }
 .form-fieldset > legend { padding: 0; color: var(--text-primary); font-size: var(--fs-title); font-weight: var(--wt-medium); }
 .form-section { border-top: var(--hairline) solid var(--line); padding-top: var(--sf-m); }
@@ -491,8 +521,8 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 .concept-figure { overflow: hidden; background: var(--pure-white); }
 .concept-figure picture, .concept-figure img { display: block; width: 100%; height: auto; }
 .concept-gallery { display: flex; flex-direction: column; gap: var(--card-gap); }
-.concept-ring { display: grid; grid-template-columns: 1fr; gap: var(--s-3); border-top: var(--hairline) solid var(--line); }
-.concept-ring a { min-height: var(--hit-target); align-content: center; font-size: var(--fs-body-sm); font-weight: var(--wt-medium); }
+.concept-back { border-top: var(--hairline) solid var(--line); }
+.concept-back a { display: inline-flex; min-height: var(--hit-target); align-items: center; font-size: var(--fs-body-sm); font-weight: var(--wt-medium); }
 
 /* Owner resources */
 .resource-groups { display: flex; max-width: var(--w-narrow); flex-direction: column; gap: var(--sf-l); }
@@ -503,11 +533,7 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 .resource-row__title { font-weight: var(--wt-medium); }
 .resource-row__meta { color: var(--text-tertiary); font-size: var(--fs-caption); white-space: nowrap; }
 
-/* FAQ and 404 */
-.faq-list { display: flex; flex-direction: column; }
-.faq-list details { border-bottom: var(--hairline) solid var(--line); padding-block: var(--s-4); }
-.faq-list summary { min-height: var(--hit-target); align-content: center; font-size: var(--fs-title); font-weight: var(--wt-medium); cursor: pointer; }
-.faq-list details > p { margin-top: var(--s-3); max-width: var(--w-text); }
+/* 404 */
 .not-found { display: flex; min-height: 50vh; flex-direction: column; justify-content: center; gap: var(--s-5); }
 
 /* Footer */
@@ -533,10 +559,7 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 }
 
 @media (min-width: 640px) {
-  .card-grid--vehicles, .card-grid--concepts, .gallery { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .concept-ring { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .concept-ring a:nth-child(2) { text-align: center; }
-  .concept-ring a:last-child { text-align: right; }
+  .card-grid--concepts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .resource-row__meta { grid-column: auto; }
 }
 
@@ -544,12 +567,14 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
   .hero__content { min-height: var(--hero-min); }
   .hero--content-end .hero__content { align-items: flex-end; }
   .hero--content-end .hero__content > * { width: min(100%, 34rem); text-align: left; }
-  .card-grid--related { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .form-grid--pairs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .spec-row { grid-template-columns: 40% 60%; gap: var(--s-4); }
   .split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sf-l); }
   .row-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .footer-links { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .vehicle-section { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sf-l); }
+  .vehicle-section--reverse .vehicle-section__media { grid-area: 1 / 2; }
+  .vehicle-section--reverse .vehicle-section__body { grid-area: 1 / 1; }
 }
 
 @media (min-width: 1024px) {
@@ -557,13 +582,61 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
   .desktop-nav { display: flex; }
   .desktop-theme { display: inline-flex; }
   .menu-button { display: none; }
-  .card-grid--vehicles { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .card-grid--concepts, .gallery { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .card-grid--concepts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .row-links--three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .photo-module { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); gap: var(--sf-m); }
+  .photo-module--reverse .photo-module__media { grid-area: 1 / 2; }
+  .photo-module--reverse .photo-module__body { grid-area: 1 / 1; }
+}
+
+/* Scroll motion. Driven entirely by CSS scroll-progress timelines, so there is still no
+   JavaScript on the page and nothing blocks paint. Both the animation and its start state sit
+   inside @supports, so a browser without view() timelines simply renders the final state
+   rather than hiding content it can never reveal. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    @keyframes rise-in {
+      from { opacity: 0; transform: translateY(var(--rise, 1.75rem)); }
+      to { opacity: 1; transform: none; }
+    }
+
+    .vehicle-section,
+    .photo-module,
+    .card-grid--concepts .card,
+    .split__media,
+    .split__body,
+    .section-heading,
+    .spec-table,
+    .resource-group {
+      animation: rise-in var(--ease-out) both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 55%;
+    }
+
+    /* Rows of cards enter together, so a small stagger across the row keeps it from reading
+       as one block snapping into place. */
+    .card-grid--concepts .card:nth-child(3n + 2) { animation-range: entry 6% entry 61%; }
+    .card-grid--concepts .card:nth-child(3n) { animation-range: entry 12% entry 67%; }
+
+    /* The photograph drifts against the scroll. Held to a few percent, and pre-scaled so the
+       frame stays covered at the extremes. */
+    @keyframes hero-drift {
+      from { transform: scale(1.08) translateY(1.5%); }
+      to { transform: scale(1.08) translateY(-1.5%); }
+    }
+    .hero__image {
+      animation: hero-drift linear both;
+      animation-timeline: view();
+      animation-range: cover 0% cover 100%;
+    }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: var(--dur-1) !important; transition-duration: var(--dur-1) !important; }
   .card:hover .card__media img { transform: none; }
+  /* Scroll-driven animations advance with scroll position rather than time, so clearing the
+     duration is not enough: the timeline itself has to go. */
+  *, *::before, *::after { animation-timeline: auto !important; animation-name: none !important; }
 }

@@ -7,49 +7,36 @@ import {
   buttonLink,
   conceptCard,
   eyebrow,
-  gallery,
   hero,
   internationalDealerForm,
   leadForm,
+  modelBar,
   pageHeader,
+  photoScroll,
   recommendDealerForm,
   sectionHeading,
   shell,
+  sizeOf,
   specTable,
   textLink,
-  relatedGrid,
-  vehicleGrid,
+  vehicleSection,
 } from "./components.mjs";
 
 const sourceRoot = dirname(fileURLToPath(import.meta.url));
 const websiteRoot = resolve(sourceRoot, "..");
-
-// Concept slides are trimmed at export, so their delivered sizes vary. Read them from the
-// build manifest instead of restating them, which keeps width and height honest.
-const manifest = JSON.parse(await readFile(resolve(websiteRoot, "assets/build-manifest.json"), "utf8"));
-const deliveredSize = new Map(manifest
-  .filter((entry) => entry.output_width && entry.output_height)
-  .map((entry) => [`/${entry.delivered_file}`, { width: entry.output_width, height: entry.output_height }]));
-const sizeOf = (src) => {
-  const size = deliveredSize.get(src);
-  if (!size) throw new Error(`No delivered dimensions recorded for ${src}`);
-  return size;
-};
-
-const relatedModels = (slug) => models.filter((model) => model.slug !== slug).slice(0, 2);
 
 const modelPage = (model) => {
   const hasSpecs = model.specGroups.length > 0;
   const heroContent = `${eyebrow(`${model.powertrain.fuel} · ${model.powertrain.layout}`)}
       <h1>${model.name}</h1>
       <p class="hero__descriptor">${model.descriptor}</p>
-      <div class="hero__actions">${buttonLink("Request info", `/contact/?model=${model.slug}`, "inverse")}${hasSpecs ? '<a class="button button--ghost-inverse" href="#specifications">Specifications</a>' : ""}</div>`;
+      <div class="hero__actions">${buttonLink("Request info", `/dealers/?model=${model.slug}`, "inverse")}${hasSpecs ? '<a class="button button--ghost-inverse" href="#specifications">Specifications</a>' : ""}</div>`;
   const body = `<div class="page">
     ${hero({ src: model.images.hero, srcset: model.images.heroSrcset, tallSrcset: model.images.heroTallSrcset, alt: model.images.heroAlt, focal: model.images.focal, align: model.images.heroAlign, content: heroContent })}
-    <section class="section narrow"><p class="lede">${model.overview}</p></section>
-    <section class="section">${sectionHeading("GALLERY", `${model.name} in detail`)}${gallery(model.images.gallery)}</section>
+    ${modelBar(model)}
+    <section class="section--tight narrow"><p class="lede">${model.overview}</p></section>
+    <section class="section">${sectionHeading("IN DETAIL", `A closer look at ${model.name}.`)}${photoScroll(model.images.modules)}</section>
     ${hasSpecs ? `<section class="section narrow" id="specifications">${sectionHeading("SPECIFICATIONS", "Published figures")}${specTable(model)}</section>` : ""}
-    <section class="section">${sectionHeading("KEEP EXPLORING", "Other vehicles")}${relatedGrid(relatedModels(model.slug))}</section>
   </div>`;
   return shell({ title: model.name, description: model.descriptor, path: `/${model.slug}`, body });
 };
@@ -61,15 +48,20 @@ const homePage = () => {
       <p class="hero__descriptor">Three-wheel gas roadsters and electric vehicles, built by Vanderhall since 2010.</p>
       <div class="hero__actions">${buttonLink("Explore vehicles", "/vehicles/", "inverse")}</div>`;
   const body = `<div class="page">
-    ${hero({ src: "/assets/images/v2/heroes/home/home-wide-1920.webp", srcset: "/assets/images/v2/heroes/home/home-wide-960.webp 960w, /assets/images/v2/heroes/home/home-wide-1280.webp 1280w, /assets/images/v2/heroes/home/home-wide-1920.webp 1920w, /assets/images/v2/heroes/home/home-wide-2560.webp 2560w", tallSrcset: "/assets/images/v2/heroes/home/home-tall-480.webp 480w, /assets/images/v2/heroes/home/home-tall-720.webp 720w, /assets/images/v2/heroes/home/home-tall-960.webp 960w", alt: "Green Vanderhall Brawley on a mountain pass at sunset", focal: "47% 60%", content: heroContent })}
-    <section class="section" id="vehicles">${sectionHeading("VEHICLES", "Choose a vehicle")}${vehicleGrid(models)}</section>
+    ${hero({ src: "/assets/images/v3/heroes/home/home-wide-1920.webp", srcset: "/assets/images/v3/heroes/home/home-wide-960.webp 960w, /assets/images/v3/heroes/home/home-wide-1280.webp 1280w, /assets/images/v3/heroes/home/home-wide-1920.webp 1920w, /assets/images/v3/heroes/home/home-wide-2560.webp 2560w", tallSrcset: "/assets/images/v3/heroes/home/home-tall-480.webp 480w, /assets/images/v3/heroes/home/home-tall-720.webp 720w, /assets/images/v3/heroes/home/home-tall-960.webp 960w", alt: "Tan Vanderhall Brawley climbing a rock ledge above a mountain lake", focal: "50% 50%", content: heroContent })}
+    <section class="section" id="vehicles">
+      ${sectionHeading("VEHICLES", "Gas and electric, built in Provo.")}
+      <!-- Every section here sits below the hero, so none of them competes with it for
+           bandwidth. The hero is the only eagerly fetched image on this page. -->
+      <div class="vehicle-scroll">${models.map((model, index) => vehicleSection(model, { index, copy: model.summary })).join("")}</div>
+    </section>
     <section class="section split">
       <div class="split__body">${sectionHeading("CONCEPTS", "Design studies")}<p>Nine Vanderhall concept vehicles. They are not offered for sale.</p><div class="cluster">${buttonLink("View concepts", "/concepts/", "secondary")}</div></div>
       <a class="split__media" href="/concepts/"><img src="${indio.hero.src}" srcset="${indio.hero.srcset}" width="${sizeOf(indio.hero.src).width}" height="${sizeOf(indio.hero.src).height}" sizes="(min-width: 768px) 45vw, 92vw" alt="${indio.hero.alt}" loading="lazy" decoding="async"></a>
     </section>
     <section class="section row-links">
       <div><h2>Owner resources</h2><p>Vanderhall owner's manuals by model and year.</p>${textLink("View owner resources", "/owners/")}</div>
-      <div><h2>Talk with Vanderhall</h2><p>Ask about a vehicle or how to reach a dealer.</p>${textLink("Request info", "/contact/")}</div>
+      <div><h2>Talk with Vanderhall</h2><p>Tell Vanderhall where you are and which vehicle interests you.</p>${textLink("Request info", "/dealers/")}</div>
     </section>
   </div>`;
   return shell({ title: "Home", description: "Vanderhall Motor Works builds three-wheel gas roadsters and electric vehicles in Provo, Utah.", path: "/", body });
@@ -77,8 +69,10 @@ const homePage = () => {
 
 const vehiclesPage = () => {
   const body = `<div class="page">
-    ${pageHeader("VEHICLES", "The Vanderhall lineup", "Four vehicles, gas and electric. Choose one to see its photography and published specifications.")}
-    <section class="section--tight">${vehicleGrid(models, { eagerCount: 1, level: 2 })}</section>
+    ${pageHeader("VEHICLES", "Vehicles", "Two three-wheel gas roadsters, one three-wheel electric autocycle, and one electric off-road UTV. All four are hand-built in Provo, Utah.")}
+    <section class="section">
+      <div class="vehicle-scroll">${models.map((model, index) => vehicleSection(model, { index, copy: model.intro, eager: index === 0, level: 2, withSupport: true })).join("")}</div>
+    </section>
   </div>`;
   return shell({ title: "Vehicles", description: "The Vanderhall vehicle lineup: Venice, Carmel, Santarosa, and Brawley.", path: "/vehicles", body });
 };
@@ -96,9 +90,7 @@ const conceptImage = (item, { eager = false } = {}) => {
   return `<picture>${item.mobile ? `<source media="(max-width: 639px)" srcset="${item.mobile}">` : ""}<img src="${item.src}"${item.srcset ? ` srcset="${item.srcset}"` : ""} sizes="(min-width: 1280px) 1200px, 92vw" width="${width}" height="${height}" alt="${item.alt}" loading="${eager ? "eager" : "lazy"}"${eager ? ' fetchpriority="high"' : ""} decoding="async"></picture>`;
 };
 
-const conceptPage = (concept, index) => {
-  const previous = concepts[(index - 1 + concepts.length) % concepts.length];
-  const next = concepts[(index + 1) % concepts.length];
+const conceptPage = (concept) => {
   const body = `<div class="page">
     <header class="page-header concept-header">
       ${eyebrow("CONCEPT")}
@@ -110,47 +102,24 @@ const conceptPage = (concept, index) => {
     <section class="section--tight"><div class="concept-figure">${conceptImage(concept.hero, { eager: true })}</div></section>
     <section class="section--tight narrow"><p class="lede">${concept.intro}</p></section>
     ${concept.gallery.length ? `<section class="section--tight concept-gallery">${concept.gallery.map((item) => `<div class="concept-figure">${conceptImage(item)}</div>`).join("")}</section>` : ""}
-    <nav class="concept-ring section--tight" aria-label="Concept navigation"><a rel="prev" href="/concepts/${previous.slug}/"><span aria-hidden="true">← </span>${previous.name}</a><a href="/concepts/">All concepts</a><a rel="next" href="/concepts/${next.slug}/">${next.name}<span aria-hidden="true"> →</span></a></nav>
+    <nav class="concept-back section--tight" aria-label="Concept navigation"><a href="/concepts/"><span aria-hidden="true">← </span>All concepts</a></nav>
   </div>`;
   return shell({ title: `${concept.name} concept`, description: `${concept.name}, a Vanderhall ${concept.category.toLowerCase()} that is not offered for sale.`, path: `/concepts/${concept.slug}`, body });
 };
 
 const dealersPage = () => {
   const body = `<div class="page">
-    ${pageHeader("DEALERS", "Vanderhall dealers", "Vanderhall vehicles are sold through a dealer network. Send a request and Vanderhall will help you find the nearest dealer.")}
-    <section class="section--tight row-links row-links--three">
-      <div><h2>Looking for a vehicle</h2><p>Tell Vanderhall which vehicle interests you and where you are.</p>${textLink("Request info", "/contact/")}</div>
-      <div><h2>Know a dealer</h2><p>Recommend a dealer in your area for the Vanderhall network.</p>${textLink("Recommend a dealer", "/recommend-dealer/")}</div>
-      <div><h2>Selling Vanderhall</h2><p>Enquire about becoming an international Vanderhall dealer.</p>${textLink("Become a dealer", "/dealer-inquiry/")}</div>
-    </section>
-  </div>`;
-  return shell({ title: "Dealers", description: "How to reach a Vanderhall dealer, recommend one, or apply to become one.", path: "/dealers", body });
-};
-
-const faqPage = () => {
-  const body = `<div class="page">
-    ${pageHeader("SUPPORT", "Frequently asked questions", "Answers published here come from Vanderhall source material.")}
-    <section class="section--tight narrow faq-list">
-      <details open><summary>Where is Vanderhall based?</summary><p>Vanderhall headquarters and manufacturing are in Provo, Utah.</p></details>
-      <details><summary>When was Vanderhall founded?</summary><p>Steve Hall founded Vanderhall in 2010. The Laguna entered production in 2016.</p></details>
-      <details><summary>What is the Brawley seating capacity?</summary><p>The 2026 owner's manual states a seating capacity of four.</p></details>
-      <details><summary>What warranty applies to off-road products?</summary><p>Vanderhall off-road products carry a 6-month limited warranty from Vanderhall North America, LLC, also identified as Vanderhall NA.</p></details>
-      <details><summary>Where can I find an owner's manual?</summary><p>Owner's manuals for Venice, Carmel, Brawley, Speedster, and Laguna are on the owner resources page.</p></details>
+    ${pageHeader("DEALERS", "Find your dealer.", "Vanderhall vehicles are sold through a dealer network. Tell Vanderhall where you are and which vehicle interests you, and someone will connect you with a dealer.")}
+    <section class="section--tight narrow" id="request-info">
+      <h2 class="form-heading">Request information</h2>
+      ${leadForm()}
     </section>
     <section class="section--tight row-links">
-      <div><h2>Owner resources</h2><p>Browse owner's manuals by model and year.</p>${textLink("View owner resources", "/owners/")}</div>
-      <div><h2>Still have a question</h2><p>Send Vanderhall a request and someone will follow up.</p>${textLink("Request info", "/contact/")}</div>
+      <div><h2>Know a dealer</h2><p>Recommend a dealer in your area for the Vanderhall network.</p>${textLink("Recommend a dealer", "/recommend-dealer/")}</div>
+      <div><h2>Selling Vanderhall</h2><p>Inquire about becoming an international Vanderhall dealer.</p>${textLink("Become a dealer", "/dealer-inquiry/")}</div>
     </section>
   </div>`;
-  return shell({ title: "Support", description: "Vanderhall support answers and owner resources.", path: "/faq", body });
-};
-
-const contactPage = () => {
-  const body = `<div class="page">
-    ${pageHeader("CONTACT", "Request information", "Tell Vanderhall which vehicle interests you and how to reach you.")}
-    <section class="section--tight narrow" id="request-info">${leadForm()}</section>
-  </div>`;
-  return shell({ title: "Contact", description: "Request information from Vanderhall Motor Works.", path: "/contact", body });
+  return shell({ title: "Dealers", description: "Request information from Vanderhall, recommend a dealer, or apply to become one.", path: "/dealers", body });
 };
 
 const recommendDealerPage = () => {
@@ -218,18 +187,14 @@ const routes = [
   "dealers",
   "recommend-dealer",
   "dealer-inquiry",
-  "faq",
-  "contact",
 ];
 
 const pages = new Map([
   ["index.html", homePage()],
   ["vehicles/index.html", vehiclesPage()],
   ["concepts/index.html", conceptsPage()],
-  ...concepts.map((concept, index) => [`concepts/${concept.slug}/index.html`, conceptPage(concept, index)]),
+  ...concepts.map((concept) => [`concepts/${concept.slug}/index.html`, conceptPage(concept)]),
   ["dealers/index.html", dealersPage()],
-  ["faq/index.html", faqPage()],
-  ["contact/index.html", contactPage()],
   ["owners/index.html", ownersPage()],
   ["recommend-dealer/index.html", recommendDealerPage()],
   ["dealer-inquiry/index.html", dealerInquiryPage()],

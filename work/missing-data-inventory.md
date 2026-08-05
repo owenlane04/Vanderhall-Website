@@ -1,6 +1,6 @@
 # Internal missing-data inventory
 
-Status: current as of the V4 simplification pass, 2026-08-04.
+Status: current as of the V5 refinement pass, 2026-08-04.
 
 This file is the internal record of information the public site does not have. It is the
 replacement for the visible MISSING gates that V1 to V3 rendered on the live site. The
@@ -18,8 +18,9 @@ component until the required source arrives.
 | Price disclaimer language | anywhere a price would appear | Legal-approved disclaimer text. Two drafts exist in `Plans/V1-design-system.md` section 5.9 and both need review. |
 | Reservation language for Santarosa | `/santarosa/` | Legal-approved reservation wording, if reservations are still the intended step. |
 
-Effect on the site: no price component exists anywhere. The Santarosa RESERVATION STAGE and
-Brawley NOW DELIVERING chips remain because both are verified status facts, not prices.
+Effect on the site: no price component exists anywhere. V5 also removed the status chips
+along with the vehicle cards that carried them, so the two verified status facts are recorded
+below rather than shown.
 
 ## Specifications
 
@@ -37,22 +38,22 @@ and Brawley show only the rows that are verified, with no note about what is abs
 
 | Item | Affected routes | Required source |
 |---|---|---|
-| Dealer directory (names, addresses, phones, hours) | `/dealers/`, `/contact/` | An approved current dealer export. The legacy 71-record snapshot is reconciliation material, not production data. |
-| Dealer routing rules for inbound requests | `/contact/` | How a submitted request should reach the right dealer. |
+| Dealer directory (names, addresses, phones, hours) | `/dealers/` | An approved current dealer export. The legacy 71-record snapshot is reconciliation material, not production data. |
+| Dealer routing rules for inbound requests | `/dealers/` | How a submitted request should reach the right dealer. |
 
-Effect on the site: `/dealers/` is a short honest page that explains Vanderhall sells
-through dealers and routes visitors to the contact form, plus the two dealer business
-forms. There is no ZIP search, no dealer list, and no empty dealer component. The contact
-form no longer asks the visitor to choose a dealer, because there is no list to choose from.
+Effect on the site: `/dealers/` explains that Vanderhall sells through dealers and now
+carries the single Request Info form itself, plus links to the two dealer business forms.
+There is no ZIP search, no dealer list, and no empty dealer component. The form does not ask
+the visitor to choose a dealer, because there is no list to choose from.
 
 ## Forms
 
 | Item | Affected routes | Required source |
 |---|---|---|
-| Submission destination for Request Info | `/contact/` | Endpoint, recipient, and field mapping. `FORM_ENDPOINTS` in `src/data/forms.mjs` stays null until then. |
+| Submission destination for Request Info | `/dealers/` | Endpoint, recipient, and field mapping. `FORM_ENDPOINTS` in `src/data/forms.mjs` stays null until then. |
 | Submission destination for Recommend a Dealer | `/recommend-dealer/` | Same. |
 | Submission destination for International Dealer Inquiry | `/dealer-inquiry/` | Same. |
-| Email and SMS consent language | `/contact/` | Legal-approved consent wording. |
+| Email and SMS consent language | `/dealers/` | Legal-approved consent wording. |
 | Success copy and response-time commitment | all three forms | Approved copy plus whatever response time Vanderhall will stand behind. |
 | Submitter confirmation email | all three forms | Whether one is sent, and its copy. |
 | Final spam protection | all three forms | Decided together with the endpoint platform. The honeypot and render-timestamp checks are in place already. |
@@ -66,7 +67,7 @@ rather than shown with placeholder legal text. No endpoint gate blocks are rende
 | Item | Affected routes | Required source |
 |---|---|---|
 | Site-wide safety boilerplate (helmet, seatbelt, training) | `/brawley/` and any vehicle page | Legal-approved language. The V3 site shipped a helmet and training notice that was never approved; V4 removed it. This is the highest-priority item on this list for a vehicle site. |
-| Licensing and endorsement guidance | `/faq/` | Legal-approved answer on helmet requirements and motorcycle endorsements. |
+| Licensing and endorsement guidance | no public home since V5 retired `/faq/` | Legal-approved answer on helmet requirements and motorcycle endorsements. |
 | Privacy policy, terms, accessibility statement | footer | Approved documents. No footer links to them exist today. |
 
 ## Brand and media
@@ -81,9 +82,48 @@ rather than shown with placeholder legal text. No endpoint gate blocks are rende
 | Night or dusk photography for Venice, Carmel, Santarosa | model pages | Approved images. |
 
 Effect on the site: the About page is removed entirely (`/about/` redirects to the
-homepage), and the homepage carries no company narrative section. Company facts that are
-verified (founded 2010 by Steve Hall, headquarters and manufacturing in Provo, Utah, Laguna
-production from 2016) appear on `/faq/` and in the homepage hero copy.
+homepage), and the homepage carries no company narrative section. Of the verified company
+facts, only Provo as the place of manufacture and 2010 as a continuity date still appear
+publicly, both in the homepage hero copy. The rest moved to the section below when V5
+retired `/faq/`.
+
+## Verified facts no longer published
+
+These are not missing. Each was verified and was published on the live site until V5 retired
+the page or component that carried it. They are recorded here so a later version can restore
+them deliberately instead of rediscovering them.
+
+| Fact | Where it used to appear | Why it left |
+|---|---|---|
+| Steve Hall founded Vanderhall | `/faq/` | The only occurrence of the name anywhere in `src/`. The site now says "built by Vanderhall since 2010" and names no founder. |
+| Vanderhall was founded in 2010 | `/faq/` | "Founded in 2010" is now "since 2010" in the hero, which is a continuity claim rather than a founding claim. |
+| The Laguna entered production in 2016 | `/faq/` | Nothing else on the site states this. Laguna survives only as a 2016 owner's manual row on `/owners/`. |
+| Provo is the headquarters | `/faq/` | The site elsewhere says hand-built in Provo, which is manufacturing. Only the FAQ called it headquarters. |
+| Brawley is now delivering | vehicle card status chip | V5 removed the card grid and its status chips. Still verified, just not shown. |
+| Santarosa is at reservation stage | vehicle card status chip | Same. Note the reservation wording itself was never legally approved, which is a separate open item under Pricing. |
+
+Owen confirmed on 2026-08-04 that losing the five FAQ answers is acceptable.
+
+## Media that must not be used
+
+| File | Problem |
+|---|---|
+| `Assets/Legacy Website Selection/Santarosa/santarosa-action-winding-road.jpg` | Appears to carry a tiled stock-agency watermark across the sky. Not delivered anywhere. Must not be used until rights are confirmed. |
+
+## Baked disclaimer text in source photography
+
+Thirteen source photographs carry the legacy helmet and training paragraph burned into their
+pixels. V4 removed that paragraph from the site as unapproved legal language but six delivered
+photographs still shipped it as pixels, on four pages including Brawley itself, while the build
+manifest recorded `verified_clean: yes` for all six.
+
+V5 fixed this. `scripts/process-images.mjs` now holds the measured band for each affected
+source in `BAKED_TEXT_BANDS`, every delivered crop is checked against that band, and
+`verified_clean` is derived from whether the delivered window excludes it rather than asserted.
+`clean_basis` in `assets/build-manifest.json` records the arithmetic per file, and
+`scripts/check-content.mjs` fails the build if any delivered crop overlaps a band or if a
+corrected delivery stops recording its derivation. If a new placement needs one of these
+sources, give it an explicit extract window; do not trust the flag without the basis.
 
 ## Deferred by decision, not missing
 

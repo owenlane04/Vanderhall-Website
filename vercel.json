@@ -4,6 +4,8 @@
   "outputDirectory": "public",
   "redirects": [
     { "source": "/about", "destination": "/", "permanent": true },
-    { "source": "/about/", "destination": "/", "permanent": true }
+    { "source": "/about/", "destination": "/", "permanent": true },
+    { "source": "/contact", "destination": "/dealers/", "permanent": true },
+    { "source": "/contact/", "destination": "/dealers/", "permanent": true }
   ]
 }

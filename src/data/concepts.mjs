@@ -1,4 +1,6 @@
-const card = (slug, alt) => ({ src: `/assets/images/v3/concepts/hub/${slug}-656.webp`, width: 656, height: 445, alt });
+// Dimensions are not restated here. Hub cards are cut to the vehicle band in each source and
+// centred on a fresh canvas, so their delivered size is read from the build manifest instead.
+const card = (slug, alt) => ({ src: `/assets/images/v3/concepts/hub/${slug}-656.webp`, alt });
 
 export const concepts = [
   {

@@ -19,10 +19,10 @@
     <div class="site-header__inner">
       <a class="brand" href="/"><img src="/assets/brand/vanderhall-lockup-horizontal.svg" alt="Vanderhall home" width="269" height="28"></a>
       <nav class="desktop-nav" aria-label="Primary">
-        <a class="nav-link" href="/vehicles/">Vehicles</a><a class="nav-link" href="/concepts/">Concepts</a><a class="nav-link" href="/owners/">Owners</a><a class="nav-link" href="/faq/">Support</a>
+        <a class="nav-link" href="/vehicles/">Vehicles</a><a class="nav-link" href="/concepts/">Concepts</a><a class="nav-link" href="/owners/">Owners</a><a class="nav-link" href="/dealers/">Dealers</a>
       </nav>
       <div class="site-header__actions">
-        <a class="button button--primary header-request" href="/contact/">Request info</a>
+        <a class="button button--primary header-request" href="/dealers/">Request info</a>
         <button class="icon-button desktop-theme" type="button" data-theme-toggle aria-label="Use dark theme"><span aria-hidden="true">◐</span></button>
         <button class="icon-button menu-button" type="button" data-open-menu aria-label="Open menu" aria-expanded="false"><span aria-hidden="true">☰</span></button>
       </div>
@@ -31,68 +31,81 @@
   <div class="sheet" data-menu-sheet hidden aria-hidden="true">
     <div class="sheet__top"><img class="brand brand--sheet" src="/assets/brand/vanderhall-lockup-horizontal.svg" alt="Vanderhall" width="211" height="22"><button class="icon-button" type="button" data-close-menu aria-label="Close menu">×</button></div>
     <nav class="mobile-nav" aria-label="Mobile primary">
-      <a href="/vehicles/">Vehicles</a><a href="/concepts/">Concepts</a><a href="/owners/">Owners</a><a href="/faq/">Support</a>
-      <a class="button button--primary" href="/contact/">Request info</a>
+      <a href="/vehicles/">Vehicles</a><a href="/concepts/">Concepts</a><a href="/owners/">Owners</a><a href="/dealers/">Dealers</a>
+      <a class="button button--primary" href="/dealers/">Request info</a>
       <button class="button button--secondary" type="button" data-theme-toggle>Change theme</button>
     </nav>
   </div>
   <div class="sheet-backdrop" data-sheet-backdrop hidden></div>
   <main id="main"><div class="page">
-    <section class="hero bleed" style="--hero-focal:47% 60%">
-    <div class="hero__media"><picture><source media="(max-width: 767px)" srcset="/assets/images/v2/heroes/home/home-tall-480.webp 480w, /assets/images/v2/heroes/home/home-tall-720.webp 720w, /assets/images/v2/heroes/home/home-tall-960.webp 960w" sizes="100vw"><img class="hero__image" src="/assets/images/v2/heroes/home/home-wide-1920.webp" srcset="/assets/images/v2/heroes/home/home-wide-960.webp 960w, /assets/images/v2/heroes/home/home-wide-1280.webp 1280w, /assets/images/v2/heroes/home/home-wide-1920.webp 1920w, /assets/images/v2/heroes/home/home-wide-2560.webp 2560w" sizes="100vw" width="1920" height="823" alt="Green Vanderhall Brawley on a mountain pass at sunset" loading="eager" fetchpriority="high" decoding="async"></picture></div>
+    <section class="hero bleed" style="--hero-focal:50% 50%">
+    <div class="hero__media"><picture><source media="(max-width: 767px)" srcset="/assets/images/v3/heroes/home/home-tall-480.webp 480w, /assets/images/v3/heroes/home/home-tall-720.webp 720w, /assets/images/v3/heroes/home/home-tall-960.webp 960w" sizes="100vw"><img class="hero__image" src="/assets/images/v3/heroes/home/home-wide-1920.webp" srcset="/assets/images/v3/heroes/home/home-wide-960.webp 960w, /assets/images/v3/heroes/home/home-wide-1280.webp 1280w, /assets/images/v3/heroes/home/home-wide-1920.webp 1920w, /assets/images/v3/heroes/home/home-wide-2560.webp 2560w" sizes="100vw" width="1920" height="823" alt="Tan Vanderhall Brawley climbing a rock ledge above a mountain lake" loading="eager" fetchpriority="high" decoding="async"></picture></div>
     <div class="hero__scrim" aria-hidden="true"></div>
     <div class="hero__content"><p class="eyebrow">VANDERHALL MOTOR WORKS</p>
       <h1>Hand-built in Provo, Utah.</h1>
       <p class="hero__descriptor">Three-wheel gas roadsters and electric vehicles, built by Vanderhall since 2010.</p>
       <div class="hero__actions"><a class="button button--inverse" href="/vehicles/">Explore vehicles</a></div></div>
   </section>
-    <section class="section" id="vehicles"><div class="section-heading"><p class="eyebrow">VEHICLES</p><h2>Choose a vehicle</h2></div><div class="card-grid card-grid--vehicles"><article class="card">
-    <div class="card__media"><img src="/assets/images/v2/cards/venice/venice-800.webp" srcset="/assets/images/v2/cards/venice/venice-500.webp 500w, /assets/images/v2/cards/venice/venice-800.webp 800w" width="800" height="500" sizes="(min-width: 1280px) 25vw, (min-width: 768px) 45vw, 92vw" alt="Silver Vanderhall Venice side profile by the sea" loading="lazy" decoding="async" style="--media-focal:50% 55%"></div>
-    <div class="card__body">
-      <div class="chip-row"><span class="chip">gas · 3-wheel</span></div>
-      <h3 class="card__title"><a class="card__link" href="/venice/">Venice</a></h3>
-      <p class="card__descriptor">Three-wheel gas roadster.</p>
-      <p class="card__cue">Explore<span aria-hidden="true"> →</span></p>
+    <section class="section" id="vehicles">
+      <div class="section-heading"><p class="eyebrow">VEHICLES</p><h2>Gas and electric, built in Provo.</h2></div>
+      <!-- Every section here sits below the hero, so none of them competes with it for
+           bandwidth. The hero is the only eagerly fetched image on this page. -->
+      <div class="vehicle-scroll"><section class="vehicle-section">
+    <div class="vehicle-section__media">
+      <div class="vehicle-section__lead"><img src="/assets/images/v2/features/venice/seaside-960.webp" srcset="/assets/images/v2/features/venice/seaside-640.webp 640w, /assets/images/v2/features/venice/seaside-960.webp 960w, /assets/images/v2/features/venice/seaside-1280.webp 1280w" width="960" height="640" sizes="(min-width: 768px) 45vw, 92vw" alt="Silver Vanderhall Venice side profile by the sea" loading="lazy" decoding="async"></div>
+      
     </div>
-  </article><article class="card">
-    <div class="card__media"><img src="/assets/images/v2/cards/carmel/carmel-800.webp" srcset="/assets/images/v2/cards/carmel/carmel-500.webp 500w, /assets/images/v2/cards/carmel/carmel-800.webp 800w" width="800" height="500" sizes="(min-width: 1280px) 25vw, (min-width: 768px) 45vw, 92vw" alt="Red Vanderhall Carmel three-quarter front at sunset" loading="lazy" decoding="async" style="--media-focal:52% 60%"></div>
-    <div class="card__body">
-      <div class="chip-row"><span class="chip">gas · 3-wheel</span></div>
-      <h3 class="card__title"><a class="card__link" href="/carmel/">Carmel</a></h3>
-      <p class="card__descriptor">Three-wheel gas roadster.</p>
-      <p class="card__cue">Explore<span aria-hidden="true"> →</span></p>
+    <div class="vehicle-section__body">
+      <h3>Venice</h3>
+      <p>Open two-seat gas roadster on three wheels, shown here in silver over black.</p>
+      <a class="text-link" href="/venice/">Explore Venice<span aria-hidden="true"> →</span></a>
     </div>
-  </article><article class="card">
-    <div class="card__media"><img src="/assets/images/v3/cards/santarosa-800.webp" srcset="/assets/images/v3/cards/santarosa-500.webp 500w, /assets/images/v3/cards/santarosa-800.webp 800w" width="800" height="500" sizes="(min-width: 1280px) 25vw, (min-width: 768px) 45vw, 92vw" alt="Blue Vanderhall Santarosa parked in an aircraft hangar" loading="lazy" decoding="async" style="--media-focal:50% 50%"><span class="chip chip--status card__status">RESERVATION STAGE</span></div>
-    <div class="card__body">
-      <div class="chip-row"><span class="chip">electric · 3-wheel</span></div>
-      <h3 class="card__title"><a class="card__link" href="/santarosa/">Santarosa</a></h3>
-      <p class="card__descriptor">Three-wheel electric autocycle.</p>
-      <p class="card__cue">Explore<span aria-hidden="true"> →</span></p>
+  </section><section class="vehicle-section vehicle-section--reverse">
+    <div class="vehicle-section__media">
+      <div class="vehicle-section__lead"><img src="/assets/images/v2/features/carmel/beach-reflection-960.webp" srcset="/assets/images/v2/features/carmel/beach-reflection-640.webp 640w, /assets/images/v2/features/carmel/beach-reflection-960.webp 960w, /assets/images/v2/features/carmel/beach-reflection-1280.webp 1280w" width="960" height="640" sizes="(min-width: 768px) 45vw, 92vw" alt="Red Vanderhall Carmel on damp sand at first light" loading="lazy" decoding="async"></div>
+      
     </div>
-  </article><article class="card">
-    <div class="card__media"><img src="/assets/images/v3/cards/brawley-800.webp" srcset="/assets/images/v3/cards/brawley-500.webp 500w, /assets/images/v3/cards/brawley-800.webp 800w" width="800" height="500" sizes="(min-width: 1280px) 25vw, (min-width: 768px) 45vw, 92vw" alt="Red and white Vanderhall Brawley parked among desert rock formations" loading="lazy" decoding="async" style="--media-focal:50% 50%"><span class="chip chip--status card__status">NOW DELIVERING</span></div>
-    <div class="card__body">
-      <div class="chip-row"><span class="chip">electric · 4x4</span></div>
-      <h3 class="card__title"><a class="card__link" href="/brawley/">Brawley</a></h3>
-      <p class="card__descriptor">Quad-motor electric off-road UTV.</p>
-      <p class="card__cue">Explore<span aria-hidden="true"> →</span></p>
+    <div class="vehicle-section__body">
+      <h3>Carmel</h3>
+      <p>Open two-seat gas roadster on three wheels, shown here in red with a tan interior.</p>
+      <a class="text-link" href="/carmel/">Explore Carmel<span aria-hidden="true"> →</span></a>
     </div>
-  </article></div></section>
+  </section><section class="vehicle-section">
+    <div class="vehicle-section__media">
+      <div class="vehicle-section__lead"><img src="/assets/images/v2/features/santarosa/sunset-960.webp" srcset="/assets/images/v2/features/santarosa/sunset-640.webp 640w, /assets/images/v2/features/santarosa/sunset-960.webp 960w, /assets/images/v2/features/santarosa/sunset-1280.webp 1280w" width="960" height="640" sizes="(min-width: 768px) 45vw, 92vw" alt="Red Vanderhall Santarosa at a mountain turnout at sunset" loading="lazy" decoding="async"></div>
+      
+    </div>
+    <div class="vehicle-section__body">
+      <h3>Santarosa</h3>
+      <p>Three-wheel electric autocycle. Twin motors drive the front wheels, with 180 hp and a published standard range of 150 mi.</p>
+      <a class="text-link" href="/santarosa/">Explore Santarosa<span aria-hidden="true"> →</span></a>
+    </div>
+  </section><section class="vehicle-section vehicle-section--reverse">
+    <div class="vehicle-section__media">
+      <div class="vehicle-section__lead"><img src="/assets/images/brawley/lifestyle/juniper-960.webp" srcset="/assets/images/brawley/lifestyle/juniper-640.webp 640w, /assets/images/brawley/lifestyle/juniper-960.webp 960w, /assets/images/brawley/lifestyle/juniper-1280.webp 1280w" width="960" height="640" sizes="(min-width: 768px) 45vw, 92vw" alt="Green Vanderhall Brawley beneath a juniper with snow-dusted peaks behind" loading="lazy" decoding="async"></div>
+      
+    </div>
+    <div class="vehicle-section__body">
+      <h3>Brawley</h3>
+      <p>Quad-motor electric off-road UTV with seating for four, 488 lb-ft of torque, and up to 140 mi of range.</p>
+      <a class="text-link" href="/brawley/">Explore Brawley<span aria-hidden="true"> →</span></a>
+    </div>
+  </section></div>
+    </section>
     <section class="section split">
       <div class="split__body"><div class="section-heading"><p class="eyebrow">CONCEPTS</p><h2>Design studies</h2></div><p>Nine Vanderhall concept vehicles. They are not offered for sale.</p><div class="cluster"><a class="button button--secondary" href="/concepts/">View concepts</a></div></div>
       <a class="split__media" href="/concepts/"><img src="/assets/images/v3/concepts/indio/hero-1440.webp" srcset="/assets/images/v3/concepts/indio/hero-960.webp 960w, /assets/images/v3/concepts/indio/hero-1440.webp 1440w, /assets/images/v3/concepts/indio/hero-2560.webp 2560w" width="1440" height="751" sizes="(min-width: 768px) 45vw, 92vw" alt="Green Vanderhall Indio concept side profile at the ocean at sunset" loading="lazy" decoding="async"></a>
     </section>
     <section class="section row-links">
       <div><h2>Owner resources</h2><p>Vanderhall owner's manuals by model and year.</p><a class="text-link" href="/owners/">View owner resources<span aria-hidden="true"> →</span></a></div>
-      <div><h2>Talk with Vanderhall</h2><p>Ask about a vehicle or how to reach a dealer.</p><a class="text-link" href="/contact/">Request info<span aria-hidden="true"> →</span></a></div>
+      <div><h2>Talk with Vanderhall</h2><p>Tell Vanderhall where you are and which vehicle interests you.</p><a class="text-link" href="/dealers/">Request info<span aria-hidden="true"> →</span></a></div>
     </section>
   </div></main>
   <footer class="site-footer">
   <div class="footer-links">
     <div><h2>Vehicles</h2><a href="/venice/">Venice</a><a href="/carmel/">Carmel</a><a href="/santarosa/">Santarosa</a><a href="/brawley/">Brawley</a><a href="/concepts/">Concepts</a></div>
-    <div><h2>Owners</h2><a href="/owners/">Owner resources</a><a href="/faq/">Support</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a></div>
-    <div><h2>Connect</h2><a href="/contact/">Contact</a><a href="/dealers/">Dealers</a><a href="/recommend-dealer/">Recommend a dealer</a><a href="/dealer-inquiry/">Become a dealer</a></div>
+    <div><h2>Owners</h2><a href="/owners/">Owner resources</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a></div>
+    <div><h2>Connect</h2><a href="/dealers/">Dealers</a><a href="/recommend-dealer/">Recommend a dealer</a><a href="/dealer-inquiry/">Become a dealer</a></div>
   </div>
   <div class="footer-legal">
     <img class="footer-lockup" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" width="231" height="24" loading="lazy" decoding="async" alt="Vanderhall Motor Works">

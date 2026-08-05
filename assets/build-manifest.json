@@ -1,126 +1,5 @@
 [
   {
-    "delivered_file": "assets/images/v2/cards/venice/venice-500.webp",
-    "source_path": "Assets/Legacy Website Selection/Venice/venice-exterior-seaside-profile.jpg",
-    "transform": "16:10 card, focal 50% 55%",
-    "verified_clean": "yes",
-    "source_width": 1750,
-    "source_height": 1167,
-    "output_width": 500,
-    "output_height": 313,
-    "crop_window": "full frame"
-  },
-  {
-    "delivered_file": "assets/images/v2/cards/venice/venice-800.webp",
-    "source_path": "Assets/Legacy Website Selection/Venice/venice-exterior-seaside-profile.jpg",
-    "transform": "16:10 card, focal 50% 55%",
-    "verified_clean": "yes",
-    "source_width": 1750,
-    "source_height": 1167,
-    "output_width": 800,
-    "output_height": 500,
-    "crop_window": "full frame"
-  },
-  {
-    "delivered_file": "assets/images/v2/cards/carmel/carmel-500.webp",
-    "source_path": "Assets/Legacy Website Selection/Carmel/carmel-hero-sunset.jpg",
-    "transform": "16:10 card, focal 52% 60%",
-    "verified_clean": "yes",
-    "source_width": 2100,
-    "source_height": 1399,
-    "output_width": 500,
-    "output_height": 313,
-    "crop_window": "full frame"
-  },
-  {
-    "delivered_file": "assets/images/v2/cards/carmel/carmel-800.webp",
-    "source_path": "Assets/Legacy Website Selection/Carmel/carmel-hero-sunset.jpg",
-    "transform": "16:10 card, focal 52% 60%",
-    "verified_clean": "yes",
-    "source_width": 2100,
-    "source_height": 1399,
-    "output_width": 800,
-    "output_height": 500,
-    "crop_window": "full frame"
-  },
-  {
-    "delivered_file": "assets/images/v2/heroes/home/home-wide-960.webp",
-    "source_path": "Assets/Legacy Website Selection/Brawley/brawley-hero-mountain-pass.jpg",
-    "transform": "21:9 hero, focal 47% 60%",
-    "verified_clean": "yes",
-    "source_width": 2700,
-    "source_height": 1514,
-    "output_width": 960,
-    "output_height": 411,
-    "crop_window": "full frame"
-  },
-  {
-    "delivered_file": "assets/images/v2/heroes/home/home-wide-1280.webp",
-    "source_path": "Assets/Legacy Website Selection/Brawley/brawley-hero-mountain-pass.jpg",
-    "transform": "21:9 hero, focal 47% 60%",
-    "verified_clean": "yes",
-    "source_width": 2700,
-    "source_height": 1514,
-    "output_width": 1280,
-    "output_height": 549,
-    "crop_window": "full frame"
-  },
-  {
-    "delivered_file": "assets/images/v2/heroes/home/home-wide-1920.webp",
-    "source_path": "Assets/Legacy Website Selection/Brawley/brawley-hero-mountain-pass.jpg",
-    "transform": "21:9 hero, focal 47% 60%",
-    "verified_clean": "yes",
-    "source_width": 2700,
-    "source_height": 1514,
-    "output_width": 1920,
-    "output_height": 823,
-    "crop_window": "full frame"
-  },
-  {
-    "delivered_file": "assets/images/v2/heroes/home/home-wide-2560.webp",
-    "source_path": "Assets/Legacy Website Selection/Brawley/brawley-hero-mountain-pass.jpg",
-    "transform": "21:9 hero, focal 47% 60%",
-    "verified_clean": "yes",
-    "source_width": 2700,
-    "source_height": 1514,
-    "output_width": 2560,
-    "output_height": 1097,
-    "crop_window": "full frame"
-  },
-  {
-    "delivered_file": "assets/images/v2/heroes/home/home-tall-480.webp",
-    "source_path": "Assets/Legacy Website Selection/Brawley/brawley-hero-mountain-pass.jpg",
-    "transform": "4:5 mobile hero, focal 47% 60%",
-    "verified_clean": "yes",
-    "source_width": 2700,
-    "source_height": 1514,
-    "output_width": 480,
-    "output_height": 600,
-    "crop_window": "full frame"
-  },
-  {
-    "delivered_file": "assets/images/v2/heroes/home/home-tall-720.webp",
-    "source_path": "Assets/Legacy Website Selection/Brawley/brawley-hero-mountain-pass.jpg",
-    "transform": "4:5 mobile hero, focal 47% 60%",
-    "verified_clean": "yes",
-    "source_width": 2700,
-    "source_height": 1514,
-    "output_width": 720,
-    "output_height": 900,
-    "crop_window": "full frame"
-  },
-  {
-    "delivered_file": "assets/images/v2/heroes/home/home-tall-960.webp",
-    "source_path": "Assets/Legacy Website Selection/Brawley/brawley-hero-mountain-pass.jpg",
-    "transform": "4:5 mobile hero, focal 47% 60%",
-    "verified_clean": "yes",
-    "source_width": 2700,
-    "source_height": 1514,
-    "output_width": 960,
-    "output_height": 1200,
-    "crop_window": "full frame"
-  },
-  {
     "delivered_file": "assets/images/v2/heroes/venice/venice-wide-960.webp",
     "source_path": "Assets/Legacy Website Selection/Venice/venice-hero-light-streaks.jpg",
     "transform": "21:9 hero, focal 45% 55%",
@@ -264,70 +143,109 @@
     "crop_window": "full frame"
   },
   {
+    "delivered_file": "assets/images/v2/features/venice/seaside-640.webp",
+    "source_path": "Assets/Legacy Website Selection/Venice/venice-exterior-seaside-profile.jpg",
+    "transform": "640x427 cover crop",
+    "verified_clean": "yes",
+    "source_width": 1750,
+    "source_height": 1167,
+    "output_width": 640,
+    "output_height": 427,
+    "crop_window": "full frame"
+  },
+  {
+    "delivered_file": "assets/images/v2/features/venice/seaside-960.webp",
+    "source_path": "Assets/Legacy Website Selection/Venice/venice-exterior-seaside-profile.jpg",
+    "transform": "960x640 cover crop",
+    "verified_clean": "yes",
+    "source_width": 1750,
+    "source_height": 1167,
+    "output_width": 960,
+    "output_height": 640,
+    "crop_window": "full frame"
+  },
+  {
+    "delivered_file": "assets/images/v2/features/venice/seaside-1280.webp",
+    "source_path": "Assets/Legacy Website Selection/Venice/venice-exterior-seaside-profile.jpg",
+    "transform": "1280x853 cover crop",
+    "verified_clean": "yes",
+    "source_width": 1750,
+    "source_height": 1167,
+    "output_width": 1280,
+    "output_height": 853,
+    "crop_window": "full frame"
+  },
+  {
     "delivered_file": "assets/images/v2/features/venice/motion-640.webp",
     "source_path": "Assets/Legacy Website Selection/Venice/venice-action-tunnel.jpg",
-    "transform": "640x427 cover crop",
+    "transform": "3:2 crop inside y=0..1420; legacy safety paragraph excluded",
     "verified_clean": "yes",
     "source_width": 2880,
     "source_height": 1620,
     "output_width": 640,
     "output_height": 427,
-    "crop_window": "full frame"
+    "crop_window": "x=0 y=0 width=2880 height=1420",
+    "clean_basis": "baked text y=1425..1515; delivered y=0..1419; excluded"
   },
   {
     "delivered_file": "assets/images/v2/features/venice/motion-960.webp",
     "source_path": "Assets/Legacy Website Selection/Venice/venice-action-tunnel.jpg",
-    "transform": "960x640 cover crop",
+    "transform": "3:2 crop inside y=0..1420; legacy safety paragraph excluded",
     "verified_clean": "yes",
     "source_width": 2880,
     "source_height": 1620,
     "output_width": 960,
     "output_height": 640,
-    "crop_window": "full frame"
+    "crop_window": "x=0 y=0 width=2880 height=1420",
+    "clean_basis": "baked text y=1425..1515; delivered y=0..1419; excluded"
   },
   {
     "delivered_file": "assets/images/v2/features/venice/motion-1280.webp",
     "source_path": "Assets/Legacy Website Selection/Venice/venice-action-tunnel.jpg",
-    "transform": "1280x853 cover crop",
+    "transform": "3:2 crop inside y=0..1420; legacy safety paragraph excluded",
     "verified_clean": "yes",
     "source_width": 2880,
     "source_height": 1620,
     "output_width": 1280,
     "output_height": 853,
-    "crop_window": "full frame"
+    "crop_window": "x=0 y=0 width=2880 height=1420",
+    "clean_basis": "baked text y=1425..1515; delivered y=0..1419; excluded"
   },
   {
     "delivered_file": "assets/images/v2/features/venice/forest-road-640.webp",
     "source_path": "Assets/Legacy Website Selection/Venice/venice-lifestyle-forest-road.jpg",
-    "transform": "640x427 cover crop",
+    "transform": "3:2 crop inside y=0..1550; legacy safety paragraph excluded",
     "verified_clean": "yes",
     "source_width": 2880,
     "source_height": 1800,
     "output_width": 640,
     "output_height": 427,
-    "crop_window": "full frame"
+    "crop_window": "x=0 y=0 width=2880 height=1550",
+    "clean_basis": "baked text y=1560..1645; delivered y=0..1549; excluded"
   },
   {
     "delivered_file": "assets/images/v2/features/venice/forest-road-960.webp",
     "source_path": "Assets/Legacy Website Selection/Venice/venice-lifestyle-forest-road.jpg",
-    "transform": "960x640 cover crop",
+    "transform": "3:2 crop inside y=0..1550; legacy safety paragraph excluded",
     "verified_clean": "yes",
     "source_width": 2880,
     "source_height": 1800,
     "output_width": 960,
     "output_height": 640,
-    "crop_window": "full frame"
+    "crop_window": "x=0 y=0 width=2880 height=1550",
+    "clean_basis": "baked text y=1560..1645; delivered y=0..1549; excluded"
   },
   {
     "delivered_file": "assets/images/v2/features/venice/forest-road-1280.webp",
     "source_path": "Assets/Legacy Website Selection/Venice/venice-lifestyle-forest-road.jpg",
-    "transform": "1280x853 cover crop",
+    "transform": "3:2 crop inside y=0..1550; legacy safety paragraph excluded",
     "verified_clean": "yes",
     "source_width": 2880,
     "source_height": 1800,
     "output_width": 1280,
     "output_height": 853,
-    "crop_window": "full frame"
+    "crop_window": "x=0 y=0 width=2880 height=1550",
+    "clean_basis": "baked text y=1560..1645; delivered y=0..1549; excluded"
   },
   {
     "delivered_file": "assets/images/v2/features/venice/mountain-lake-640.webp",
@@ -530,35 +448,38 @@
   {
     "delivered_file": "assets/images/v2/features/carmel/lake-reflection-640.webp",
     "source_path": "Assets/Legacy Website Selection/Carmel/carmel-lifestyle-lake-reflection.jpg",
-    "transform": "640x427 cover crop",
+    "transform": "3:2 crop inside y=175..1919; legacy safety paragraph excluded",
     "verified_clean": "yes",
     "source_width": 2880,
     "source_height": 1919,
     "output_width": 640,
     "output_height": 427,
-    "crop_window": "full frame"
+    "crop_window": "x=0 y=175 width=2880 height=1744",
+    "clean_basis": "baked text y=75..160; delivered y=175..1918; excluded"
   },
   {
     "delivered_file": "assets/images/v2/features/carmel/lake-reflection-960.webp",
     "source_path": "Assets/Legacy Website Selection/Carmel/carmel-lifestyle-lake-reflection.jpg",
-    "transform": "960x640 cover crop",
+    "transform": "3:2 crop inside y=175..1919; legacy safety paragraph excluded",
     "verified_clean": "yes",
     "source_width": 2880,
     "source_height": 1919,
     "output_width": 960,
     "output_height": 640,
-    "crop_window": "full frame"
+    "crop_window": "x=0 y=175 width=2880 height=1744",
+    "clean_basis": "baked text y=75..160; delivered y=175..1918; excluded"
   },
   {
     "delivered_file": "assets/images/v2/features/carmel/lake-reflection-1280.webp",
     "source_path": "Assets/Legacy Website Selection/Carmel/carmel-lifestyle-lake-reflection.jpg",
-    "transform": "1280x853 cover crop",
+    "transform": "3:2 crop inside y=175..1919; legacy safety paragraph excluded",
     "verified_clean": "yes",
     "source_width": 2880,
     "source_height": 1919,
     "output_width": 1280,
     "output_height": 853,
-    "crop_window": "full frame"
+    "crop_window": "x=0 y=175 width=2880 height=1744",
+    "clean_basis": "baked text y=75..160; delivered y=175..1918; excluded"
   },
   {
     "delivered_file": "assets/images/v2/features/carmel/dashboard-640.webp",
@@ -662,35 +583,38 @@
   {
     "delivered_file": "assets/images/v2/features/santarosa/sunset-640.webp",
     "source_path": "Assets/Legacy Website Selection/Santarosa/santarosa-lifestyle-sunset.jpg",
-    "transform": "640x427 cover crop",
+    "transform": "3:2 crop inside y=0..1490; legacy safety paragraph excluded",
     "verified_clean": "yes",
     "source_width": 2880,
     "source_height": 1598,
     "output_width": 640,
     "output_height": 427,
-    "crop_window": "full frame"
+    "crop_window": "x=0 y=0 width=2880 height=1490",
+    "clean_basis": "baked text y=1500..1565; delivered y=0..1489; excluded"
   },
   {
     "delivered_file": "assets/images/v2/features/santarosa/sunset-960.webp",
     "source_path": "Assets/Legacy Website Selection/Santarosa/santarosa-lifestyle-sunset.jpg",
-    "transform": "960x640 cover crop",
+    "transform": "3:2 crop inside y=0..1490; legacy safety paragraph excluded",
     "verified_clean": "yes",
     "source_width": 2880,
     "source_height": 1598,
     "output_width": 960,
     "output_height": 640,
-    "crop_window": "full frame"
+    "crop_window": "x=0 y=0 width=2880 height=1490",
+    "clean_basis": "baked text y=1500..1565; delivered y=0..1489; excluded"
   },
   {
     "delivered_file": "assets/images/v2/features/santarosa/sunset-1280.webp",
     "source_path": "Assets/Legacy Website Selection/Santarosa/santarosa-lifestyle-sunset.jpg",
-    "transform": "1280x853 cover crop",
+    "transform": "3:2 crop inside y=0..1490; legacy safety paragraph excluded",
     "verified_clean": "yes",
     "source_width": 2880,
     "source_height": 1598,
     "output_width": 1280,
     "output_height": 853,
-    "crop_window": "full frame"
+    "crop_window": "x=0 y=0 width=2880 height=1490",
+    "clean_basis": "baked text y=1500..1565; delivered y=0..1489; excluded"
   },
   {
     "delivered_file": "assets/images/v2/features/santarosa/city-640.webp",
@@ -891,6 +815,90 @@
     "crop_window": "full frame"
   },
   {
+    "delivered_file": "assets/images/v3/heroes/home/home-wide-960.webp",
+    "source_path": "/Users/owenburton/Desktop/v3 materials/Vehicle Cover Candidates/Brawley/brawley-lakeside.jpg",
+    "transform": "21:9 crop x=0..2880 y=246..1480; safety paragraph excluded; focal 50% 50%; 960w; WebP q80; verified clean",
+    "verified_clean": "yes",
+    "source_width": 2880,
+    "source_height": 1620,
+    "output_width": 960,
+    "output_height": 411,
+    "crop_window": "x=0 y=246 width=2880 height=1234",
+    "clean_basis": "baked text y=1500..1558; delivered y=246..1479; excluded"
+  },
+  {
+    "delivered_file": "assets/images/v3/heroes/home/home-wide-1280.webp",
+    "source_path": "/Users/owenburton/Desktop/v3 materials/Vehicle Cover Candidates/Brawley/brawley-lakeside.jpg",
+    "transform": "21:9 crop x=0..2880 y=246..1480; safety paragraph excluded; focal 50% 50%; 1280w; WebP q80; verified clean",
+    "verified_clean": "yes",
+    "source_width": 2880,
+    "source_height": 1620,
+    "output_width": 1280,
+    "output_height": 548,
+    "crop_window": "x=0 y=246 width=2880 height=1234",
+    "clean_basis": "baked text y=1500..1558; delivered y=246..1479; excluded"
+  },
+  {
+    "delivered_file": "assets/images/v3/heroes/home/home-wide-1920.webp",
+    "source_path": "/Users/owenburton/Desktop/v3 materials/Vehicle Cover Candidates/Brawley/brawley-lakeside.jpg",
+    "transform": "21:9 crop x=0..2880 y=246..1480; safety paragraph excluded; focal 50% 50%; 1920w; WebP q80; verified clean",
+    "verified_clean": "yes",
+    "source_width": 2880,
+    "source_height": 1620,
+    "output_width": 1920,
+    "output_height": 823,
+    "crop_window": "x=0 y=246 width=2880 height=1234",
+    "clean_basis": "baked text y=1500..1558; delivered y=246..1479; excluded"
+  },
+  {
+    "delivered_file": "assets/images/v3/heroes/home/home-wide-2560.webp",
+    "source_path": "/Users/owenburton/Desktop/v3 materials/Vehicle Cover Candidates/Brawley/brawley-lakeside.jpg",
+    "transform": "21:9 crop x=0..2880 y=246..1480; safety paragraph excluded; focal 50% 50%; 2560w; WebP q80; verified clean",
+    "verified_clean": "yes",
+    "source_width": 2880,
+    "source_height": 1620,
+    "output_width": 2560,
+    "output_height": 1097,
+    "crop_window": "x=0 y=246 width=2880 height=1234",
+    "clean_basis": "baked text y=1500..1558; delivered y=246..1479; excluded"
+  },
+  {
+    "delivered_file": "assets/images/v3/heroes/home/home-tall-480.webp",
+    "source_path": "/Users/owenburton/Desktop/v3 materials/Vehicle Cover Candidates/Brawley/brawley-lakeside.jpg",
+    "transform": "4:5 crop x=1120..2304 y=0..1480 centred on the vehicle; safety paragraph excluded; 480w; WebP q80; verified clean",
+    "verified_clean": "yes",
+    "source_width": 2880,
+    "source_height": 1620,
+    "output_width": 480,
+    "output_height": 600,
+    "crop_window": "x=1120 y=0 width=1184 height=1480",
+    "clean_basis": "baked text y=1500..1558; delivered y=0..1479; excluded"
+  },
+  {
+    "delivered_file": "assets/images/v3/heroes/home/home-tall-720.webp",
+    "source_path": "/Users/owenburton/Desktop/v3 materials/Vehicle Cover Candidates/Brawley/brawley-lakeside.jpg",
+    "transform": "4:5 crop x=1120..2304 y=0..1480 centred on the vehicle; safety paragraph excluded; 720w; WebP q80; verified clean",
+    "verified_clean": "yes",
+    "source_width": 2880,
+    "source_height": 1620,
+    "output_width": 720,
+    "output_height": 900,
+    "crop_window": "x=1120 y=0 width=1184 height=1480",
+    "clean_basis": "baked text y=1500..1558; delivered y=0..1479; excluded"
+  },
+  {
+    "delivered_file": "assets/images/v3/heroes/home/home-tall-960.webp",
+    "source_path": "/Users/owenburton/Desktop/v3 materials/Vehicle Cover Candidates/Brawley/brawley-lakeside.jpg",
+    "transform": "4:5 crop x=1120..2304 y=0..1480 centred on the vehicle; safety paragraph excluded; 960w; WebP q80; verified clean",
+    "verified_clean": "yes",
+    "source_width": 2880,
+    "source_height": 1620,
+    "output_width": 960,
+    "output_height": 1200,
+    "crop_window": "x=1120 y=0 width=1184 height=1480",
+    "clean_basis": "baked text y=1500..1558; delivered y=0..1479; excluded"
+  },
+  {
     "delivered_file": "assets/images/v3/heroes/santarosa/santarosa-wide-960.webp",
     "source_path": "/Users/owenburton/Desktop/v3 materials/Vehicle Cover Candidates/Santarosa/santarosa-hangar.jpg",
     "transform": "crop x=0..2880 y=300..1534; focal 34% 49%; 960w; WebP q80; verified clean",
@@ -1043,50 +1051,6 @@
     "output_width": 960,
     "output_height": 1200,
     "crop_window": "x=1170 y=0 width=1131 height=1414"
-  },
-  {
-    "delivered_file": "assets/images/v3/cards/santarosa-500.webp",
-    "source_path": "/Users/owenburton/Desktop/v3 materials/Vehicle Cover Candidates/Santarosa/santarosa-hangar.jpg",
-    "transform": "16:10 card crop x=30..1930 y=277..1465 centred on the vehicle; watermarks excluded",
-    "verified_clean": "yes",
-    "source_width": 2880,
-    "source_height": 1762,
-    "output_width": 500,
-    "output_height": 313,
-    "crop_window": "x=30 y=277 width=1900 height=1188"
-  },
-  {
-    "delivered_file": "assets/images/v3/cards/brawley-500.webp",
-    "source_path": "/Users/owenburton/Desktop/v3 materials/Vehicle Cover Candidates/Brawley/brawley-desert-three-quarter.jpg",
-    "transform": "16:10 card crop x=482..2382 y=220..1408 centred on the vehicle; corner watermark excluded",
-    "verified_clean": "yes",
-    "source_width": 2880,
-    "source_height": 1414,
-    "output_width": 500,
-    "output_height": 313,
-    "crop_window": "x=482 y=220 width=1900 height=1188"
-  },
-  {
-    "delivered_file": "assets/images/v3/cards/santarosa-800.webp",
-    "source_path": "/Users/owenburton/Desktop/v3 materials/Vehicle Cover Candidates/Santarosa/santarosa-hangar.jpg",
-    "transform": "16:10 card crop x=30..1930 y=277..1465 centred on the vehicle; watermarks excluded",
-    "verified_clean": "yes",
-    "source_width": 2880,
-    "source_height": 1762,
-    "output_width": 800,
-    "output_height": 500,
-    "crop_window": "x=30 y=277 width=1900 height=1188"
-  },
-  {
-    "delivered_file": "assets/images/v3/cards/brawley-800.webp",
-    "source_path": "/Users/owenburton/Desktop/v3 materials/Vehicle Cover Candidates/Brawley/brawley-desert-three-quarter.jpg",
-    "transform": "16:10 card crop x=482..2382 y=220..1408 centred on the vehicle; corner watermark excluded",
-    "verified_clean": "yes",
-    "source_width": 2880,
-    "source_height": 1414,
-    "output_width": 800,
-    "output_height": 500,
-    "crop_window": "x=482 y=220 width=1900 height=1188"
   },
   {
     "delivered_file": "assets/images/v3/concepts/indio/gallery-1-960.webp",
@@ -1991,103 +1955,103 @@
     "crop_window": "full frame"
   },
   {
-    "delivered_file": "assets/images/v3/concepts/hub/santarosa-r-656.webp",
-    "source_path": "/Users/owenburton/Desktop/v3 materials/Concepts/Hub Cards/santarosa-r-concept.jpg",
-    "transform": "native 656x445 hub card santarosa-r-concept.jpg; verified clean",
-    "verified_clean": "yes",
-    "source_width": 656,
-    "source_height": 445,
-    "output_width": 656,
-    "output_height": 445,
-    "crop_window": "full frame"
-  },
-  {
-    "delivered_file": "assets/images/v3/concepts/hub/speedster-656.webp",
-    "source_path": "/Users/owenburton/Desktop/v3 materials/Concepts/Hub Cards/speedster-concept.jpg",
-    "transform": "native 656x445 hub card speedster-concept.jpg; verified clean",
-    "verified_clean": "yes",
-    "source_width": 656,
-    "source_height": 445,
-    "output_width": 656,
-    "output_height": 445,
-    "crop_window": "full frame"
-  },
-  {
-    "delivered_file": "assets/images/v3/concepts/hub/yuma-656.webp",
-    "source_path": "/Users/owenburton/Desktop/v3 materials/Concepts/Hub Cards/yuma-concept.jpg",
-    "transform": "native 656x445 hub card yuma-concept.jpg; verified clean",
-    "verified_clean": "yes",
-    "source_width": 656,
-    "source_height": 445,
-    "output_width": 656,
-    "output_height": 445,
-    "crop_window": "full frame"
-  },
-  {
-    "delivered_file": "assets/images/v3/concepts/hub/yuma-defense-656.webp",
-    "source_path": "/Users/owenburton/Desktop/v3 materials/Concepts/Hub Cards/yuma-defense-concept.jpg",
-    "transform": "native 656x445 hub card yuma-defense-concept.jpg; verified clean",
-    "verified_clean": "yes",
-    "source_width": 656,
-    "source_height": 445,
-    "output_width": 656,
-    "output_height": 445,
-    "crop_window": "full frame"
-  },
-  {
-    "delivered_file": "assets/images/v3/concepts/hub/laduna-656.webp",
-    "source_path": "/Users/owenburton/Desktop/v3 materials/Concepts/Hub Cards/laduna-concept-blue-2.jpg",
-    "transform": "native 656x445 hub card laduna-concept-blue-2.jpg; verified clean",
-    "verified_clean": "yes",
-    "source_width": 656,
-    "source_height": 445,
-    "output_width": 656,
-    "output_height": 445,
-    "crop_window": "full frame"
-  },
-  {
-    "delivered_file": "assets/images/v3/concepts/hub/balboa-656.webp",
-    "source_path": "/Users/owenburton/Desktop/v3 materials/Concepts/Hub Cards/balboa-concept-2.jpg",
-    "transform": "native 656x445 hub card balboa-concept-2.jpg; verified clean",
-    "verified_clean": "yes",
-    "source_width": 656,
-    "source_height": 445,
-    "output_width": 656,
-    "output_height": 445,
-    "crop_window": "full frame"
-  },
-  {
     "delivered_file": "assets/images/v3/concepts/hub/indio-656.webp",
     "source_path": "Assets/Legacy Website Selection/Concepts/concept-indio.jpg",
-    "transform": "native 656x445 hub card concept-indio.jpg; verified clean",
+    "transform": "vehicle band x=0..516 y=155..319 centred on a 656x410 white canvas; baked wordmark excluded",
     "verified_clean": "yes",
     "source_width": 656,
     "source_height": 445,
     "output_width": 656,
-    "output_height": 445,
-    "crop_window": "full frame"
+    "output_height": 410,
+    "crop_window": "x=0 y=155 width=516 height=164"
   },
   {
     "delivered_file": "assets/images/v3/concepts/hub/coachella-656.webp",
     "source_path": "Assets/Legacy Website Selection/Concepts/concept-coachella.jpg",
-    "transform": "native 656x445 hub card concept-coachella.jpg; verified clean",
+    "transform": "vehicle band x=3..496 y=117..316 centred on a 656x410 white canvas; baked wordmark excluded",
     "verified_clean": "yes",
     "source_width": 656,
     "source_height": 445,
     "output_width": 656,
-    "output_height": 445,
-    "crop_window": "full frame"
+    "output_height": 410,
+    "crop_window": "x=3 y=117 width=493 height=199"
   },
   {
     "delivered_file": "assets/images/v3/concepts/hub/brawley-r-656.webp",
     "source_path": "Assets/Legacy Website Selection/Concepts/concept-brawley-r.jpg",
-    "transform": "native 656x445 hub card concept-brawley-r.jpg; verified clean",
+    "transform": "vehicle band x=7..528 y=83..323 centred on a 656x410 white canvas; baked wordmark excluded",
     "verified_clean": "yes",
     "source_width": 656,
     "source_height": 445,
     "output_width": 656,
-    "output_height": 445,
-    "crop_window": "full frame"
+    "output_height": 410,
+    "crop_window": "x=7 y=83 width=521 height=240"
+  },
+  {
+    "delivered_file": "assets/images/v3/concepts/hub/santarosa-r-656.webp",
+    "source_path": "/Users/owenburton/Desktop/v3 materials/Concepts/Hub Cards/santarosa-r-concept.jpg",
+    "transform": "vehicle band x=0..494 y=161..318 centred on a 656x410 white canvas; baked wordmark excluded",
+    "verified_clean": "yes",
+    "source_width": 656,
+    "source_height": 445,
+    "output_width": 656,
+    "output_height": 410,
+    "crop_window": "x=0 y=161 width=494 height=157"
+  },
+  {
+    "delivered_file": "assets/images/v3/concepts/hub/speedster-656.webp",
+    "source_path": "Assets/Legacy Website Selection/Concepts/concept-speedster.jpg",
+    "transform": "vehicle band x=1..491 y=163..317 centred on a 656x410 white canvas; baked wordmark excluded",
+    "verified_clean": "yes",
+    "source_width": 656,
+    "source_height": 445,
+    "output_width": 656,
+    "output_height": 410,
+    "crop_window": "x=1 y=163 width=490 height=154"
+  },
+  {
+    "delivered_file": "assets/images/v3/concepts/hub/yuma-656.webp",
+    "source_path": "Assets/Legacy Website Selection/Concepts/concept-yuma.jpg",
+    "transform": "vehicle band x=0..576 y=89..316 centred on a 656x410 white canvas; baked wordmark excluded",
+    "verified_clean": "yes",
+    "source_width": 656,
+    "source_height": 445,
+    "output_width": 656,
+    "output_height": 410,
+    "crop_window": "x=0 y=89 width=576 height=227"
+  },
+  {
+    "delivered_file": "assets/images/v3/concepts/hub/yuma-defense-656.webp",
+    "source_path": "/Users/owenburton/Desktop/v3 materials/Concepts/Hub Cards/yuma-defense-concept.jpg",
+    "transform": "vehicle band x=2..614 y=80..316 centred on a 656x410 white canvas; baked wordmark excluded",
+    "verified_clean": "yes",
+    "source_width": 656,
+    "source_height": 445,
+    "output_width": 656,
+    "output_height": 410,
+    "crop_window": "x=2 y=80 width=612 height=236"
+  },
+  {
+    "delivered_file": "assets/images/v3/concepts/hub/laduna-656.webp",
+    "source_path": "/Users/owenburton/Desktop/v3 materials/Concepts/Hub Cards/laduna-concept-blue-2.jpg",
+    "transform": "vehicle band x=2..436 y=117..318 centred on a 656x410 white canvas; baked wordmark excluded",
+    "verified_clean": "yes",
+    "source_width": 656,
+    "source_height": 445,
+    "output_width": 656,
+    "output_height": 410,
+    "crop_window": "x=2 y=117 width=434 height=201"
+  },
+  {
+    "delivered_file": "assets/images/v3/concepts/hub/balboa-656.webp",
+    "source_path": "Assets/Legacy Website Selection/Concepts/concept-balboa.jpg",
+    "transform": "vehicle band x=2..319 y=169..315 centred on a 656x410 white canvas; baked wordmark excluded",
+    "verified_clean": "yes",
+    "source_width": 656,
+    "source_height": 445,
+    "output_width": 656,
+    "output_height": 410,
+    "crop_window": "x=2 y=169 width=317 height=146"
   },
   {
     "delivered_file": "assets/images/v3/concepts/indio/wordmark.webp",
@@ -2191,40 +2155,43 @@
   {
     "delivered_file": "assets/images/brawley/lifestyle/desert-640.webp",
     "source_path": "Assets/Brawley-EV-desert-01-scaled.jpg",
-    "transform": "640w V1 carry-forward",
+    "transform": "640w 3:2 lifestyle; safety paragraph and part-frame trailer excluded",
     "verified_clean": "yes",
     "source_width": 2880,
     "source_height": 1921,
     "output_width": 640,
     "output_height": 427,
-    "crop_window": "full frame"
+    "crop_window": "x=320 y=160 width=2560 height=1707",
+    "clean_basis": "baked text y=70..140; delivered y=160..1866; excluded"
   },
   {
     "delivered_file": "assets/images/brawley/lifestyle/desert-960.webp",
     "source_path": "Assets/Brawley-EV-desert-01-scaled.jpg",
-    "transform": "960w V1 carry-forward",
+    "transform": "960w 3:2 lifestyle; safety paragraph and part-frame trailer excluded",
     "verified_clean": "yes",
     "source_width": 2880,
     "source_height": 1921,
     "output_width": 960,
     "output_height": 640,
-    "crop_window": "full frame"
+    "crop_window": "x=320 y=160 width=2560 height=1707",
+    "clean_basis": "baked text y=70..140; delivered y=160..1866; excluded"
   },
   {
     "delivered_file": "assets/images/brawley/lifestyle/desert-1280.webp",
     "source_path": "Assets/Brawley-EV-desert-01-scaled.jpg",
-    "transform": "1280w V1 carry-forward",
+    "transform": "1280w 3:2 lifestyle; safety paragraph and part-frame trailer excluded",
     "verified_clean": "yes",
     "source_width": 2880,
     "source_height": 1921,
     "output_width": 1280,
-    "output_height": 854,
-    "crop_window": "full frame"
+    "output_height": 853,
+    "crop_window": "x=320 y=160 width=2560 height=1707",
+    "clean_basis": "baked text y=70..140; delivered y=161..1866; excluded"
   },
   {
     "delivered_file": "assets/images/brawley/lifestyle/interior-640.webp",
     "source_path": "Assets/Brawley-GTS-EV-interior-scaled.jpg",
-    "transform": "640w V1 carry-forward",
+    "transform": "640w 3:2 lifestyle",
     "verified_clean": "yes",
     "source_width": 2880,
     "source_height": 1920,
@@ -2235,7 +2202,7 @@
   {
     "delivered_file": "assets/images/brawley/lifestyle/interior-960.webp",
     "source_path": "Assets/Brawley-GTS-EV-interior-scaled.jpg",
-    "transform": "960w V1 carry-forward",
+    "transform": "960w 3:2 lifestyle",
     "verified_clean": "yes",
     "source_width": 2880,
     "source_height": 1920,
@@ -2246,7 +2213,7 @@
   {
     "delivered_file": "assets/images/brawley/lifestyle/interior-1280.webp",
     "source_path": "Assets/Brawley-GTS-EV-interior-scaled.jpg",
-    "transform": "1280w V1 carry-forward",
+    "transform": "1280w 3:2 lifestyle",
     "verified_clean": "yes",
     "source_width": 2880,
     "source_height": 1920,
@@ -2257,51 +2224,54 @@
   {
     "delivered_file": "assets/images/brawley/lifestyle/mountain-road-640.webp",
     "source_path": "Assets/Brawley-front-view-on-mountain-road-01-scaled.jpg",
-    "transform": "640w V1 carry-forward",
+    "transform": "640w 3:2 lifestyle; safety paragraph excluded",
     "verified_clean": "yes",
     "source_width": 2880,
     "source_height": 1920,
     "output_width": 640,
     "output_height": 427,
-    "crop_window": "full frame"
+    "crop_window": "x=0 y=170 width=2880 height=1750",
+    "clean_basis": "baked text y=80..155; delivered y=170..1919; excluded"
   },
   {
     "delivered_file": "assets/images/brawley/lifestyle/mountain-road-960.webp",
     "source_path": "Assets/Brawley-front-view-on-mountain-road-01-scaled.jpg",
-    "transform": "960w V1 carry-forward",
+    "transform": "960w 3:2 lifestyle; safety paragraph excluded",
     "verified_clean": "yes",
     "source_width": 2880,
     "source_height": 1920,
     "output_width": 960,
     "output_height": 640,
-    "crop_window": "full frame"
+    "crop_window": "x=0 y=170 width=2880 height=1750",
+    "clean_basis": "baked text y=80..155; delivered y=170..1919; excluded"
   },
   {
     "delivered_file": "assets/images/brawley/lifestyle/mountain-road-1280.webp",
     "source_path": "Assets/Brawley-front-view-on-mountain-road-01-scaled.jpg",
-    "transform": "1280w V1 carry-forward",
+    "transform": "1280w 3:2 lifestyle; safety paragraph excluded",
     "verified_clean": "yes",
     "source_width": 2880,
     "source_height": 1920,
     "output_width": 1280,
     "output_height": 853,
-    "crop_window": "full frame"
+    "crop_window": "x=0 y=170 width=2880 height=1750",
+    "clean_basis": "baked text y=80..155; delivered y=170..1919; excluded"
   },
   {
     "delivered_file": "assets/images/brawley/lifestyle/juniper-640.webp",
     "source_path": "Assets/110A3943-HDR.jpg",
-    "transform": "640w V1 carry-forward",
+    "transform": "640w 3:2 lifestyle",
     "verified_clean": "yes",
     "source_width": 6203,
     "source_height": 4135,
     "output_width": 640,
-    "output_height": 426,
+    "output_height": 427,
     "crop_window": "full frame"
   },
   {
     "delivered_file": "assets/images/brawley/lifestyle/juniper-960.webp",
     "source_path": "Assets/110A3943-HDR.jpg",
-    "transform": "960w V1 carry-forward",
+    "transform": "960w 3:2 lifestyle",
     "verified_clean": "yes",
     "source_width": 6203,
     "source_height": 4135,
@@ -2312,7 +2282,7 @@
   {
     "delivered_file": "assets/images/brawley/lifestyle/juniper-1280.webp",
     "source_path": "Assets/110A3943-HDR.jpg",
-    "transform": "1280w V1 carry-forward",
+    "transform": "1280w 3:2 lifestyle",
     "verified_clean": "yes",
     "source_width": 6203,
     "source_height": 4135,
@@ -2329,7 +2299,7 @@
   {
     "delivered_file": "assets/brand/vanderhall-lockup-horizontal-white.svg",
     "source_path": "Assets/vanderhall logos/vanderhall logo with symbols.pdf",
-    "transform": "approved white knockout",
+    "transform": "two-tone reverse for dark surfaces: wordmark #FFFFFF, shield frame #807F7F, shield details #4B4B4B, inner field #0E0E10, marks #B1B1B1; fills only, geometry unchanged",
     "verified_clean": "yes"
   },
   {

@@ -1,5 +1,23 @@
+import { readFile } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { models } from "./data/models.mjs";
 import { COUNTRIES, FORM_ENDPOINTS } from "./data/forms.mjs";
+
+// Delivered sizes are read from the build manifest rather than restated in data, because crops
+// change: the hub cards are cut to their vehicle band and the corrected photographs are cut
+// away from their baked disclaimer. Reading them keeps every width and height honest.
+const websiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const manifest = JSON.parse(await readFile(resolve(websiteRoot, "assets/build-manifest.json"), "utf8"));
+const deliveredSize = new Map(manifest
+  .filter((entry) => entry.output_width && entry.output_height)
+  .map((entry) => [`/${entry.delivered_file}`, { width: entry.output_width, height: entry.output_height }]));
+
+export const sizeOf = (src) => {
+  const size = deliveredSize.get(src);
+  if (!size) throw new Error(`No delivered dimensions recorded for ${src}`);
+  return size;
+};
 
 const escapeHtml = (value = "") => String(value)
   .replaceAll("&", "&amp;")
@@ -17,37 +35,71 @@ export const pageHeader = (eyebrowText, title, intro) => `<header class="page-he
 
 export const sectionHeading = (eyebrowText, title, intro = "") => `<div class="section-heading">${eyebrow(eyebrowText)}<h2>${escapeHtml(title)}</h2>${intro ? `<p>${escapeHtml(intro)}</p>` : ""}</div>`;
 
-const statusLabel = (status) => status === "delivering" ? "NOW DELIVERING" : status === "reserve" ? "RESERVATION STAGE" : "";
-
-const CARD_SIZES_4UP = "(min-width: 1280px) 25vw, (min-width: 768px) 45vw, 92vw";
-const CARD_SIZES_2UP = "(min-width: 768px) 45vw, 92vw";
-
-export const vehicleCard = (model, { eager = false, level = 3, sizes = CARD_SIZES_4UP } = {}) => {
-  const status = statusLabel(model.status);
+export const conceptCard = (concept, { eager = false, level = 2 } = {}) => {
+  const { width, height } = sizeOf(concept.card.src);
   return `<article class="card">
-    <div class="card__media"><img src="${model.images.card}" srcset="${model.images.cardSrcset}" width="800" height="500" sizes="${sizes}" alt="${escapeHtml(model.images.cardAlt)}" loading="${eager ? "eager" : "lazy"}" decoding="async" style="--media-focal:${model.images.cardFocal}">${status ? `<span class="chip chip--status card__status">${status}</span>` : ""}</div>
-    <div class="card__body">
-      <div class="chip-row"><span class="chip">${model.powertrain.fuel} · ${model.powertrain.layout}</span></div>
-      <h${level} class="card__title"><a class="card__link" href="/${model.slug}/">${model.name}</a></h${level}>
-      <p class="card__descriptor">${escapeHtml(model.descriptor)}</p>
-      <p class="card__cue">Explore<span aria-hidden="true"> →</span></p>
-    </div>
-  </article>`;
-};
-
-export const relatedGrid = (list) => `<div class="card-grid card-grid--related">${list.map((model) => vehicleCard(model, { sizes: CARD_SIZES_2UP })).join("")}</div>`;
-
-export const vehicleGrid = (list = models, { eagerCount = 0, level = 3 } = {}) => `<div class="card-grid card-grid--vehicles">${list.map((model, index) => vehicleCard(model, { eager: index < eagerCount, level })).join("")}</div>`;
-
-export const conceptCard = (concept, { eager = false, level = 2 } = {}) => `<article class="card">
-    <div class="card__media"><img src="${concept.card.src}" width="${concept.card.width}" height="${concept.card.height}" sizes="(min-width: 1024px) 33vw, (min-width: 640px) 45vw, 92vw" alt="${escapeHtml(concept.card.alt)}" loading="${eager ? "eager" : "lazy"}" decoding="async"></div>
+    <div class="card__media"><img src="${concept.card.src}" width="${width}" height="${height}" sizes="(min-width: 1024px) 33vw, (min-width: 640px) 45vw, 92vw" alt="${escapeHtml(concept.card.alt)}" loading="${eager ? "eager" : "lazy"}" decoding="async"></div>
     <div class="card__body">
       <h${level} class="card__title"><a class="card__link" href="/concepts/${concept.slug}/">${concept.name}</a></h${level}>
       <p class="card__descriptor">${escapeHtml(concept.category)}</p>
     </div>
   </article>`;
+};
 
-export const gallery = (items) => `<div class="gallery">${items.map((item) => `<img src="${item.src}"${item.srcset ? ` srcset="${item.srcset}"` : ""} sizes="(min-width: 1024px) 33vw, (min-width: 640px) 45vw, 92vw" width="960" height="640" alt="${escapeHtml(item.alt)}" loading="lazy" decoding="async">`).join("")}</div>`;
+// Declares the slot honestly, so high-density phones fetch the 960 rung for section media.
+// Capping this at a 2x density would cut the homepage image payload by about 180 KB and take
+// mobile LCP from 3.8 s to 3.2 s, at the cost of sharpness on those screens. That tradeoff is
+// Owen's to make, so the honest value ships until he calls it.
+const SPLIT_SIZES = "(min-width: 768px) 45vw, 92vw";
+
+const splitMedia = (image, { eager = false, sizes = SPLIT_SIZES } = {}) => {
+  const { width, height } = sizeOf(image.src);
+  return `<img src="${image.src}" srcset="${image.srcset}" width="${width}" height="${height}" sizes="${sizes}" alt="${escapeHtml(image.alt)}" loading="${eager ? "eager" : "lazy"}"${eager ? ' fetchpriority="high"' : ""} decoding="async">`;
+};
+
+// One section per vehicle, media on one side and content on the other, alternating down the
+// page. The homepage passes one photograph and the vehicles page passes three, which is the
+// only difference between the short version of this scroll and the fuller one.
+export const vehicleSection = (model, { index, copy, eager = false, level = 3, withSupport = false } = {}) => {
+  const support = withSupport
+    ? model.images.support.map((image) => `<div class="vehicle-section__support">${splitMedia(image, { sizes: "(min-width: 768px) 22vw, 46vw" })}</div>`).join("")
+    : "";
+  return `<section class="vehicle-section${index % 2 === 1 ? " vehicle-section--reverse" : ""}">
+    <div class="vehicle-section__media">
+      <div class="vehicle-section__lead">${splitMedia(model.images.lead, { eager })}</div>
+      ${support ? `<div class="vehicle-section__row">${support}</div>` : ""}
+    </div>
+    <div class="vehicle-section__body">
+      <h${level}>${model.name}</h${level}>
+      <p>${escapeHtml(copy)}</p>
+      ${textLink(`Explore ${model.name}`, `/${model.slug}/`)}
+    </div>
+  </section>`;
+};
+
+// The smallest component that can carry a photograph and something true about it: a 3:2 frame,
+// a label in the caps register, and one or two sentences. Sides alternate strictly.
+export const photoModule = (item, index) => {
+  const { width, height } = sizeOf(item.src);
+  return `<figure class="photo-module${index % 2 === 1 ? " photo-module--reverse" : ""}">
+    <div class="photo-module__media"><img src="${item.src}" srcset="${item.srcset}" width="${width}" height="${height}" sizes="(min-width: 1024px) 58vw, 92vw" alt="${escapeHtml(item.alt)}" loading="lazy" decoding="async"></div>
+    <figcaption class="photo-module__body">
+      <p class="eyebrow">${escapeHtml(item.label)}</p>
+      <p>${escapeHtml(item.description)}</p>
+    </figcaption>
+  </figure>`;
+};
+
+export const photoScroll = (items) => `<div class="photo-scroll">${items.map((item, index) => photoModule(item, index)).join("")}</div>`;
+
+// Says where you are and what you can do, which is the job the deleted related-vehicles grid
+// was doing badly. Pure CSS sticky, no JavaScript.
+export const modelBar = (model) => `<div class="model-bar bleed">
+    <div class="model-bar__inner">
+      <span class="model-bar__name">${model.name}</span>
+      <a class="model-bar__action" href="/dealers/?model=${model.slug}">Request info<span aria-hidden="true"> →</span></a>
+    </div>
+  </div>`;
 
 export const hero = ({ src, srcset, tallSrcset, alt, focal, align = "", content }) => `<section class="hero bleed${align === "end" ? " hero--content-end" : ""}" style="--hero-focal:${focal}">
     <div class="hero__media"><picture>${tallSrcset ? `<source media="(max-width: 767px)" srcset="${tallSrcset}" sizes="100vw">` : ""}<img class="hero__image" src="${src}" srcset="${srcset}" sizes="100vw" width="1920" height="823" alt="${escapeHtml(alt)}" loading="eager" fetchpriority="high" decoding="async"></picture></div>
@@ -79,9 +131,9 @@ const integrationFields = (formId, submitLabel) => `
   <input type="hidden" name="render_timestamp" value="">
   <input type="hidden" name="form_id" value="${formId}">
   <input type="hidden" name="page" value="">
-  <p class="form-note">This form is not connected yet, so nothing you enter here is sent.</p>
   <div class="form-submit-row"><button class="button button--primary" type="submit" data-submit-label="${submitLabel}">${submitLabel}</button></div>
-  <p class="form-status" tabindex="-1" aria-live="polite"></p>`;
+  <p class="form-status" tabindex="-1" aria-live="polite"></p>
+  <p class="form-note">This form is not connected yet, so nothing you enter here is sent.</p>`;
 
 const formOpen = (id, formId) => `<form class="lead-form" id="${id}" novalidate data-site-form data-form-id="${formId}" data-endpoint="${FORM_ENDPOINTS[formId] || ""}">
   <p class="form-key">Fields marked * are required.</p>
@@ -155,11 +207,13 @@ export const internationalDealerForm = (id = "international-dealer-form") => `${
   ${integrationFields("international-dealer-inquiry", "Submit inquiry")}
 </form>`;
 
+// Dealers is both the inquiry destination and a navigation item: the header button is the
+// action, the navigation item is the place.
 const navItems = [
   ["Vehicles", "/vehicles/", ["/vehicles", "/venice", "/carmel", "/santarosa", "/brawley"]],
   ["Concepts", "/concepts/", ["/concepts"]],
   ["Owners", "/owners/", ["/owners"]],
-  ["Support", "/faq/", ["/faq"]],
+  ["Dealers", "/dealers/", ["/dealers"]],
 ];
 
 const isCurrent = (path, prefixes) => prefixes.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
@@ -172,7 +226,7 @@ export const header = (path) => `<a class="skip-link" href="#main">Skip to conte
         ${navItems.map(([name, href, prefixes]) => `<a class="nav-link${isCurrent(path, prefixes) ? " is-current" : ""}" href="${href}"${isCurrent(path, prefixes) ? ' aria-current="page"' : ""}>${name}</a>`).join("")}
       </nav>
       <div class="site-header__actions">
-        <a class="button button--primary header-request" href="/contact/">Request info</a>
+        <a class="button button--primary header-request" href="/dealers/">Request info</a>
         <button class="icon-button desktop-theme" type="button" data-theme-toggle aria-label="Use dark theme"><span aria-hidden="true">◐</span></button>
         <button class="icon-button menu-button" type="button" data-open-menu aria-label="Open menu" aria-expanded="false"><span aria-hidden="true">☰</span></button>
       </div>
@@ -182,7 +236,7 @@ export const header = (path) => `<a class="skip-link" href="#main">Skip to conte
     <div class="sheet__top"><img class="brand brand--sheet" src="/assets/brand/vanderhall-lockup-horizontal.svg" alt="Vanderhall" width="211" height="22"><button class="icon-button" type="button" data-close-menu aria-label="Close menu">×</button></div>
     <nav class="mobile-nav" aria-label="Mobile primary">
       ${navItems.map(([name, href]) => `<a href="${href}">${name}</a>`).join("")}
-      <a class="button button--primary" href="/contact/">Request info</a>
+      <a class="button button--primary" href="/dealers/">Request info</a>
       <button class="button button--secondary" type="button" data-theme-toggle>Change theme</button>
     </nav>
   </div>
@@ -191,8 +245,8 @@ export const header = (path) => `<a class="skip-link" href="#main">Skip to conte
 export const footer = () => `<footer class="site-footer">
   <div class="footer-links">
     <div><h2>Vehicles</h2>${models.map((model) => `<a href="/${model.slug}/">${model.name}</a>`).join("")}<a href="/concepts/">Concepts</a></div>
-    <div><h2>Owners</h2><a href="/owners/">Owner resources</a><a href="/faq/">Support</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a></div>
-    <div><h2>Connect</h2><a href="/contact/">Contact</a><a href="/dealers/">Dealers</a><a href="/recommend-dealer/">Recommend a dealer</a><a href="/dealer-inquiry/">Become a dealer</a></div>
+    <div><h2>Owners</h2><a href="/owners/">Owner resources</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a></div>
+    <div><h2>Connect</h2><a href="/dealers/">Dealers</a><a href="/recommend-dealer/">Recommend a dealer</a><a href="/dealer-inquiry/">Become a dealer</a></div>
   </div>
   <div class="footer-legal">
     <img class="footer-lockup" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" width="231" height="24" loading="lazy" decoding="async" alt="Vanderhall Motor Works">

@@ -15,11 +15,15 @@ const report = { routes: [], accessibility: {}, heroes: {}, zoom200: {}, forms: 
 const failures = [];
 const conceptSlugs = ["indio", "coachella", "brawley-r", "santarosa-r", "speedster", "yuma", "yuma-defense", "laduna", "balboa"];
 const conceptRoutes = conceptSlugs.map((slug) => `/concepts/${slug}/`);
-const routes = ["/", "/vehicles/", "/venice/", "/carmel/", "/santarosa/", "/brawley/", "/concepts/", ...conceptRoutes, "/dealers/", "/recommend-dealer/", "/dealer-inquiry/", "/faq/", "/contact/", "/owners/", "/404/"];
+const routes = ["/", "/vehicles/", "/venice/", "/carmel/", "/santarosa/", "/brawley/", "/concepts/", ...conceptRoutes, "/dealers/", "/recommend-dealer/", "/dealer-inquiry/", "/owners/", "/404/"];
 
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 const page = await context.newPage();
 page.setDefaultTimeout(5000);
+// The reveal animations advance with scroll position, so a full-page screenshot or an axe pass
+// would otherwise catch below-fold blocks mid-entry and report them as invisible. This run
+// resolves them to their final state; the motion itself is verified separately below.
+await page.emulateMedia({ reducedMotion: "reduce" });
 page.on("console", (message) => { if (message.type() === "error") report.consoleErrors.push(message.text()); });
 page.on("pageerror", (error) => report.consoleErrors.push(error.message));
 
@@ -60,23 +64,28 @@ for (const route of routes) {
   await loadLazyMedia(page);
   const brokenImages = await page.locator("img").evaluateAll((images) => images.filter((image) => image.complete && image.naturalWidth === 0).map((image) => image.currentSrc || image.getAttribute("src")));
   const ownersInNav = await page.locator('.desktop-nav a[href="/owners/"]').count();
+  const dealersInNav = await page.locator('.desktop-nav a[href="/dealers/"]').count();
   const pageHeight = await page.evaluate(() => document.documentElement.scrollHeight);
-  report.routes.push({ route, status, h1Count, bodyLength, brokenImages, ownersInNav, pageHeight });
-  if (status !== 200 || h1Count !== 1 || bodyLength < 100 || brokenImages.length || ownersInNav !== 1) failures.push(`Route check failed for ${route}`);
+  report.routes.push({ route, status, h1Count, bodyLength, brokenImages, ownersInNav, dealersInNav, pageHeight });
+  if (status !== 200 || h1Count !== 1 || bodyLength < 100 || brokenImages.length || ownersInNav !== 1 || dealersInNav !== 1) failures.push(`Route check failed for ${route}`);
 }
 
-// Probed on a throwaway page so the expected 404 does not pollute the console-error audit.
+// Probed on a throwaway page so the expected 404s do not pollute the console-error audit.
+// Locally these routes simply do not exist; in production the vercel.json redirects carry
+// /about/ home and /contact/ to its replacement, /dealers/.
 const probeContext = await browser.newContext();
 const probePage = await probeContext.newPage();
-const aboutResponse = await probePage.goto(`${base}/about/`, { waitUntil: "load" });
-// Locally the route simply does not exist; in production the vercel.json redirect sends it home.
-const aboutLanded = new URL(probePage.url()).pathname;
-report.interactions.about = { status: aboutResponse?.status(), landedOn: aboutLanded };
-report.interactions.aboutRemoved = aboutResponse?.status() === 404 || aboutLanded === "/";
-if (!report.interactions.aboutRemoved) failures.push(`/about/ still resolves: ${aboutResponse?.status()} at ${aboutLanded}`);
+report.interactions.retiredRoutes = {};
+for (const [route, destination] of [["/about/", "/"], ["/contact/", "/dealers/"], ["/faq/", null]]) {
+  const response = await probePage.goto(`${base}${route}`, { waitUntil: "load" });
+  const landedOn = new URL(probePage.url()).pathname;
+  const removed = response?.status() === 404 || (destination !== null && landedOn === destination);
+  report.interactions.retiredRoutes[route] = { status: response?.status(), landedOn, expected: destination, removed };
+  if (!removed) failures.push(`${route} still resolves: ${response?.status()} at ${landedOn}`);
+}
 await probeContext.close();
 
-for (const route of ["/", "/vehicles/", "/brawley/", "/santarosa/", "/contact/", "/recommend-dealer/", "/dealer-inquiry/", "/concepts/", "/concepts/indio/", "/owners/", "/dealers/", "/faq/"]) {
+for (const route of ["/", "/vehicles/", "/brawley/", "/santarosa/", "/venice/", "/recommend-dealer/", "/dealer-inquiry/", "/concepts/", "/concepts/indio/", "/owners/", "/dealers/", "/404/"]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   await page.addScriptTag({ content: axe.source });
   const result = await page.evaluate(async () => axe.run(document, { resultTypes: ["violations"] }));
@@ -135,25 +144,51 @@ for (const route of ["/", "/vehicles/", "/concepts/", "/santarosa/", "/owners/"]
   if (!Object.values(report.zoom200[route]).slice(1).every(Boolean)) failures.push(`200% zoom proxy failed for ${route}`);
 }
 
+// The card wall is gone: /vehicles/ is now four vehicle sections, each with a lead photograph,
+// two supporting frames, and exactly one link into its model page.
 await page.setViewportSize({ width: 1280, height: 900 });
 await page.goto(`${base}/vehicles/`, { waitUntil: "networkidle" });
-report.interactions.vehicleSelector = {
-  cards: await page.locator(".card").count(),
-  everyCardLinks: await page.locator(".card .card__link").count(),
+report.interactions.vehicleSections = {
+  sections: await page.locator(".vehicle-section").count(),
+  leadFrames: await page.locator(".vehicle-section__lead img").count(),
+  supportFrames: await page.locator(".vehicle-section__support img").count(),
+  modelLinks: await page.locator(".vehicle-section__body a").evaluateAll((anchors) => anchors.map((anchor) => new URL(anchor.href).pathname)),
   hasSpecsOrPrices: await page.locator(".spec-table, .price").count(),
 };
-if (report.interactions.vehicleSelector.cards !== 4 || report.interactions.vehicleSelector.everyCardLinks !== 4 || report.interactions.vehicleSelector.hasSpecsOrPrices !== 0) failures.push("Vehicles selector structure failed");
+const sectionShape = report.interactions.vehicleSections;
+if (sectionShape.sections !== 4 || sectionShape.leadFrames !== 4 || sectionShape.supportFrames !== 8 || sectionShape.hasSpecsOrPrices !== 0) failures.push("Vehicles section structure failed");
+if (JSON.stringify(sectionShape.modelLinks) !== JSON.stringify(["/venice/", "/carmel/", "/santarosa/", "/brawley/"])) failures.push(`Vehicles sections must link to each model once in order, got ${sectionShape.modelLinks.join(", ")}`);
+
+// Model pages: a photo module carries a photograph, a label, and a description, and the sticky
+// bar names the model and offers one action.
+report.interactions.photoScroll = {};
+for (const [route, expected] of [["/venice/", 6], ["/carmel/", 6], ["/santarosa/", 5], ["/brawley/", 6]]) {
+  await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  const shape = await page.evaluate(() => ({
+    modules: document.querySelectorAll(".photo-module").length,
+    withLabel: [...document.querySelectorAll(".photo-module")].filter((node) => node.querySelector(".photo-module__body .eyebrow")?.textContent.trim()).length,
+    withDescription: [...document.querySelectorAll(".photo-module")].filter((node) => node.querySelectorAll(".photo-module__body p").length > 1).length,
+    stickyBar: getComputedStyle(document.querySelector(".model-bar")).position,
+    barAction: document.querySelector(".model-bar__action")?.getAttribute("href"),
+    relatedGrids: document.querySelectorAll(".card-grid--related, .card").length,
+  }));
+  report.interactions.photoScroll[route] = shape;
+  if (shape.modules !== expected || shape.withLabel !== expected || shape.withDescription !== expected) failures.push(`Photo scroll failed on ${route}: ${JSON.stringify(shape)}`);
+  if (shape.stickyBar !== "sticky" || !shape.barAction?.startsWith("/dealers/")) failures.push(`Sticky model bar failed on ${route}`);
+  if (shape.relatedGrids !== 0) failures.push(`${route} still pushes the visitor to other models`);
+}
 
 await page.goto(`${base}/concepts/`, { waitUntil: "networkidle" });
 report.interactions.conceptHubCards = await page.locator(".card .card__link").count();
 if (report.interactions.conceptHubCards !== 9) failures.push("Concept hub must expose nine linked cards");
 
-for (let index = 0; index < conceptRoutes.length; index += 1) {
-  await page.goto(`${base}${conceptRoutes[index]}`, { waitUntil: "networkidle" });
-  const links = await page.locator(".concept-ring a").evaluateAll((anchors) => anchors.map((anchor) => new URL(anchor.href).pathname));
-  const previous = conceptRoutes[(index - 1 + conceptRoutes.length) % conceptRoutes.length];
-  const next = conceptRoutes[(index + 1) % conceptRoutes.length];
-  if (links[0] !== previous || links[1] !== "/concepts/" || links[2] !== next) failures.push(`Concept ring failed on ${conceptRoutes[index]}`);
+// The three-part ring is replaced by one clear way back, on all nine routes.
+report.interactions.conceptBackLinks = {};
+for (const route of conceptRoutes) {
+  await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  const links = await page.locator(".concept-back a").evaluateAll((anchors) => anchors.map((anchor) => new URL(anchor.href).pathname));
+  report.interactions.conceptBackLinks[route] = links;
+  if (links.length !== 1 || links[0] !== "/concepts/") failures.push(`Concept back link failed on ${route}: ${links.join(", ") || "none"}`);
 }
 
 await page.goto(`${base}/owners/`, { waitUntil: "networkidle" });
@@ -169,7 +204,7 @@ for (const href of manualHrefs) {
 }
 
 await page.setViewportSize({ width: 1440, height: 1000 });
-for (const route of ["/", "/vehicles/", "/brawley/", "/santarosa/", "/concepts/", "/concepts/indio/", "/owners/", "/contact/"]) {
+for (const route of ["/", "/vehicles/", "/brawley/", "/santarosa/", "/venice/", "/carmel/", "/concepts/", "/concepts/indio/", "/owners/", "/dealers/"]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   await loadLazyMedia(page);
   const audit = await page.locator("img").evaluateAll((images) => ({
@@ -197,10 +232,10 @@ await metricRadio.check();
 report.interactions.metricToggle = await page.locator("html").evaluate((element) => element.classList.contains("unit-metric"));
 if (!report.interactions.metricToggle) failures.push("Metric toggle failed");
 
-await page.goto(`${base}/contact/?model=brawley`, { waitUntil: "networkidle" });
+await page.goto(`${base}/dealers/?model=brawley`, { waitUntil: "networkidle" });
 const requestForm = page.locator("#contact-lead");
 report.interactions.requestFormCount = await page.locator("[data-form-id='request-info']").count();
-if (report.interactions.requestFormCount !== 1) failures.push("Contact page must hold exactly one request-info form");
+if (report.interactions.requestFormCount !== 1) failures.push("The dealers page must hold exactly one request-info form");
 await requestForm.getByLabel(/^First name/).fill("Test");
 await requestForm.getByLabel(/^Last name/).fill("Visitor");
 await requestForm.getByLabel(/^Email/).fill("test@example.com");
@@ -213,17 +248,17 @@ if (!report.interactions.formValidation) failures.push("Lead form validation flo
 
 report.interactions.modelPrefill = {};
 for (const value of ["venice", "carmel", "santarosa", "brawley", "concepts", "not-sure-yet"]) {
-  await page.goto(`${base}/contact/?model=${value}`, { waitUntil: "networkidle" });
+  await page.goto(`${base}/dealers/?model=${value}`, { waitUntil: "networkidle" });
   const checked = await page.locator(`[name='interest'][value='${value}']`).isChecked();
   report.interactions.modelPrefill[value] = checked;
-  if (!checked) failures.push(`Contact model prefill failed for ${value}`);
+  if (!checked) failures.push(`Dealers model prefill failed for ${value}`);
 }
 
 // Screenshots are the human review surface, so reset persisted units and theme first.
 await page.goto(`${base}/`, { waitUntil: "load" });
 await page.evaluate(() => { localStorage.clear(); document.documentElement.classList.remove("unit-metric"); delete document.documentElement.dataset.theme; });
 
-for (const [route, name] of [["/", "home"], ["/vehicles/", "vehicles"], ["/venice/", "venice"], ["/carmel/", "carmel"], ["/santarosa/", "santarosa"], ["/brawley/", "brawley"], ["/concepts/", "concepts"], ["/concepts/indio/", "indio"], ["/concepts/brawley-r/", "brawley-r"], ["/concepts/balboa/", "balboa"], ["/concepts/yuma/", "yuma"], ["/owners/", "owners"], ["/contact/", "contact"], ["/dealers/", "dealers"], ["/faq/", "faq"]]) {
+for (const [route, name] of [["/", "home"], ["/vehicles/", "vehicles"], ["/venice/", "venice"], ["/carmel/", "carmel"], ["/santarosa/", "santarosa"], ["/brawley/", "brawley"], ["/concepts/", "concepts"], ["/concepts/indio/", "indio"], ["/concepts/brawley-r/", "brawley-r"], ["/concepts/balboa/", "balboa"], ["/concepts/yuma/", "yuma"], ["/owners/", "owners"], ["/dealers/", "dealers"], ["/recommend-dealer/", "recommend-dealer"]]) {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   await loadLazyMedia(page);
@@ -242,17 +277,44 @@ report.interactions.mobileMenuLinks = await page.locator("[data-menu-sheet] .mob
 await page.keyboard.press("Escape");
 report.interactions.mobileMenuEscape = await page.locator("[data-menu-sheet]").getAttribute("aria-hidden") === "true";
 if (!report.interactions.mobileMenuOpen || !report.interactions.mobileMenuEscape) failures.push("Mobile menu keyboard flow failed");
-if (JSON.stringify(report.interactions.mobileMenuLinks) !== JSON.stringify(["/vehicles/", "/concepts/", "/owners/", "/faq/", "/contact/"])) failures.push("Mobile menu does not mirror the desktop navigation");
+if (JSON.stringify(report.interactions.mobileMenuLinks) !== JSON.stringify(["/vehicles/", "/concepts/", "/owners/", "/dealers/", "/dealers/"])) failures.push(`Mobile menu does not mirror the desktop navigation: ${report.interactions.mobileMenuLinks.join(", ")}`);
 
 await page.setViewportSize({ width: 1440, height: 1000 });
-await page.emulateMedia({ reducedMotion: "reduce" });
-await page.goto(`${base}/vehicles/`, { waitUntil: "networkidle" });
+// The homepage carries both surfaces the motion touches: a hero photograph and the reveals.
+await page.goto(`${base}/`, { waitUntil: "networkidle" });
 report.reducedMotion = await page.evaluate(() => ({
   duration1: getComputedStyle(document.documentElement).getPropertyValue("--dur-1").trim(),
   scrollBehavior: getComputedStyle(document.documentElement).scrollBehavior,
+  revealAnimation: getComputedStyle(document.querySelector(".vehicle-section")).animationName,
+  heroTimeline: getComputedStyle(document.querySelector(".hero__image")).animationName,
 }));
 if (report.reducedMotion.duration1 !== "1ms" || report.reducedMotion.scrollBehavior !== "auto") failures.push("Reduced motion override failed");
-await page.emulateMedia({ reducedMotion: null });
+if (report.reducedMotion.revealAnimation !== "none" || report.reducedMotion.heroTimeline !== "none") failures.push(`Reduced motion must remove the scroll-driven animations, got ${report.reducedMotion.revealAnimation} and ${report.reducedMotion.heroTimeline}`);
+
+// The motion itself, checked in a context that asks for it. Scroll-driven reveals must be
+// attached to a view() timeline and must resolve to fully visible once the block has entered.
+const motionContext = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: "no-preference" });
+const motionPage = await motionContext.newPage();
+await motionPage.goto(`${base}/`, { waitUntil: "networkidle" });
+report.motion = await motionPage.evaluate(async () => {
+  const section = document.querySelectorAll(".vehicle-section")[2];
+  const style = getComputedStyle(section);
+  const attached = { animationName: style.animationName, timeline: style.animationTimeline, range: style.animationRange };
+  const heroStyle = getComputedStyle(document.querySelector(".hero__image"));
+  section.scrollIntoView({ block: "center", behavior: "instant" });
+  await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+  return {
+    ...attached,
+    hero: { animationName: heroStyle.animationName, timeline: heroStyle.animationTimeline },
+    opacityOnceEntered: Number(getComputedStyle(section).opacity),
+    // No JavaScript may be introduced to drive any of this.
+    scriptTags: document.querySelectorAll("script[src]").length,
+  };
+});
+if (report.motion.animationName !== "rise-in" || !report.motion.timeline.includes("view")) failures.push(`Scroll reveal is not attached: ${JSON.stringify(report.motion)}`);
+if (report.motion.hero.animationName !== "hero-drift") failures.push("Hero drift is not attached");
+if (report.motion.opacityOnceEntered < 0.99) failures.push(`A scrolled-into-view section did not resolve to fully visible: opacity ${report.motion.opacityOnceEntered}`);
+await motionContext.close();
 
 const noJsContext = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 1280, height: 900 } });
 const noJsPage = await noJsContext.newPage();
@@ -268,7 +330,7 @@ if (report.noJs.status !== 200 || report.noJs.bodyLength < 500 || report.noJs.vi
 await noJsPage.goto(`${base}/`, { waitUntil: "load" });
 report.noJs.vehiclesHref = await noJsPage.getByRole("link", { name: "Vehicles", exact: true }).first().getAttribute("href");
 if (report.noJs.vehiclesHref !== "/vehicles/") failures.push("No-JS Vehicles navigation is not a plain link");
-for (const route of ["/contact/", "/recommend-dealer/", "/dealer-inquiry/"]) {
+for (const route of ["/dealers/", "/recommend-dealer/", "/dealer-inquiry/"]) {
   await noJsPage.goto(`${base}${route}`, { waitUntil: "load" });
   const formAudit = await noJsPage.locator("[data-site-form]").last().evaluate((form) => {
     const controls = [...form.querySelectorAll("input:not([type=hidden]), select, textarea")];
@@ -279,7 +341,7 @@ for (const route of ["/contact/", "/recommend-dealer/", "/dealer-inquiry/"]) {
 }
 await noJsContext.close();
 
-for (const route of ["/contact/", "/recommend-dealer/", "/dealer-inquiry/"]) {
+for (const route of ["/dealers/", "/recommend-dealer/", "/dealer-inquiry/"]) {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   const form = page.locator("[data-site-form]").last();
