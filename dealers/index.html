@@ -14,6 +14,8 @@
   <link rel="canonical" href="https://vanderhall-website.vercel.app/dealers/">
   <link rel="stylesheet" href="/styles/bundle.css">
   
+  <noscript><style>[data-locator-search],[data-locator-modes],[data-dealer-select]{display:none}</style></noscript>
+  
 </head>
 <body>
   <a class="skip-link" href="#main">Skip to content</a>
@@ -42,7 +44,7 @@
     <section class="section--tight">
       <p class="sample-note"><span class="sample-note__tag">Sample content</span>Sample content. These six dealers are fictional records for layout review, with reserved telephone numbers and example.com websites. Vanderhall's own dealer data replaces them before launch.</p>
       <section class="locator" data-locator data-map="none">
-  <form class="locator__search" data-locator-search hidden>
+  <form class="locator__search" data-locator-search>
     <div class="field">
       <label for="locator-location">City or postal code</label>
       
@@ -59,7 +61,7 @@
   </form>
   <div class="locator__bar">
     <p class="locator__count" data-locator-count>6 dealers</p>
-    <div class="locator__modes" data-locator-modes hidden role="group" aria-label="View">
+    <div class="locator__modes" data-locator-modes role="group" aria-label="View">
       <button class="locator__mode is-selected" type="button" data-locator-mode="list" aria-pressed="true">List</button>
       <button class="locator__mode" type="button" data-locator-mode="map" aria-pressed="false">Map</button>
     </div>
@@ -82,7 +84,7 @@
       <a href="tel:+1-555-0142">+1-555-0142</a>
       <a href="https://wasatch-motorworks.example.com/">Website</a>
       <a href="https://www.google.com/maps/dir/?api=1&destination=40.2338,-111.6585">Directions</a>
-      <button class="dealer-card__select" type="button" data-dealer-select="wasatch-motorworks" hidden>Show on map</button>
+      <button class="dealer-card__select" type="button" data-dealer-select="wasatch-motorworks">Show on map</button>
     </div>
   </article><article class="dealer-card" id="dealer-high-desert-electric" data-dealer="high-desert-electric" data-lat="33.4484" data-lng="-112.074" data-ev="true" data-gas="false" data-service="true" data-city="Phoenix" data-region="AZ" data-postal="85004" tabindex="-1">
     <div class="dealer-card__head">
@@ -98,7 +100,7 @@
       <a href="tel:+1-555-0163">+1-555-0163</a>
       <a href="https://high-desert-electric.example.com/">Website</a>
       <a href="https://www.google.com/maps/dir/?api=1&destination=33.4484,-112.074">Directions</a>
-      <button class="dealer-card__select" type="button" data-dealer-select="high-desert-electric" hidden>Show on map</button>
+      <button class="dealer-card__select" type="button" data-dealer-select="high-desert-electric">Show on map</button>
     </div>
   </article><article class="dealer-card" id="dealer-silver-state-roadsters" data-dealer="silver-state-roadsters" data-lat="36.1147" data-lng="-115.1728" data-ev="false" data-gas="true" data-service="false" data-city="Las Vegas" data-region="NV" data-postal="89109" tabindex="-1">
     <div class="dealer-card__head">
@@ -114,7 +116,7 @@
       <a href="tel:+1-555-0117">+1-555-0117</a>
       <a href="https://silver-state-roadsters.example.com/">Website</a>
       <a href="https://www.google.com/maps/dir/?api=1&destination=36.1147,-115.1728">Directions</a>
-      <button class="dealer-card__select" type="button" data-dealer-select="silver-state-roadsters" hidden>Show on map</button>
+      <button class="dealer-card__select" type="button" data-dealer-select="silver-state-roadsters">Show on map</button>
     </div>
   </article><article class="dealer-card" id="dealer-front-range-autocycle" data-dealer="front-range-autocycle" data-lat="39.7392" data-lng="-104.9903" data-ev="true" data-gas="true" data-service="true" data-city="Denver" data-region="CO" data-postal="80202" tabindex="-1">
     <div class="dealer-card__head">
@@ -130,7 +132,7 @@
       <a href="tel:+1-555-0198">+1-555-0198</a>
       <a href="https://front-range-autocycle.example.com/">Website</a>
       <a href="https://www.google.com/maps/dir/?api=1&destination=39.7392,-104.9903">Directions</a>
-      <button class="dealer-card__select" type="button" data-dealer-select="front-range-autocycle" hidden>Show on map</button>
+      <button class="dealer-card__select" type="button" data-dealer-select="front-range-autocycle">Show on map</button>
     </div>
   </article><article class="dealer-card" id="dealer-treasure-valley-powersports" data-dealer="treasure-valley-powersports" data-lat="43.615" data-lng="-116.2023" data-ev="true" data-gas="false" data-service="false" data-city="Boise" data-region="ID" data-postal="83702" tabindex="-1">
     <div class="dealer-card__head">
@@ -146,7 +148,7 @@
       <a href="tel:+1-555-0126">+1-555-0126</a>
       <a href="https://treasure-valley-powersports.example.com/">Website</a>
       <a href="https://www.google.com/maps/dir/?api=1&destination=43.615,-116.2023">Directions</a>
-      <button class="dealer-card__select" type="button" data-dealer-select="treasure-valley-powersports" hidden>Show on map</button>
+      <button class="dealer-card__select" type="button" data-dealer-select="treasure-valley-powersports">Show on map</button>
     </div>
   </article><article class="dealer-card" id="dealer-valley-electric-sport" data-dealer="valley-electric-sport" data-lat="38.5816" data-lng="-121.4944" data-ev="true" data-gas="true" data-service="true" data-city="Sacramento" data-region="CA" data-postal="95814" tabindex="-1">
     <div class="dealer-card__head">
@@ -162,7 +164,7 @@
       <a href="tel:+1-555-0171">+1-555-0171</a>
       <a href="https://valley-electric-sport.example.com/">Website</a>
       <a href="https://www.google.com/maps/dir/?api=1&destination=38.5816,-121.4944">Directions</a>
-      <button class="dealer-card__select" type="button" data-dealer-select="valley-electric-sport" hidden>Show on map</button>
+      <button class="dealer-card__select" type="button" data-dealer-select="valley-electric-sport">Show on map</button>
     </div>
   </article>
       <div class="locator__no-results" data-locator-state="no-results" hidden>

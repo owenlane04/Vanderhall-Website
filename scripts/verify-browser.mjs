@@ -1568,6 +1568,24 @@ for (const route of ["/", "/vehicles/", "/brawley/", "/concepts/", "/owners/", "
   if (shape.stillDisplaced.length) failures.push(`No-JS ${route}: ${shape.stillDisplaced.length} scrolled-past blocks never returned to their final position: ${shape.stillDisplaced.slice(0, 3).join(", ")}`);
 }
 
+// V13. Without JavaScript the locator shows the complete dealer list and none of the three controls that need
+// scripting. The controls are in the DOM, because rendering them at first paint is what keeps the page from
+// shifting when they become usable; the <noscript> style block is what withdraws them here.
+await noJsPage.goto(`${base}/dealers/`, { waitUntil: "load" });
+report.noJs.locator = await noJsPage.evaluate(() => ({
+  cards: [...document.querySelectorAll(".dealer-card")].filter((card) => card.checkVisibility()).length,
+  searchVisible: document.querySelector("[data-locator-search]").checkVisibility(),
+  modesVisible: document.querySelector("[data-locator-modes]").checkVisibility(),
+  selectVisible: [...document.querySelectorAll("[data-dealer-select]")].filter((button) => button.checkVisibility()).length,
+  phones: document.querySelectorAll('.dealer-card a[href^="tel:"]').length,
+  directions: [...document.querySelectorAll(".dealer-card a")].filter((anchor) => anchor.href.includes("google.com/maps/dir")).length,
+  mapMessage: document.querySelector(".locator__map-message")?.checkVisibility(),
+}));
+const noJsLocator = report.noJs.locator;
+if (noJsLocator.cards !== 6 || noJsLocator.phones !== 6 || noJsLocator.directions !== 6) failures.push(`No-JS /dealers/ must render every dealer with its phone and directions: ${JSON.stringify(noJsLocator)}`);
+if (noJsLocator.searchVisible || noJsLocator.modesVisible || noJsLocator.selectVisible) failures.push(`No-JS /dealers/ shows controls it cannot drive: ${JSON.stringify(noJsLocator)}`);
+if (!noJsLocator.mapMessage) failures.push("No-JS /dealers/ must still say why the map is unavailable");
+
 // The policy page has to be complete without script, because it is a legal document.
 await noJsPage.goto(`${base}/privacy/`, { waitUntil: "load" });
 report.noJs.privacy = await noJsPage.evaluate(() => ({
@@ -2272,9 +2290,9 @@ report.dealerLocator = await page.evaluate(() => {
     visible: cards.filter((card) => card.checkVisibility()).length,
     // Every card carries the facts that matter without a hover or a click.
     complete: cards.filter((card) => card.querySelector(".dealer-card__address") && card.querySelector('a[href^="tel:"]') && [...card.querySelectorAll("a")].some((anchor) => anchor.href.includes("google.com/maps/dir"))).length,
-    searchVisible: !document.querySelector("[data-locator-search]").hidden,
-    modesVisible: !document.querySelector("[data-locator-modes]").hidden,
-    selectButtons: [...document.querySelectorAll("[data-dealer-select]")].filter((button) => !button.hidden).length,
+    searchVisible: document.querySelector("[data-locator-search]").checkVisibility(),
+    modesVisible: document.querySelector("[data-locator-modes]").checkVisibility(),
+    selectButtons: [...document.querySelectorAll("[data-dealer-select]")].filter((button) => button.checkVisibility()).length,
     count: document.querySelector("[data-locator-count]").textContent,
     filters: [...document.querySelectorAll("[name='capability']")].map((radio) => radio.value),
     noResultsHidden: document.querySelector("[data-locator-state='no-results']").hidden,
@@ -2283,7 +2301,7 @@ report.dealerLocator = await page.evaluate(() => {
 const locator = report.dealerLocator;
 if (locator.cards !== 6 || locator.visible !== 6) failures.push(`/dealers/ must render six visible dealer cards, found ${locator.cards} and ${locator.visible}`);
 if (locator.complete !== 6) failures.push(`${6 - locator.complete} dealer cards are missing an address, a telephone number, or directions`);
-if (!locator.searchVisible || !locator.modesVisible || locator.selectButtons !== 6) failures.push(`The locator island did not reveal its controls: ${JSON.stringify(locator)}`);
+if (!locator.searchVisible || !locator.modesVisible || locator.selectButtons !== 6) failures.push(`The locator controls are not rendered: ${JSON.stringify(locator)}`);
 if (JSON.stringify(locator.filters) !== JSON.stringify(["all", "ev", "gas", "service"])) failures.push(`The locator filters are ${locator.filters.join(", ")}`);
 if (!locator.noResultsHidden) failures.push("The locator shows its no-results state with six results");
 

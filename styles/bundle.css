@@ -1402,12 +1402,10 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 /* The dealer locator. List and map, and the list is the one that has to work. */
 .locator { display: flex; flex-direction: column; gap: var(--sf-s); }
 .locator__search { display: grid; grid-template-columns: 1fr; gap: var(--s-5); border: var(--hairline) solid var(--line); border-radius: var(--r-2); padding: var(--card-pad); }
-.locator__search[hidden] { display: none; }
 .locator__search-actions { display: flex; flex-wrap: wrap; gap: var(--s-3); }
 .locator__bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-3); }
 .locator__count { color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); text-transform: uppercase; }
 .locator__modes { display: flex; border: var(--hairline) solid var(--line-strong); border-radius: var(--r-1); overflow: hidden; }
-.locator__modes[hidden] { display: none; }
 .locator__mode { min-height: var(--hit-target); border: 0; padding-inline: var(--s-5); background: transparent; color: var(--text-secondary); font-size: var(--fs-nav); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps); text-transform: uppercase; cursor: pointer; }
 .locator__mode.is-selected { background: var(--ink); color: var(--paper); }
 .locator__state { color: var(--text-secondary); font-size: var(--fs-body-sm); }
@@ -1438,7 +1436,6 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 .dealer-card__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3) var(--s-5); }
 .dealer-card__actions a, .dealer-card__select { min-height: var(--hit-target); display: inline-flex; align-items: center; color: var(--text-primary); font-size: var(--fs-body-sm); font-weight: var(--wt-medium); text-decoration: underline; text-decoration-color: var(--line-strong); }
 .dealer-card__select { border: 0; padding: 0; background: transparent; cursor: pointer; }
-.dealer-card__select[hidden] { display: none; }
 
 @media (min-width: 640px) {
   .card-grid--posts { grid-template-columns: repeat(2, minmax(0, 1fr)); }

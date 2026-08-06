@@ -677,10 +677,6 @@ document.querySelectorAll("[data-locator]").forEach((locator) => {
     distanceEl: card.querySelector("[data-dealer-distance]"),
   }));
 
-  search.hidden = false;
-  locator.querySelector("[data-locator-modes]").hidden = false;
-  cards.forEach((card) => { const button = card.querySelector("[data-dealer-select]"); if (button) button.hidden = false; });
-
   let origin = null;
   let selected = null;
   let map = null;

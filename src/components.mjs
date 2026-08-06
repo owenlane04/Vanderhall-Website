@@ -827,6 +827,12 @@ export const shell = ({ title, description, path, body, schema = "", mainClass =
   <link rel="manifest" href="/site.webmanifest">
   <link rel="canonical" href="${SITE_URL}${path === "/" ? "/" : `${path}/`}">
   <link rel="stylesheet" href="/styles/bundle.css">
+  ${/* The one place this site withdraws something rather than adding it. These three controls need JavaScript
+        and they render at first paint, so that becoming usable cannot shift the page; without scripting this
+        block takes them away again, which leaves a no-JS visitor the complete dealer list and no control that
+        could not work. A <noscript> style applies only when scripting is off, so it costs nobody else
+        anything. */""}
+  <noscript><style>[data-locator-search],[data-locator-modes],[data-dealer-select]{display:none}</style></noscript>
   ${schema}
 </head>
 <body>
@@ -1065,9 +1071,13 @@ export const campaignBand = (delivery, campaign) => {
 // failed SDK, or no JavaScript at all, every dealer's address, telephone number, website, and directions
 // link is still on the page and still works.
 //
-// Everything a visitor cannot use without JavaScript ships hidden, which is the walkaround's rule again: the
-// search field, the filters, the mode switch, and the per-card map selection are all revealed by site.js.
-// The list itself is not, because it needs nothing.
+// The controls a visitor cannot use without JavaScript are withdrawn by a <noscript> style block in the
+// document head rather than shipped behind a `hidden` attribute the island removes. That is a deliberate
+// departure from the walkaround's ship-hidden-then-reveal pattern, and the reason is measured rather than
+// aesthetic: revealing the search panel after load pushed the result bar and both panes down the page, which
+// Lighthouse recorded as a 0.048 layout shift on this route against a site-wide 0. Rendering the controls at
+// first paint and letting <noscript> take them away inverts the default to the common case, costs a no-JS
+// visitor nothing, and still leaves nobody looking at a control that cannot work.
 const capabilityLabels = { ev: "Electric", gas: "Gas", service: "Service" };
 
 const dealerCard = (dealer) => {
@@ -1092,13 +1102,13 @@ const dealerCard = (dealer) => {
       <a href="tel:${escapeHtml(dealer.phone)}">${escapeHtml(dealer.phone)}</a>
       <a href="${dealer.websiteUrl}">Website</a>
       <a href="${directions}">Directions</a>
-      <button class="dealer-card__select" type="button" data-dealer-select="${dealer.slug}" hidden>Show on map</button>
+      <button class="dealer-card__select" type="button" data-dealer-select="${dealer.slug}">Show on map</button>
     </div>
   </article>`;
 };
 
 export const dealerLocator = (dealers, filters, { mapKey = "", mapId = "" } = {}) => `<section class="locator" data-locator data-map="${mapKey ? "google" : "none"}"${mapKey ? ` data-map-key="${escapeHtml(mapKey)}"` : ""}${mapId ? ` data-map-id="${escapeHtml(mapId)}"` : ""}>
-  <form class="locator__search" data-locator-search hidden>
+  <form class="locator__search" data-locator-search>
     <div class="field">
       <label for="locator-location">City or postal code</label>
       ${/* No geolocation request on load, ever. The visitor types where they are, or does not, and the
@@ -1116,7 +1126,7 @@ export const dealerLocator = (dealers, filters, { mapKey = "", mapId = "" } = {}
   </form>
   <div class="locator__bar">
     <p class="locator__count" data-locator-count>${dealers.length} ${dealers.length === 1 ? "dealer" : "dealers"}</p>
-    <div class="locator__modes" data-locator-modes hidden role="group" aria-label="View">
+    <div class="locator__modes" data-locator-modes role="group" aria-label="View">
       <button class="locator__mode is-selected" type="button" data-locator-mode="list" aria-pressed="true">List</button>
       <button class="locator__mode" type="button" data-locator-mode="map" aria-pressed="false">Map</button>
     </div>

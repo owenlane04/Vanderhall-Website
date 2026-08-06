@@ -247,9 +247,15 @@ if (combinedHtml.includes("Talk with Vanderhall.")) failures.push("The retired V
 // the map fallback is honest rather than a spinner.
 const dealerCards = (dealersHtml.match(/class="dealer-card"/g) || []).length;
 if (dealerCards !== 6) failures.push(`/dealers/ must render all six dealer records as HTML, found ${dealerCards}`);
-if ((dealersHtml.match(/data-locator-search hidden/g) || []).length !== 1) failures.push("/dealers/ search must ship hidden for the no-JavaScript state");
-if ((dealersHtml.match(/data-locator-modes hidden/g) || []).length !== 1) failures.push("/dealers/ List and Map switch must ship hidden for the no-JavaScript state");
-if ((dealersHtml.match(/data-dealer-select="[^"]+" hidden/g) || []).length !== 6) failures.push("Every dealer card's map-selection control must ship hidden");
+// The locator's three script-dependent controls render at first paint, so becoming usable cannot shift the
+// page, and a <noscript> style block withdraws them when scripting is off. Asserted on every page rather than
+// on this one, because the block lives in the shared shell and a page that lost it would show dead controls.
+const NOSCRIPT_RULE = "<noscript><style>[data-locator-search],[data-locator-modes],[data-dealer-select]{display:none}</style></noscript>";
+for (const page of builtPages) {
+  if (!page.text.includes(NOSCRIPT_RULE)) failures.push(`${page.path.replace(root, "")}: the no-JavaScript rule that withdraws the locator's controls is missing`);
+}
+if (dealersHtml.includes("data-locator-search hidden")) failures.push("/dealers/ search must render at first paint: revealing it after load shifts the page");
+if ((dealersHtml.match(/data-dealer-select="[^"]+"/g) || []).length !== 6) failures.push("Every dealer card must offer a map-selection control");
 if (!dealersHtml.includes("The map is unavailable right now.")) failures.push("/dealers/ must carry the honest map-failure message");
 // No key is committed, ever. A key in built output is a key on every visitor's screen.
 if (/data-map-key="[^"]+"/.test(combinedHtml)) failures.push("A Google Maps key reached the built output");
