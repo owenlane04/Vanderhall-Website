@@ -4,8 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <meta name="description" content="Talk with Vanderhall about a vehicle, recommend a dealer, or apply to become one.">
-  <title>Dealers | Vanderhall Motor Works</title>
+  <meta name="description" content="Find a Vanderhall dealer by city or postal code, with directions, phone, and website for each location.">
+  <meta name="robots" content="noindex, follow">
+  <title>Dealers | Vanderhall</title>
   <link rel="icon" href="/assets/brand/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/assets/brand/favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
@@ -20,10 +21,10 @@
     <div class="site-header__inner">
       <a class="brand" href="/"><img src="/assets/brand/vanderhall-lockup-horizontal-white.svg" alt="Vanderhall home" width="269" height="28"></a>
       <nav class="desktop-nav" aria-label="Primary">
-        <a class="nav-link" href="/vehicles/">Vehicles</a><a class="nav-link" href="/concepts/">Concepts</a><a class="nav-link" href="/owners/">Owners</a><a class="nav-link is-current" href="/dealers/" aria-current="page">Dealers</a>
+        <a class="nav-link" href="/vehicles/">Vehicles</a><a class="nav-link" href="/concepts/">Concepts</a><a class="nav-link" href="/experience/">Experience</a><a class="nav-link is-current" href="/dealers/" aria-current="page">Dealers</a>
       </nav>
       <div class="site-header__actions">
-        <a class="button button--primary header-request" href="/dealers/">Contact</a>
+        <a class="button button--primary header-request" href="/contact/">Contact Us</a>
         <button class="icon-button menu-button" type="button" data-open-menu aria-label="Open menu" aria-expanded="false"><span aria-hidden="true">☰</span></button>
       </div>
     </div>
@@ -31,50 +32,167 @@
   <div class="sheet" data-menu-sheet hidden aria-hidden="true">
     <div class="sheet__top"><img class="brand brand--sheet" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" alt="Vanderhall" width="211" height="22"><button class="icon-button" type="button" data-close-menu aria-label="Close menu">×</button></div>
     <nav class="mobile-nav" aria-label="Mobile primary">
-      <a href="/vehicles/">Vehicles</a><a href="/concepts/">Concepts</a><a href="/owners/">Owners</a><a href="/dealers/">Dealers</a>
-      <a class="button button--primary" href="/dealers/">Contact</a>
+      <a href="/vehicles/">Vehicles</a><a href="/concepts/">Concepts</a><a href="/experience/">Experience</a><a href="/dealers/">Dealers</a>
+      <a class="button button--primary" href="/contact/">Contact Us</a>
     </nav>
   </div>
   <div class="sheet-backdrop" data-sheet-backdrop hidden></div>
   <main id="main"><div class="page">
-    <header class="page-header page-header--marked form-shell"><nav class="back-nav" aria-label="Breadcrumb"><a href="/"><span aria-hidden="true">← </span>Home</a></nav><h1>Talk with Vanderhall.</h1><p>Vanderhall vehicles are sold through a dealer network. Tell Vanderhall where you are and which vehicle interests you, and someone will connect you with a dealer.</p></header>
-    <section class="section--tight form-shell" id="request-info">
-      <h2 class="form-heading">Contact Vanderhall</h2>
-      <form class="lead-form" id="contact-lead" novalidate data-site-form data-form-id="request-info" data-endpoint="">
-  <p class="form-key">Fields marked * are required.</p>
-  <div class="form-error-summary" role="alert" tabindex="-1" hidden></div>
-    <div class="form-grid form-grid--pairs">
-      <div class="field"><label for="contact-lead-first">First name<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="contact-lead-first" name="first_name" autocomplete="given-name" required aria-required="true"><span class="field__error" id="contact-lead-first-error"></span></div>
-      <div class="field"><label for="contact-lead-last">Last name<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="contact-lead-last" name="last_name" autocomplete="family-name" required aria-required="true"><span class="field__error" id="contact-lead-last-error"></span></div>
+    <header class="page-header page-header--marked"><nav class="back-nav" aria-label="Breadcrumb"><a href="/"><span aria-hidden="true">← </span>Home</a></nav><h1>Find a Vanderhall dealer.</h1><p>Search by city or postal code to find dealers and services near you.</p></header>
+    <section class="section--tight">
+      <p class="sample-note"><span class="sample-note__tag">Sample content</span>Sample content. These six dealers are fictional records for layout review, with reserved telephone numbers and example.com websites. Vanderhall's own dealer data replaces them before launch.</p>
+      <section class="locator" data-locator data-map="none">
+  <form class="locator__search" data-locator-search hidden>
+    <div class="field">
+      <label for="locator-location">City or postal code</label>
+      
+      <input id="locator-location" name="location" type="search" autocomplete="postal-code" inputmode="search" placeholder="Provo, or 84601">
     </div>
-    <div class="field"><label for="contact-lead-email">Email<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="contact-lead-email" name="email" type="email" autocomplete="email" inputmode="email" required aria-required="true"><span class="field__error" id="contact-lead-email-error"></span></div>
-    <div class="field"><label for="contact-lead-phone">Phone</label><input id="contact-lead-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel"><span class="field__error" id="contact-lead-phone-error"></span></div>
-    <div class="field"><label for="contact-lead-zip">ZIP<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="contact-lead-zip" name="zip" autocomplete="postal-code" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" required aria-required="true"><span class="field__error" id="contact-lead-zip-error"></span></div>
-    <fieldset class="field-group"><legend>I'm interested in</legend><div class="checkbox-grid"><label class="check"><input type="checkbox" name="interest" value="brawley"> <span>Brawley</span></label><label class="check"><input type="checkbox" name="interest" value="santarosa"> <span>Santarosa</span></label><label class="check"><input type="checkbox" name="interest" value="carmel"> <span>Carmel</span></label><label class="check"><input type="checkbox" name="interest" value="venice"> <span>Venice</span></label><label class="check"><input type="checkbox" name="interest" value="concepts"> <span>Concepts</span></label><label class="check"><input type="checkbox" name="interest" value="not-sure-yet"> <span>Not sure yet</span></label></div></fieldset>
-    <div class="field"><label for="contact-lead-timeframe">Timeframe</label><select id="contact-lead-timeframe" name="timeframe"><option value="">Select a timeframe</option><option>Ready now</option><option>1 to 3 months</option><option>3 to 6 months</option><option>Just looking</option></select><span class="field__error" id="contact-lead-timeframe-error"></span></div>
-    <div class="field"><label for="contact-lead-message">Message</label><textarea id="contact-lead-message" name="message" rows="4"></textarea><span class="field__error" id="contact-lead-message-error"></span></div>
-    
-  <div class="honeypot" aria-hidden="true"><label>Company<input name="honeypot" tabindex="-1" autocomplete="off"></label></div>
-  <input type="hidden" name="render_timestamp" value="">
-  <input type="hidden" name="form_id" value="request-info">
-  <input type="hidden" name="page" value="">
-  <div class="form-submit-row"><button class="button button--primary" type="submit" data-submit-label="Send request">Send request</button></div>
-  <p class="form-status" tabindex="-1" aria-live="polite"></p>
-  <p class="form-note">This form is not connected yet, so nothing you enter here is sent.</p>
+    <fieldset class="field-group" data-locator-filters>
+      <legend>Show</legend>
+      <div class="radio-row"><label class="check"><input type="radio" name="capability" value="all" checked> <span>All</span></label><label class="check"><input type="radio" name="capability" value="ev"> <span>Electric</span></label><label class="check"><input type="radio" name="capability" value="gas"> <span>Gas</span></label><label class="check"><input type="radio" name="capability" value="service"> <span>Service</span></label></div>
+    </fieldset>
+    <div class="locator__search-actions">
+      <button class="button button--primary" type="submit">Search</button>
+      <button class="button button--secondary" type="reset" data-locator-reset>Clear</button>
+    </div>
   </form>
+  <div class="locator__bar">
+    <p class="locator__count" data-locator-count>6 dealers</p>
+    <div class="locator__modes" data-locator-modes hidden role="group" aria-label="View">
+      <button class="locator__mode is-selected" type="button" data-locator-mode="list" aria-pressed="true">List</button>
+      <button class="locator__mode" type="button" data-locator-mode="map" aria-pressed="false">Map</button>
+    </div>
+  </div>
+  <p class="locator__state" data-locator-state="searching" role="status" hidden>Searching</p>
+  <p class="locator__state" data-locator-state="data-failed" role="alert" hidden>The dealer list could not be loaded. Please try again, or contact Vanderhall.</p>
+  <div class="locator__panes" data-locator-panes data-mode="list">
+    <div class="locator__list" data-locator-list>
+      <article class="dealer-card" id="dealer-wasatch-motorworks" data-dealer="wasatch-motorworks" data-lat="40.2338" data-lng="-111.6585" data-ev="true" data-gas="true" data-service="true" data-city="Provo" data-region="UT" data-postal="84601" tabindex="-1">
+    <div class="dealer-card__head">
+      
+      <h2 class="dealer-card__name">Wasatch Motorworks</h2>
+      <p class="dealer-card__distance" data-dealer-distance></p>
+    </div>
+    <p class="dealer-card__address">1420 Sample Foundry Way<br>Suite 200<br>Provo, UT 84601</p>
+    <ul class="dealer-card__tags"><li>Electric</li><li>Gas</li><li>Service</li></ul>
+    <p class="dealer-card__models">Brawley, Santarosa</p>
+    <p class="dealer-card__hours">Monday to Friday, 9 to 6. Open today</p>
+    <div class="dealer-card__actions">
+      <a href="tel:+1-555-0142">+1-555-0142</a>
+      <a href="https://wasatch-motorworks.example.com/">Website</a>
+      <a href="https://www.google.com/maps/dir/?api=1&destination=40.2338,-111.6585">Directions</a>
+      <button class="dealer-card__select" type="button" data-dealer-select="wasatch-motorworks" hidden>Show on map</button>
+    </div>
+  </article><article class="dealer-card" id="dealer-high-desert-electric" data-dealer="high-desert-electric" data-lat="33.4484" data-lng="-112.074" data-ev="true" data-gas="false" data-service="true" data-city="Phoenix" data-region="AZ" data-postal="85004" tabindex="-1">
+    <div class="dealer-card__head">
+      
+      <h2 class="dealer-card__name">High Desert Electric</h2>
+      <p class="dealer-card__distance" data-dealer-distance></p>
+    </div>
+    <p class="dealer-card__address">8 Sample Mesa Road<br>Phoenix, AZ 85004</p>
+    <ul class="dealer-card__tags"><li>Electric</li><li>Service</li></ul>
+    <p class="dealer-card__models">Brawley</p>
+    <p class="dealer-card__hours">Monday to Saturday, 10 to 7</p>
+    <div class="dealer-card__actions">
+      <a href="tel:+1-555-0163">+1-555-0163</a>
+      <a href="https://high-desert-electric.example.com/">Website</a>
+      <a href="https://www.google.com/maps/dir/?api=1&destination=33.4484,-112.074">Directions</a>
+      <button class="dealer-card__select" type="button" data-dealer-select="high-desert-electric" hidden>Show on map</button>
+    </div>
+  </article><article class="dealer-card" id="dealer-silver-state-roadsters" data-dealer="silver-state-roadsters" data-lat="36.1147" data-lng="-115.1728" data-ev="false" data-gas="true" data-service="false" data-city="Las Vegas" data-region="NV" data-postal="89109" tabindex="-1">
+    <div class="dealer-card__head">
+      
+      <h2 class="dealer-card__name">Silver State Roadsters</h2>
+      <p class="dealer-card__distance" data-dealer-distance></p>
+    </div>
+    <p class="dealer-card__address">3301 Sample Canyon Parkway<br>Las Vegas, NV 89109</p>
+    <ul class="dealer-card__tags"><li>Gas</li></ul>
+    <p class="dealer-card__models">Venice, Carmel</p>
+    
+    <div class="dealer-card__actions">
+      <a href="tel:+1-555-0117">+1-555-0117</a>
+      <a href="https://silver-state-roadsters.example.com/">Website</a>
+      <a href="https://www.google.com/maps/dir/?api=1&destination=36.1147,-115.1728">Directions</a>
+      <button class="dealer-card__select" type="button" data-dealer-select="silver-state-roadsters" hidden>Show on map</button>
+    </div>
+  </article><article class="dealer-card" id="dealer-front-range-autocycle" data-dealer="front-range-autocycle" data-lat="39.7392" data-lng="-104.9903" data-ev="true" data-gas="true" data-service="true" data-city="Denver" data-region="CO" data-postal="80202" tabindex="-1">
+    <div class="dealer-card__head">
+      
+      <h2 class="dealer-card__name">Front Range Autocycle</h2>
+      <p class="dealer-card__distance" data-dealer-distance></p>
+    </div>
+    <p class="dealer-card__address">77 Sample Union Street<br>Denver, CO 80202</p>
+    <ul class="dealer-card__tags"><li>Electric</li><li>Gas</li><li>Service</li></ul>
+    <p class="dealer-card__models">Santarosa, Brawley, Carmel</p>
+    <p class="dealer-card__hours">Tuesday to Saturday, 9 to 5. Closed today</p>
+    <div class="dealer-card__actions">
+      <a href="tel:+1-555-0198">+1-555-0198</a>
+      <a href="https://front-range-autocycle.example.com/">Website</a>
+      <a href="https://www.google.com/maps/dir/?api=1&destination=39.7392,-104.9903">Directions</a>
+      <button class="dealer-card__select" type="button" data-dealer-select="front-range-autocycle" hidden>Show on map</button>
+    </div>
+  </article><article class="dealer-card" id="dealer-treasure-valley-powersports" data-dealer="treasure-valley-powersports" data-lat="43.615" data-lng="-116.2023" data-ev="true" data-gas="false" data-service="false" data-city="Boise" data-region="ID" data-postal="83702" tabindex="-1">
+    <div class="dealer-card__head">
+      
+      <h2 class="dealer-card__name">Treasure Valley Powersports</h2>
+      <p class="dealer-card__distance" data-dealer-distance></p>
+    </div>
+    <p class="dealer-card__address">512 Sample Orchard Avenue<br>Boise, ID 83702</p>
+    <ul class="dealer-card__tags"><li>Electric</li></ul>
+    <p class="dealer-card__models">Brawley</p>
+    
+    <div class="dealer-card__actions">
+      <a href="tel:+1-555-0126">+1-555-0126</a>
+      <a href="https://treasure-valley-powersports.example.com/">Website</a>
+      <a href="https://www.google.com/maps/dir/?api=1&destination=43.615,-116.2023">Directions</a>
+      <button class="dealer-card__select" type="button" data-dealer-select="treasure-valley-powersports" hidden>Show on map</button>
+    </div>
+  </article><article class="dealer-card" id="dealer-valley-electric-sport" data-dealer="valley-electric-sport" data-lat="38.5816" data-lng="-121.4944" data-ev="true" data-gas="true" data-service="true" data-city="Sacramento" data-region="CA" data-postal="95814" tabindex="-1">
+    <div class="dealer-card__head">
+      
+      <h2 class="dealer-card__name">Valley Electric Sport</h2>
+      <p class="dealer-card__distance" data-dealer-distance></p>
+    </div>
+    <p class="dealer-card__address">2044 Sample Levee Drive<br>Sacramento, CA 95814</p>
+    <ul class="dealer-card__tags"><li>Electric</li><li>Gas</li><li>Service</li></ul>
+    <p class="dealer-card__models">Santarosa, Venice</p>
+    <p class="dealer-card__hours">Monday to Friday, 8 to 5</p>
+    <div class="dealer-card__actions">
+      <a href="tel:+1-555-0171">+1-555-0171</a>
+      <a href="https://valley-electric-sport.example.com/">Website</a>
+      <a href="https://www.google.com/maps/dir/?api=1&destination=38.5816,-121.4944">Directions</a>
+      <button class="dealer-card__select" type="button" data-dealer-select="valley-electric-sport" hidden>Show on map</button>
+    </div>
+  </article>
+      <div class="locator__no-results" data-locator-state="no-results" hidden>
+        <p>No dealers matched this search. Try another location, contact Vanderhall, or recommend a local dealer.</p>
+        <div class="cluster"><a class="button button--secondary" href="/recommend-dealer/">Recommend a dealer</a><a class="button button--secondary" href="/contact/">Contact Vanderhall</a></div>
+      </div>
+    </div>
+    <div class="locator__map">
+      <div class="locator__canvas" data-locator-canvas></div>
+      
+      <div class="locator__map-fallback" data-locator-map-fallback>
+        <p class="locator__map-message">The map is unavailable right now. You can still search the dealer list and use its phone, website, and directions links.</p>
+      </div>
+    </div>
+  </div>
+</section>
     </section>
   </div></main>
   <footer class="site-footer">
   <div class="footer-links">
     <div><h2>Vehicles</h2><a href="/brawley/">Brawley</a><a href="/santarosa/">Santarosa</a><a href="/carmel/">Carmel</a><a href="/venice/">Venice</a><a href="/concepts/">Concepts</a></div>
-    <div><h2>Owners</h2><a href="/owners/">Owner resources</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a><a href="https://apps.apple.com/us/app/vanderhall/id6761500330">Vanderhall app for iPhone</a><a href="https://play.google.com/store/apps/details?id=com.vanderhall.customerapp">Vanderhall app for Android</a></div>
-    <div><h2>Connect</h2><a href="/dealers/">Dealers</a><a href="/recommend-dealer/">Recommend a dealer</a><a href="/dealer-inquiry/">Become a dealer</a></div>
+    <div><h2>Experience</h2><a href="/experience/">Experience</a><a href="/blog/">Blog</a></div>
+    <div><h2>Owners</h2><a href="/owners/">Owner manuals</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a><a href="https://apps.apple.com/us/app/vanderhall/id6761500330">Vanderhall app for iPhone</a><a href="https://play.google.com/store/apps/details?id=com.vanderhall.customerapp">Vanderhall app for Android</a></div>
+    <div><h2>Connect</h2><a href="/dealers/">Dealers</a><a href="/contact/">Contact</a><a class="footer-email" href="mailto:inquiry@vanderhall.com">inquiry@vanderhall.com</a><a href="/recommend-dealer/">Recommend a dealer</a><a href="/dealer-inquiry/">Become a dealer</a></div>
     <div class="footer-follow"><h2>Follow</h2><a href="https://www.facebook.com/vanderhallusa/" aria-label="Vanderhall on Facebook">Facebook</a><a href="https://www.instagram.com/vanderhall/" aria-label="Vanderhall on Instagram">Instagram</a><a href="https://twitter.com/vanderhallusa" aria-label="Vanderhall on Twitter">Twitter</a><a href="https://www.linkedin.com/company/vanderhall" aria-label="Vanderhall on LinkedIn">LinkedIn</a><a href="https://www.tiktok.com/@vanderhallusa" aria-label="Vanderhall on TikTok">TikTok</a><a href="https://www.youtube.com/@VanderhallUSA" aria-label="Vanderhall on YouTube">YouTube</a></div>
   </div>
   <div class="footer-legal">
-    <img class="footer-lockup" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" width="231" height="24" loading="lazy" decoding="async" alt="Vanderhall Motor Works">
-    <span>© 2026 Vanderhall Motor Works. Hand-built in Provo, Utah.</span>
-    <ul class="footer-legal__links"><li><a href="https://portal.vanderhallusa.com/safety_notices">Safety notices</a></li><li><a href="https://dealer.vanderhallusa.com/careers">Careers</a></li><li><a href="/privacy/">Privacy policy</a></li></ul>
+    <img class="footer-lockup" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" width="231" height="24" loading="lazy" decoding="async" alt="Vanderhall">
+    <span>© 2026 Vanderhall. Hand-built in Provo, Utah.</span>
+    <ul class="footer-legal__links"><li><a href="/safety/">Safety notices</a></li><li><a href="/careers/">Careers</a></li><li><a href="/privacy/">Privacy policy</a></li></ul>
   </div>
 </footer>
   <script>addEventListener('load',()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{const s=document.createElement('script');s.src='/scripts/site.js';document.body.append(s)})),{once:true})</script>

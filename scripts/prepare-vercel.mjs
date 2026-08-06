@@ -6,17 +6,24 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const output = resolve(root, "public");
 
 const files = ["404.html", "index.html", "robots.txt", "site.webmanifest", "sitemap.xml"];
+// Every built route directory, alphabetical. V13 adds blog, careers, contact, experience and safety;
+// santarosa already appears and now also carries the nested launch-edition route beneath it.
 const directories = [
   "404",
   "assets",
+  "blog",
   "brawley",
+  "careers",
   "carmel",
   "concepts",
+  "contact",
   "dealer-inquiry",
   "dealers",
+  "experience",
   "owners",
   "privacy",
   "recommend-dealer",
+  "safety",
   "santarosa",
   "styles",
   "vehicles",

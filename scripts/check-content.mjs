@@ -5,10 +5,13 @@ import { fileURLToPath } from "node:url";
 // Imported to compare what the pages publish against the one source those strings come from. The
 // counts asserted below are hardcoded on purpose, so the structural checks stay independent of the
 // generator: importing the data proves the strings match, the counts prove the shape is right.
-import { modelBySlug, SPEC_DISCLAIMER } from "../src/data/models.mjs";
+import { currentModels, HISTORICAL_SPECS, modelBySlug, pastModels, SPEC_DISCLAIMER } from "../src/data/models.mjs";
 import { conceptBySlug } from "../src/data/concepts.mjs";
 import { privacySections } from "../src/data/privacy.mjs";
 import { ambientVideos } from "../src/data/video.mjs";
+import { FORM_ENDPOINTS, INQUIRY_EMAIL } from "../src/data/forms.mjs";
+import { FOOTNOTES } from "../src/data/footnotes.mjs";
+import { PRODUCTION_BLOCKERS } from "../src/data/prototype.mjs";
 import { APP_LINKS, LEGAL_LINKS, SOCIAL_LINKS } from "../src/components.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -81,7 +84,11 @@ const combinedHtml = builtPages.map((page) => page.text).join("\n");
 // hero button, leaving only the way back, which moved into the hero content. The word cascade and its
 // .word spans went with the scrubbed reveal path in V12-C. And .gts-note lost its only caller when the
 // purchase page stopped printing one disclaimer twice.
-for (const token of ["data-missing", "MISSING:", "data-vehicles-trigger", "data-mega-panel", "data-open-lead", "data-lead-sheet", "data-filter-pill", "class=\"chapter", "concepts-theme", "stat-band", "concept-feature", "concept-wide", "concept-tile", "card-grid--vehicles", "card-grid--related", "class=\"gallery", "chip--status", "faq-list", "concept-ring", "row-links", "unit-toggle", "data-unit", "data-spec-table", "unit-metric", "vhw.units", "spec-toolbar", "concept-back", "resource-row", "pathway", "class=\"ambient", "ambient__", "footer-social", "class=\"model-bar", "model-bar__", "class=\"word\"", "is-split", "data-split"]) {
+for (const token of ["data-missing", "MISSING:", "data-vehicles-trigger", "data-mega-panel", "data-open-lead", "data-lead-sheet", "data-filter-pill", "class=\"chapter", "concepts-theme", "stat-band", "concept-feature", "concept-wide", "concept-tile", "card-grid--vehicles", "card-grid--related", "class=\"gallery", "chip--status", "faq-list", "concept-ring", "row-links", "unit-toggle", "data-unit", "data-spec-table", "unit-metric", "vhw.units", "spec-toolbar", "concept-back", "resource-row", "pathway", "class=\"ambient", "ambient__", "footer-social", "class=\"model-bar", "model-bar__", "class=\"word\"", "is-split", "data-split",
+  // V13 retires the generic dealer lead form. Its identity is banned rather than merely unused: the endpoint
+  // map is keyed on the form ID, so markup carrying the old one would route a materially different form's
+  // submissions to whatever `request-info` eventually points at.
+  "request-info", "contact-lead"]) {
   if (combinedHtml.includes(token)) failures.push(`Retired markup remains: ${token}`);
 }
 // The stylesheet has to lose them too. A retired component whose CSS survives is dead weight that
@@ -174,23 +181,89 @@ if (!/\[data-reveal="shown"\]/.test(cssRules)) failures.push("The reveal has no 
 if (fallbackRule && !/transition:[^;]*opacity/.test(fallbackRule[3])) {
   failures.push("The reveal's start state must declare a transition on opacity, or the reveal has no duration a visitor can see");
 }
-for (const route of ["/about/", "/faq/", "/contact/"]) {
+// V13-G: /contact/ leaves this list, because it is a native route now rather than a redirect. About and FAQ
+// stay retired.
+for (const route of ["/about/", "/faq/"]) {
   if (combinedHtml.includes(route)) failures.push(`A link to the removed ${route} route remains`);
 }
 
 const formCount = (id) => (combinedHtml.match(new RegExp(`data-form-id="${id}"`, "g")) || []).length;
-for (const id of ["request-info", "recommend-dealer", "international-dealer-inquiry"]) {
+// V13-G. Four forms, one each, and the retired one must be gone entirely. The count on `request-info` is the
+// assertion that matters most: a zero here is what proves the old single-step lead schema is not quietly
+// still identifying the new support form.
+for (const id of ["contact", "recommend-dealer", "international-dealer-inquiry", "santarosa-launch-interest"]) {
   if (formCount(id) !== 1) failures.push(`Expected one ${id} form, found ${formCount(id)}`);
+}
+if (formCount("request-info") !== 0) failures.push(`The retired request-info form identity survives on ${formCount("request-info")} pages`);
+if (combinedHtml.includes('id="request-info"')) failures.push("The retired #request-info section anchor remains");
+
+// The endpoint key set, which no check asserted before V13. FORM_ENDPOINTS is consumed only by
+// components.mjs, so a key could be added, renamed, or given a live destination with nothing noticing. The
+// list here is written out rather than derived, for the reason every other independent expectation in this
+// file is: an expectation read from the thing it checks agrees with a mistake in it.
+const EXPECTED_ENDPOINT_KEYS = ["contact", "recommend-dealer", "international-dealer-inquiry", "santarosa-launch-interest"];
+const endpointKeys = Object.keys(FORM_ENDPOINTS).sort();
+if (JSON.stringify(endpointKeys) !== JSON.stringify([...EXPECTED_ENDPOINT_KEYS].sort())) {
+  failures.push(`The form endpoint map must hold exactly ${EXPECTED_ENDPOINT_KEYS.join(", ")}, found ${endpointKeys.join(", ")}`);
+}
+// And every one of them must still be null. A string here is a live destination, and Contact and the Launch
+// Edition both carry copy stating plainly that nothing is sent, so a populated endpoint would make the page
+// lie to a visitor while John's routing was still unverified.
+for (const [key, value] of Object.entries(FORM_ENDPOINTS)) {
+  if (value !== null) failures.push(`FORM_ENDPOINTS.${key} is set to ${value}: production routing is not verified, and the pages state that nothing is sent`);
 }
 
 const pageBySuffix = (suffix) => builtPages.find((page) => page.path.endsWith(suffix))?.text || "";
 // V6 order: the flagship leads, then the other electric vehicle, then the two roadsters.
 const MODEL_SLUGS = ["brawley", "santarosa", "carmel", "venice"];
+// V13-D. The lineup is the current models only. Written out rather than filtered from the data, because a
+// `pastModel` flag accidentally set on Brawley would remove it from the lineup AND from an expectation
+// derived from the same flag, and both would still pass.
+const CURRENT_SLUGS = ["brawley", "santarosa"];
+const PAST_SLUGS = ["carmel", "venice"];
+if (JSON.stringify(currentModels.map((model) => model.slug)) !== JSON.stringify(CURRENT_SLUGS)) {
+  failures.push(`The data declares current models ${currentModels.map((model) => model.slug).join(", ")}, not the ${CURRENT_SLUGS.join(", ")} this script expects`);
+}
+if (JSON.stringify(pastModels.map((model) => model.slug)) !== JSON.stringify(PAST_SLUGS)) {
+  failures.push(`The data declares past models ${pastModels.map((model) => model.slug).join(", ")}, not the ${PAST_SLUGS.join(", ")} this script expects`);
+}
 
-// The single Request Info form lives on /dealers/, which is also a primary navigation item.
+// V13-G. /dealers/ is a locator and holds no form at all. /contact/ holds the one request form and states
+// plainly that it is not connected.
 const dealersHtml = pageBySuffix("/dealers/index.html");
-if (!dealersHtml.includes('data-form-id="request-info"')) failures.push("The one request-info form must be on /dealers/");
-if (!dealersHtml.includes("This form is not connected yet, so nothing you enter here is sent.")) failures.push("/dealers/ must state plainly that the form is not connected");
+const contactHtml = pageBySuffix("/contact/index.html");
+if (!contactHtml) failures.push("/contact/ was not built");
+if ((dealersHtml.match(/<form/g) || []).length !== 1) failures.push(`/dealers/ must carry exactly one form, the locator's own search, found ${(dealersHtml.match(/<form/g) || []).length}`);
+if (dealersHtml.includes("data-site-form")) failures.push("/dealers/ must carry no submission form: requests belong to /contact/");
+if (!contactHtml.includes('data-form-id="contact"')) failures.push("The one contact form must be on /contact/");
+if (!contactHtml.includes("This form is not connected yet, so nothing you enter here is sent.")) failures.push("/contact/ must state plainly that the form is not connected");
+if (!contactHtml.includes("This is a design preview. Your information was not sent.")) failures.push("/contact/ must carry its prototype result statement");
+if (!contactHtml.includes("<h1>Contact Vanderhall.</h1>")) failures.push("/contact/ must carry its approved title");
+// The locator's own title and description, and the retired inquiry title banned by name.
+if (!dealersHtml.includes("<h1>Find a Vanderhall dealer.</h1>")) failures.push("/dealers/ must carry the locator title");
+if (!dealersHtml.includes('<meta name="description" content="Find a Vanderhall dealer')) failures.push("/dealers/ meta description must follow its locator title");
+if (combinedHtml.includes("Talk with Vanderhall.")) failures.push("The retired V11-H dealers inquiry title remains");
+// The locator's contract: the complete list is HTML, every control that needs JavaScript ships hidden, and
+// the map fallback is honest rather than a spinner.
+const dealerCards = (dealersHtml.match(/class="dealer-card"/g) || []).length;
+if (dealerCards !== 6) failures.push(`/dealers/ must render all six dealer records as HTML, found ${dealerCards}`);
+if ((dealersHtml.match(/data-locator-search hidden/g) || []).length !== 1) failures.push("/dealers/ search must ship hidden for the no-JavaScript state");
+if ((dealersHtml.match(/data-locator-modes hidden/g) || []).length !== 1) failures.push("/dealers/ List and Map switch must ship hidden for the no-JavaScript state");
+if ((dealersHtml.match(/data-dealer-select="[^"]+" hidden/g) || []).length !== 6) failures.push("Every dealer card's map-selection control must ship hidden");
+if (!dealersHtml.includes("The map is unavailable right now.")) failures.push("/dealers/ must carry the honest map-failure message");
+// No key is committed, ever. A key in built output is a key on every visitor's screen.
+if (/data-map-key="[^"]+"/.test(combinedHtml)) failures.push("A Google Maps key reached the built output");
+// Phone numbers and websites that prove the records are fictional, plus the two ways out of a no-results
+// state. Both destinations are asserted because a locator that finds nothing must still lead somewhere.
+if ((dealersHtml.match(/tel:\+1-555-01/g) || []).length !== 6) failures.push("The six sample dealers must use reserved 555-01xx telephone numbers");
+if ((dealersHtml.match(/\.example\.com/g) || []).length !== 6) failures.push("The six sample dealers must use reserved example.com websites");
+for (const href of ["/recommend-dealer/", "/contact/"]) {
+  if (!dealersHtml.includes(`href="${href}"`)) failures.push(`/dealers/ no-results state must offer ${href}`);
+}
+// No location permission may be requested, and the way to prove that from the markup is that the API the
+// browser would ask through is not named anywhere in the delivered script.
+const siteScript = await readFile(resolve(root, "scripts/site.js"), "utf8");
+if (siteScript.includes("geolocation")) failures.push("The delivered script references the geolocation API: the locator must never ask for a visitor's position");
 
 // Both the homepage and /vehicles/ present the same four vehicle sections in the same order,
 // each linking to its model page. This replaces the V4 four-card grid on /vehicles/. The scroll
@@ -201,11 +274,15 @@ const withoutFooter = (html) => html.split("<footer")[0];
 for (const [route, html] of [["/", homeHtml], ["/vehicles/", vehiclesHtml]]) {
   const scroll = withoutFooter(html);
   const blocks = scroll.split('<section class="vehicle-section').slice(1);
-  if (blocks.length !== 4) failures.push(`${route}: expected four vehicle sections, found ${blocks.length}`);
+  if (blocks.length !== 2) failures.push(`${route}: expected two current-model vehicle sections, found ${blocks.length}`);
   // Each section now links to its model page more than once, because the photographs became links
   // too, so the order is read one section at a time rather than from a flat list of hrefs.
   const order = blocks.map((block) => block.match(/href="\/(brawley|santarosa|carmel|venice)\/"/)?.[1] || "none");
-  if (JSON.stringify(order) !== JSON.stringify(MODEL_SLUGS)) failures.push(`${route}: vehicle sections must link to ${MODEL_SLUGS.join(", ")} in order, found ${order.join(", ") || "none"}`);
+  if (JSON.stringify(order) !== JSON.stringify(CURRENT_SLUGS)) failures.push(`${route}: vehicle sections must link to ${CURRENT_SLUGS.join(", ")} in order, found ${order.join(", ") || "none"}`);
+  // And neither surface may present a past model as a full section again.
+  for (const slug of PAST_SLUGS) {
+    if (order.includes(slug)) failures.push(`${route}: ${slug} is a past model and must not take a full vehicle section`);
+  }
   // Media links must never take a tab stop or a name away from the text link beneath them.
   for (const block of blocks) {
     for (const tag of block.match(/<a class="vehicle-section__(?:lead|support)"[^>]*>/g) || []) {
@@ -213,10 +290,28 @@ for (const [route, html] of [["/", homeHtml], ["/vehicles/", vehiclesHtml]]) {
     }
   }
 }
-// The vehicles page is the fuller version of the same scroll: three photographs per vehicle.
+// The vehicles page is the fuller version of the same scroll: three photographs per current vehicle.
 const supportFrames = (vehiclesHtml.match(/vehicle-section__support/g) || []).length;
-if (supportFrames !== 8) failures.push(`/vehicles/ must carry two supporting photographs per vehicle, found ${supportFrames}`);
+if (supportFrames !== 4) failures.push(`/vehicles/ must carry two supporting photographs per current vehicle, found ${supportFrames}`);
 if ((homeHtml.match(/vehicle-section__support/g) || []).length !== 0) failures.push("The homepage must stay the short version with one photograph per vehicle");
+
+// V13-D. The Past Models group: one section, two compact cards, one image each, and no status pill inside
+// it, because the heading above already says what the group is.
+const pastCards = (vehiclesHtml.match(/<article class="past-card">/g) || []).length;
+if (pastCards !== 2) failures.push(`/vehicles/ must present two past-model cards, found ${pastCards}`);
+if (!vehiclesHtml.includes('<section class="section" id="past-models">')) failures.push("/vehicles/ must carry the past-models anchor the homepage links to");
+if (!vehiclesHtml.includes("<h2>Past Models</h2>")) failures.push("/vehicles/ must head its past-model group Past Models");
+const pastGroup = vehiclesHtml.slice(vehiclesHtml.indexOf('id="past-models"'));
+for (const slug of PAST_SLUGS) {
+  if (!pastGroup.includes(`href="/${slug}/"`)) failures.push(`/vehicles/ past-model group must lead to /${slug}/`);
+}
+if ((pastGroup.match(/class="past-card__media"/g) || []).length !== 2) failures.push("Each past-model card must carry exactly one photograph");
+if (withoutFooter(pastGroup).includes(">Past model<")) failures.push("The Past Models group must not repeat the status as a pill on each card");
+// The homepage carries one quiet way through to them and does not list them.
+if (!homeHtml.includes('href="/vehicles/#past-models"')) failures.push("The homepage must carry one quiet link to the past models");
+for (const slug of PAST_SLUGS) {
+  if (withoutFooter(homeHtml).includes(`href="/${slug}/"`)) failures.push(`The homepage lineup must not link directly to the past model ${slug}`);
+}
 
 // The V9 homepage front of page. Owen supplied the h1 and the descriptor verbatim; the retired
 // strings are matched in the shapes they occupied rather than as bare words, because "Hand-built in
@@ -246,9 +341,14 @@ for (const page of builtPages) {
 // SPEC_GROUP_COUNTS is stated here rather than read from the data, so the assertion stays
 // independent of the generator it is checking. models.mjs is imported too, but only to compare the
 // published strings against their source of truth; the counts below are the non-circular anchor.
-const MODULE_COUNTS = { venice: 6, carmel: 6, santarosa: 5, brawley: 6 };
-const SPEC_GROUP_COUNTS = { venice: 4, carmel: 3, santarosa: 5, brawley: 6 };
-const SPEC_ROW_COUNTS = { venice: 20, carmel: 15, santarosa: 28, brawley: 33 };
+// V13-C: the two past models publish no photo modules and no specification rows at all. Their pages are
+// galleries, asserted separately below with their own counts.
+const MODULE_COUNTS = { venice: 0, carmel: 0, santarosa: 5, brawley: 6 };
+const SPEC_GROUP_COUNTS = { venice: 0, carmel: 0, santarosa: 5, brawley: 6 };
+// V13-B: Brawley loses the Range row, so 33 becomes 32. Santarosa loses standard range, optional range and
+// power and gains the moved Drivetrain row, so 28 becomes 25.
+const SPEC_ROW_COUNTS = { venice: 0, carmel: 0, santarosa: 25, brawley: 32 };
+const GALLERY_COUNTS = { venice: 6, carmel: 6 };
 // V11-C. Owen asked for the figures evened out: "Some of them only have two, some of them have
 // eight, so how can we even them out? I'll have four to five." This is the result, per module, in
 // page order, and it is the single most important number in this file to state independently.
@@ -260,10 +360,10 @@ const SPEC_ROW_COUNTS = { venice: 20, carmel: 15, santarosa: 28, brawley: 33 };
 // that carries its label alone, which is a deliberate pattern on Carmel and Venice and is checked
 // as a count rather than as an absence.
 const MODULE_ROW_COUNTS = {
-  brawley: [5, 6, 5, 6, 6, 5],
-  santarosa: [6, 6, 6, 5, 5],
-  carmel: [5, 5, 0, 5, 0, 0],
-  venice: [5, 6, 5, 4, 0, 0],
+  brawley: [5, 6, 4, 6, 6, 5],
+  santarosa: [5, 4, 6, 5, 5],
+  carmel: [],
+  venice: [],
 };
 // The claim in one line: every module that carries figures carries between four and six of them.
 const MODULE_ROW_FLOOR = 4;
@@ -285,7 +385,29 @@ for (const slug of MODEL_SLUGS) {
   if (/<\/section>\s*<section class="section--tight narrow"><p class="lede">/.test(html)) {
     failures.push(`/${slug}/ must run from the hero straight into IN DETAIL, with no overview paragraph between them`);
   }
-  if (!html.includes(`A closer look at ${slug[0].toUpperCase() + slug.slice(1)}.`)) failures.push(`/${slug}/ is missing its in-detail heading`);
+  const name = slug[0].toUpperCase() + slug.slice(1);
+  if (model.pastModel) {
+    // V13-C. A gallery page: six captioned photographs, one honest sentence about availability, a way to the
+    // dealer network, and nothing that publishes a figure or implies a vehicle is in stock.
+    if (!html.includes(`${name} in photographs.`)) failures.push(`/${slug}/ is missing its gallery heading`);
+    const frames = (html.match(/<figure class="photo-gallery__figure">/g) || []).length;
+    if (frames !== GALLERY_COUNTS[slug]) failures.push(`/${slug}/ must present ${GALLERY_COUNTS[slug]} gallery frames, found ${frames}`);
+    const captions = (html.match(/class="photo-gallery__caption"/g) || []).length;
+    if (captions !== GALLERY_COUNTS[slug]) failures.push(`/${slug}/ has ${captions} gallery captions for ${frames} frames`);
+    if (!html.includes(model.inventoryNote)) failures.push(`/${slug}/ must state that it is a past model and that availability is not guaranteed`);
+    if (!html.includes('href="/dealers/"')) failures.push(`/${slug}/ must lead to the dealer network`);
+    if (!html.includes(">Find a dealer<")) failures.push(`/${slug}/ must offer the approved Find a dealer action`);
+    // The absence rules. Neither page had a warranty or a price field to begin with, so these are assertions
+    // that nothing arrived rather than that something was removed.
+    for (const token of ["limited warranty", "MSRP", 'class="price', 'class="spec-note"', "Manufacturer's Suggested Retail Price"]) {
+      if (html.includes(token)) failures.push(`/${slug}/ is a past-model gallery and must not carry ${token}`);
+    }
+    if (html.includes(SPEC_DISCLAIMER)) failures.push(`/${slug}/ publishes no figure, so it must carry no specification estimate note`);
+    if (html.includes("Specifications shown are for the")) failures.push(`/${slug}/ publishes no figure, so it must carry no model-year qualifier`);
+    if (html.includes('class="fn-ref"')) failures.push(`/${slug}/ must carry no footnote references: it publishes no marked figure`);
+    continue;
+  }
+  if (!html.includes(`A closer look at ${name}.`)) failures.push(`/${slug}/ is missing its in-detail heading`);
   // Every module needs a label, and the label must be the caption's first child, because the
   // specification block follows it.
   const labels = (html.match(/photo-module__body">\s*<p class="eyebrow">/g) || []).length;
@@ -329,26 +451,69 @@ for (const slug of MODEL_SLUGS) {
   }
   // The estimate sentence belongs on every page that publishes figures.
   if (!html.includes(SPEC_DISCLAIMER)) failures.push(`/${slug}/ must carry the specification estimate disclaimer`);
-  // Warranty on the current models, a model-year qualifier on the past ones. Never both, because a
-  // warranty term for a vehicle no longer sold would mislead.
-  if (model.pastModel) {
-    if (!html.includes(model.specNote)) failures.push(`/${slug}/ must state which model year its figures describe`);
-    if (html.includes("limited warranty")) failures.push(`/${slug}/ is a past model and must publish no warranty term`);
-  } else {
-    if (!html.includes(model.warranty)) failures.push(`/${slug}/ must carry its warranty line`);
-    if (model.specNote) failures.push(`/${slug}/ is a current model and needs no model-year qualifier`);
+  // Warranty on the current models. The past-model branch that used to sit here is gone with the figures it
+  // qualified: the loop returns above for a gallery page, which has no warranty term, no model-year
+  // qualifier, and no estimate note, and asserts all three absences there.
+  if (!html.includes(model.warranty)) failures.push(`/${slug}/ must carry its warranty line`);
+  if (model.specNote) failures.push(`/${slug}/ is a current model and needs no model-year qualifier`);
+
+  // V13-F. The estimate sentence reaches the page as a resolving footnote rather than as a flat paragraph.
+  // Three things have to be true together, and the third is the one that catches a broken reference: every
+  // mark points at a note that exists on the same page, and every note has at least one mark.
+  const refs = [...html.matchAll(/<a id="fnref-([a-z-]+)-(\d+)" href="#fn-([a-z-]+)"/g)];
+  if (!refs.length) failures.push(`/${slug}/ publishes figures but carries no footnote reference`);
+  const noteIds = [...html.matchAll(/<p class="footnote" id="fn-([a-z-]+)"/g)].map((match) => match[1]);
+  if (new Set(noteIds).size !== noteIds.length) failures.push(`/${slug}/ prints a duplicate footnote body`);
+  for (const [, refId, , targetId] of refs) {
+    if (refId !== targetId) failures.push(`/${slug}/ has a footnote reference for ${refId} pointing at ${targetId}`);
+    if (!noteIds.includes(targetId)) failures.push(`/${slug}/ references footnote ${targetId}, which is not printed on this page`);
+  }
+  for (const id of noteIds) {
+    if (!refs.some(([, refId]) => refId === id)) failures.push(`/${slug}/ prints the ${id} note with nothing referencing it`);
+    if (!html.includes(FOOTNOTES[id].text)) failures.push(`/${slug}/ prints the ${id} note without its approved text`);
+    // The note must be reachable back from its own body, and the back link points at the FIRST reference.
+    if (!html.includes(`href="#fnref-${id}-1"`)) failures.push(`/${slug}/ note ${id} has no link back to its first reference`);
+  }
+  // A star must never reach assistive technology unlabelled. Every reference carries an accessible name and
+  // hides the glyph, which is asserted as a count rather than a presence so one unlabelled mark fails.
+  const labelled = (html.match(/aria-label="Footnote \d+"><span aria-hidden="true">/g) || []).length;
+  if (labelled !== refs.length) failures.push(`/${slug}/ has ${refs.length} footnote marks but ${labelled} labelled ones`);
+  if (!html.includes(SPEC_DISCLAIMER)) failures.push(`/${slug}/ must carry the specification estimate sentence`);
+}
+
+// V13-C. The inverse rendering rule, and the reason it is worth its own assertion: CARMEL_SPECS and
+// VENICE_SPECS are still in the source with every figure, source note and provenance comment intact, so the
+// research is preserved. What must never happen is one of those values reaching a page again. This walks every
+// retained row and fails if its value appears in any built HTML.
+//
+// A handful of values are shared with figures the current models publish legitimately, so the comparison is
+// against the two gallery pages specifically rather than against the whole site.
+for (const [slug, history] of Object.entries(HISTORICAL_SPECS)) {
+  const html = pageBySuffix(`/${slug}/index.html`);
+  for (const group of history.groups) {
+    if (html.includes(`<h3>${group.name}</h3>`)) failures.push(`/${slug}/ renders the retained historical group ${group.name}`);
+    for (const row of group.rows) {
+      if (html.includes(`<span>${row.label}</span>`)) failures.push(`/${slug}/ renders the retained historical row ${row.label}`);
+    }
   }
 }
 if ((combinedHtml.match(/class="photo-module__specs"/g) || []).length !== Object.values(SPEC_GROUP_COUNTS).reduce((a, b) => a + b, 0)) {
-  failures.push("Paired specification blocks appear outside the four model pages");
+  failures.push("Paired specification blocks appear outside the two current model pages");
 }
+// V13-C. And the gallery treatment appears on the two past-model pages and nowhere else.
+const galleryFigures = (combinedHtml.match(/<figure class="photo-gallery__figure">/g) || []).length;
+if (galleryFigures !== 12) failures.push(`Expected twelve gallery frames sitewide, six on each past model, found ${galleryFigures}`);
 
 // Past models. Owen confirmed on 2026-08-05 that Venice and Carmel are past models and that
 // Brawley and Santarosa are current. Six occurrences: two cards on each lineup surface, and the
 // two model page heroes. A tag on a current model, or a missing tag on a past one, fails here.
+// V13-D recalculates this from Q-V13-9. Six became two: the homepage no longer lists the past models at all,
+// and the Past Models group on /vehicles/ carries the status in its heading rather than as a pill on each
+// card. What is left is one tag beside each detail page's h1, which is the one surface with no heading above
+// it to supply the context.
 const PAST_MODELS = ["venice", "carmel"];
 const totalTags = (combinedHtml.match(/>Past model</g) || []).length;
-if (totalTags !== 6) failures.push(`Expected six Past model tags sitewide, found ${totalTags}`);
+if (totalTags !== 2) failures.push(`Expected two Past model tags sitewide, one beside each past-model h1, found ${totalTags}`);
 for (const slug of MODEL_SLUGS) {
   const html = pageBySuffix(`/${slug}/index.html`);
   const tags = (html.match(/>Past model</g) || []).length;
@@ -356,12 +521,12 @@ for (const slug of MODEL_SLUGS) {
   if (tags !== expected) failures.push(`/${slug}/ must carry ${expected} Past model tag, found ${tags}`);
   if (expected && !/<h1>[^<]*<\/h1>\s*<p class="model-tag">/.test(html)) failures.push(`/${slug}/ must place the Past model tag directly after the heading`);
 }
+// No lineup section on either surface may carry the tag now, because no lineup section is a past model.
 for (const [route, html] of [["/", homeHtml], ["/vehicles/", vehiclesHtml]]) {
   const blocks = withoutFooter(html).split('<section class="vehicle-section').slice(1);
   for (const block of blocks) {
     const slug = block.match(/href="\/(brawley|santarosa|carmel|venice)\/"/)?.[1];
-    const tagged = block.includes(">Past model<");
-    if (tagged !== PAST_MODELS.includes(slug)) failures.push(`${route}: ${slug} ${tagged ? "must not be" : "must be"} tagged as a past model`);
+    if (block.includes(">Past model<")) failures.push(`${route}: the current model ${slug} must not be tagged as a past model`);
   }
 }
 // Prices exist on exactly one route. V1 through V5 published none at all, and V6 publishes the
@@ -433,23 +598,69 @@ if (!gtsHtml.includes('class="spec-table"')) failures.push("/brawley/gts/ must k
 if (!gtsHtml.includes("Published figures")) failures.push("/brawley/gts/ must keep its specification heading");
 const anchorCount = (combinedHtml.match(/id="specifications"/g) || []).length;
 if (anchorCount !== 1) failures.push(`The specifications anchor must exist once sitewide, found ${anchorCount}`);
-for (const slug of ["santarosa", "carmel", "venice"]) {
-  if (!pageBySuffix(`/${slug}/index.html`).includes(`href="/dealers/?model=${slug}"`)) failures.push(`/${slug}/ must still lead to the inquiry form`);
+// V13-G. Current models and the purchase page lead to Contact with their category and model in the query;
+// the two past galleries lead to the plain dealer route, because their purpose is asking the network about
+// remaining inventory rather than requesting information about something Vanderhall still builds.
+if (!pageBySuffix("/santarosa/index.html").includes('href="/contact/?category=product-information&amp;model=santarosa"')) failures.push("/santarosa/ must lead to Contact with its product-information category");
+if (!gtsHtml.includes('href="/contact/?category=product-information&amp;model=brawley"')) failures.push("/brawley/gts/ must lead to Contact with its product-information category");
+for (const slug of ["carmel", "venice"]) {
+  if (!pageBySuffix(`/${slug}/index.html`).includes('href="/dealers/"')) failures.push(`/${slug}/ must lead to the plain dealer route`);
+  if (pageBySuffix(`/${slug}/index.html`).includes("/contact/?category=product-information")) failures.push(`/${slug}/ must not request product information about a past model`);
 }
+// The retired query shape, banned by name so a stale CTA cannot survive anywhere.
+if (combinedHtml.includes("/dealers/?model=")) failures.push("The retired /dealers/?model= inquiry query remains");
+
+// V13-B. The range ban, across visible copy, metadata, and serialized JSON-LD. No such assertion existed
+// before V13: the Product schema is generated from gts.figures and was never asserted, so a range could have
+// survived in machine-readable output with every check passing.
+const BANNED_CLAIMS = [
+  ["Up to 140 mi", "Brawley range"],
+  ["140 mi", "Brawley range"],
+  ["150 mi", "Santarosa standard range"],
+  ["300 mi", "Santarosa optional range"],
+  ["180 hp", "Santarosa power"],
+];
+for (const page of builtPages) {
+  for (const [claim, description] of BANNED_CLAIMS) {
+    if (page.text.includes(claim)) failures.push(`${page.path.replace(root, "")}: the removed ${description} claim "${claim}" survives`);
+  }
+}
+// And specifically inside the generated schema, read back out of the page rather than trusted from the data.
+const gtsProduct = (gtsHtml.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/) || [])[1];
+if (!gtsProduct) failures.push("/brawley/gts/ carries no JSON-LD to check for the removed range claim");
+else {
+  const parsed = JSON.parse(gtsProduct.replaceAll("<\\/", "</"));
+  const properties = (parsed.additionalProperty || []).map((property) => property.name);
+  if (properties.includes("Range")) failures.push(`/brawley/gts/ Product schema still publishes a Range property: ${JSON.stringify(properties)}`);
+  if (properties.length !== 3) failures.push(`/brawley/gts/ Product schema must publish three figures after the range removal, found ${properties.length}`);
+  if (JSON.stringify(parsed).includes("140")) failures.push("/brawley/gts/ Product schema still contains the removed range figure");
+}
+// The figure band and the table are the visible half of the same claim.
+if ((gtsHtml.match(/class="gts-figure"/g) || []).length !== 3) failures.push("/brawley/gts/ must publish three figures after the range removal");
+if (gtsHtml.includes(">RANGE<")) failures.push("/brawley/gts/ figure band still carries a RANGE label");
+if (gtsHtml.includes("<span>Range</span>")) failures.push("/brawley/gts/ specification table still carries a Range row");
 
 // V11-D, V11-H and V11-J. The pathway cards are gone from the foot of both pages that carried them,
 // and the component with them. The four destinations they held must still be reachable, so each one
 // is asserted positively on every page rather than assumed to be somewhere in the footer.
-for (const href of ["/owners/", "/dealers/", "/recommend-dealer/", "/dealer-inquiry/"]) {
+// V13 adds Experience and Contact to the set, and keeps /owners/ in it deliberately: Owners left the primary
+// navigation, so the footer link is now the only route into the manual library from the chrome and it has to
+// be on every page rather than on most of them.
+for (const href of ["/owners/", "/dealers/", "/recommend-dealer/", "/dealer-inquiry/", "/experience/", "/blog/", "/contact/", "/careers/", "/safety/"]) {
   for (const page of builtPages) {
-    if (!page.text.includes(`href="${href}"`)) failures.push(`${page.path.replace(root, "")}: ${href} became unreachable when the pathway cards were removed`);
+    if (!page.text.includes(`href="${href}"`)) failures.push(`${page.path.replace(root, "")}: ${href} is not reachable from this page`);
   }
 }
-// V11-H. The dealers page is an inquiry, not a locator. Owen, 2026-08-05: "It's just a normal
-// inquiry." The retired title is banned sitewide and the form's own heading is deliberately unchanged.
-if (combinedHtml.includes("Find your dealer")) failures.push("The retired Find your dealer title remains");
-if (!dealersHtml.includes("<h1>Talk with Vanderhall.</h1>")) failures.push("/dealers/ must carry the Talk with Vanderhall. title");
-if (!dealersHtml.includes('<meta name="description" content="Talk with Vanderhall')) failures.push("/dealers/ meta description must follow its title");
+// And the manual library's own footer entry, by label as well as by href: "Owner resources" was the old name
+// and the link is now the page's only entrance from the chrome.
+for (const page of builtPages) {
+  if (!page.text.includes('<a href="/owners/">Owner manuals</a>')) failures.push(`${page.path.replace(root, "")}: the footer must offer Owner manuals`);
+  if (page.text.includes("Owner resources")) failures.push(`${page.path.replace(root, "")}: the retired Owner resources label remains`);
+}
+// V13-G supersedes V11-H: the dealers page is a locator again, and its own title and description are asserted
+// where the locator's contract is, further up. "Find your dealer" stays banned as a title; "Find a dealer" is
+// deliberately NOT banned, because it is now the approved action label on the two past-model galleries.
+if (combinedHtml.includes("<h1>Find your dealer")) failures.push("The retired Find your dealer title remains");
 // V11-D. The homepage ends on the concepts split, and that split puts its media first from 768px up.
 // DOM order is the assertion that matters: the flip is a grid-area swap, so the body must still come
 // first in the markup, or the reading order has silently changed along with the visual one.
@@ -477,7 +688,22 @@ const BACK_TARGETS = {
   "/brawley/index.html": "/vehicles/",
   "/brawley/gts/index.html": "/brawley/",
   "/privacy/index.html": "/",
+  // V13. Experience is a child of Home, Blog a child of Experience, each article a child of Blog. The Launch
+  // Edition nests under Santarosa rather than under Vehicles, because it is a campaign about one model.
+  "/experience/index.html": "/",
+  "/blog/index.html": "/experience/",
+  "/contact/index.html": "/",
+  "/careers/index.html": "/",
+  "/safety/index.html": "/",
+  "/santarosa/launch-edition/index.html": "/santarosa/",
 };
+// The detail levels fall through by pattern, the way the concept routes already do.
+const BACK_PATTERNS = [
+  [/^\/blog\/[^/]+\/index\.html$/, "/blog/"],
+  [/^\/careers\/[^/]+\/index\.html$/, "/careers/"],
+  [/^\/safety\/[^/]+\/index\.html$/, "/safety/"],
+  [/^\/concepts\/[^/]+\/index\.html$/, "/concepts/"],
+];
 for (const page of builtPages) {
   const relative = page.path.replace(root, "");
   const isHome = page.path === resolve(root, "index.html");
@@ -491,7 +717,7 @@ for (const page of builtPages) {
     failures.push(`${relative}: expected one back link, found ${navs.length}`);
     continue;
   }
-  const expected = BACK_TARGETS[relative] ?? (/\/concepts\/[^/]+\/index\.html$/.test(relative) ? "/concepts/" : null);
+  const expected = BACK_TARGETS[relative] ?? (BACK_PATTERNS.find(([pattern]) => pattern.test(relative))?.[1] ?? null);
   if (!expected) failures.push(`${relative}: no back-link target is declared for this route`);
   else if (!navs[0].includes(`href="${expected}"`)) failures.push(`${relative}: back link must lead to ${expected}`);
   if ((navs[0].match(/<a /g) || []).length !== 1) failures.push(`${relative}: the back link must be a single link`);
@@ -639,25 +865,63 @@ for (const page of conceptPages) {
   if (/<span class="wordmark"/.test(page.text)) failures.push(`${page.path.replace(root, "")}: the wordmark plate markup remains`);
 }
 
+// V13. Experience replaces Owners in the primary navigation, per Q-V13-17. Both halves are asserted: the new
+// item is present on every page, and the old one is gone from the primary menus on every page. Owners stays
+// reachable from the footer, which is asserted separately above.
 for (const page of builtPages) {
-  for (const [label, href] of [["Owners", "/owners/"], ["Dealers", "/dealers/"]]) {
-    if (!new RegExp(`<a class="nav-link(?: is-current)?" href="${href}"`).test(page.text)) failures.push(`${page.path.replace(root, "")}: ${label} is missing from the primary navigation`);
+  const relative = page.path.replace(root, "");
+  for (const [label, href] of [["Experience", "/experience/"], ["Dealers", "/dealers/"], ["Vehicles", "/vehicles/"], ["Concepts", "/concepts/"]]) {
+    if (!new RegExp(`<a class="nav-link(?: is-current)?" href="${href}"`).test(page.text)) failures.push(`${relative}: ${label} is missing from the primary navigation`);
+  }
+  if (/<a class="nav-link[^"]*" href="\/owners\/"/.test(page.text)) failures.push(`${relative}: Owners must not remain in the primary navigation`);
+  // The mobile sheet mirrors the desktop row, and its action is Contact Us to /contact/ rather than a second
+  // Dealers link. That duplicate was a carried open item since V10 and this is what closes it.
+  const sheet = (page.text.match(/<nav class="mobile-nav"[\s\S]*?<\/nav>/) || [])[0] || "";
+  const sheetHrefs = [...sheet.matchAll(/href="([^"]+)"/g)].map((match) => match[1]);
+  if (JSON.stringify(sheetHrefs) !== JSON.stringify(["/vehicles/", "/concepts/", "/experience/", "/dealers/", "/contact/"])) {
+    failures.push(`${relative}: the mobile menu must mirror the desktop navigation and end on Contact, found ${sheetHrefs.join(", ")}`);
+  }
+}
+// Experience takes the current state on its hub, its archive, and every article.
+for (const relative of ["/experience/index.html", "/blog/index.html", "/blog/how-we-photograph-a-vehicle/index.html"]) {
+  const html = pageBySuffix(relative);
+  if (!/<a class="nav-link is-current" href="\/experience\/" aria-current="page">Experience<\/a>/.test(html)) {
+    failures.push(`${relative}: Experience must take the current primary-navigation state`);
   }
 }
 
 const sitemap = await readFile(resolve(root, "sitemap.xml"), "utf8");
-for (const route of ["vehicles", "venice", "carmel", "santarosa", "brawley", "brawley/gts", "concepts", "owners", "dealers", "recommend-dealer", "dealer-inquiry", "privacy", "concepts/indio", "concepts/coachella", "concepts/brawley-r", "concepts/santarosa-r", "concepts/speedster", "concepts/yuma", "concepts/yuma-defense", "concepts/laduna", "concepts/balboa"]) {
-  if (!sitemap.includes(`/${route}/`)) failures.push(`sitemap.xml is missing /${route}/`);
+// The full route list, written out. V13 adds twelve entries and keeps every existing one, including both past
+// models: their routes and their owner manuals stay valid, which is exactly what Q-V13-9 preserved.
+const SITEMAP_ROUTES = [
+  "vehicles", "venice", "carmel", "santarosa", "brawley", "brawley/gts", "santarosa/launch-edition",
+  "concepts", "concepts/indio", "concepts/coachella", "concepts/brawley-r", "concepts/santarosa-r",
+  "concepts/speedster", "concepts/yuma", "concepts/yuma-defense", "concepts/laduna", "concepts/balboa",
+  "experience", "blog", "blog/how-we-photograph-a-vehicle", "blog/notes-from-the-design-studio",
+  "owners", "dealers", "contact", "careers", "careers/assembly-technician",
+  "careers/customer-experience-specialist", "safety", "safety/placeholder-notice-a",
+  "safety/placeholder-notice-b", "recommend-dealer", "dealer-inquiry", "privacy",
+];
+for (const route of SITEMAP_ROUTES) {
+  if (!sitemap.includes(`<loc>https://vanderhall-website.vercel.app/${route}/</loc>`)) failures.push(`sitemap.xml is missing /${route}/`);
 }
-for (const route of ["/about/", "/faq/", "/contact/"]) {
+const sitemapCount = (sitemap.match(/<loc>/g) || []).length;
+// One more than the list, because the homepage is in the sitemap and is not a named route.
+if (sitemapCount !== SITEMAP_ROUTES.length + 1) failures.push(`sitemap.xml lists ${sitemapCount} URLs, expected ${SITEMAP_ROUTES.length + 1}`);
+for (const route of ["/about/", "/faq/"]) {
   if (sitemap.includes(route)) failures.push(`sitemap.xml still lists ${route}`);
+}
+// A record whose detail page was not built must not be in the sitemap either. These are the three
+// deliberately card-only fixtures, and a URL here would be a 404 advertised to a crawler.
+for (const route of ["blog/what-to-expect-at-an-event", "careers/mechanical-design-engineer", "safety/placeholder-notice-c"]) {
+  if (sitemap.includes(`/${route}/`)) failures.push(`sitemap.xml lists /${route}/, which has no built page`);
 }
 
 const manualFiles = files.filter((path) => path.includes("/assets/manuals/") && extname(path) === ".pdf");
 if (manualFiles.length !== 19) failures.push(`Expected 19 owner manuals, found ${manualFiles.length}`);
 const ownersHtml = pageBySuffix("/owners/index.html");
 const manualCards = (ownersHtml.match(/class="resource-card"/g) || []).length;
-if (manualCards !== 19) failures.push(`Owner resources must list 19 manuals, found ${manualCards}`);
+if (manualCards !== 19) failures.push(`Owner manuals must list 19 manuals, found ${manualCards}`);
 if ((ownersHtml.match(/type="application\/pdf"/g) || []).length !== 19) failures.push("Every owner resource card must declare its PDF type");
 // V8 gave the groups the vehicle they are about. Venice, Carmel, and Brawley have delivered
 // photography; Speedster and Laguna are retired roadsters with none in Assets/, and the concept
@@ -665,7 +929,15 @@ if ((ownersHtml.match(/type="application\/pdf"/g) || []).length !== 19) failures
 // Footer first: the last group's slice would otherwise run to the end of the document and count
 // the footer lockup as its photograph.
 const ownerGroups = withoutFooter(ownersHtml).split('<section class="resource-group').slice(1);
-if (ownerGroups.length !== 5) failures.push(`Owner resources must present five model groups, found ${ownerGroups.length}`);
+if (ownerGroups.length !== 5) failures.push(`Owner manuals must present five model groups, found ${ownerGroups.length}`);
+// V13. The title changes and the groups are current-first. Neither changes a file: the same nineteen PDFs, the
+// same sizes, the same image pairings, reordered and retitled.
+if (!ownersHtml.includes("<h1>Owner manuals.</h1>")) failures.push("/owners/ must carry the Owner manuals title");
+if (!ownersHtml.includes("Find and download owner's manuals by model and year.")) failures.push("/owners/ must carry its approved introduction");
+const ownerOrder = withoutFooter(ownersHtml).match(/<section class="resource-group[^"]*" id="([^"]+)"/g).map((tag) => tag.match(/id="([^"]+)"/)[1]);
+if (JSON.stringify(ownerOrder) !== JSON.stringify(["brawley", "venice", "carmel", "speedster", "laguna"])) {
+  failures.push(`/owners/ groups must run current-first, found ${ownerOrder.join(", ")}`);
+}
 for (const group of ownerGroups) {
   const slug = group.match(/id="([^"]+)"/)?.[1];
   const images = (group.match(/<img /g) || []).length;
@@ -763,11 +1035,15 @@ if (orphans.length) failures.push(`Delivered images that no page references: ${o
 // map is keyed on the former.
 if (combinedHtml.includes("Request info")) failures.push("The retired Request info label remains");
 if (combinedHtml.includes("Request information")) failures.push("The retired Request information heading remains");
-if (!dealersHtml.includes('<h2 class="form-heading">Contact Vanderhall</h2>')) failures.push("/dealers/ must head its form Contact Vanderhall");
+// V13-G supersedes V10-A. The header action is Contact Us and it points at /contact/, which is a route now.
+// Both halves are asserted, because the label moving without the href would leave the old destination.
 for (const page of builtPages) {
-  const headerButtons = (page.text.match(/class="button button--primary header-request" href="\/dealers\/">Contact</g) || []).length;
-  if (headerButtons !== 1) failures.push(`${page.path.replace(root, "")}: expected one Contact button in the header, found ${headerButtons}`);
+  const relative = page.path.replace(root, "");
+  const headerButtons = (page.text.match(/class="button button--primary header-request" href="\/contact\/">Contact Us</g) || []).length;
+  if (headerButtons !== 1) failures.push(`${relative}: expected one Contact Us button in the header, found ${headerButtons}`);
+  if (page.text.includes('class="button button--primary header-request" href="/dealers/"')) failures.push(`${relative}: the header action still points at /dealers/`);
 }
+if (dealersHtml.includes('class="form-heading"')) failures.push("/dealers/ must carry no form heading: the inquiry moved to /contact/");
 
 // V10-B and V10-C. The footer is the same on all 24 pages, so every destination is asserted on every
 // one of them rather than on a sample.
@@ -786,14 +1062,16 @@ const EXPECTED_FOOTER_LINKS = [
   ["YouTube", "https://www.youtube.com/@VanderhallUSA"],
   ["Vanderhall app for iPhone", "https://apps.apple.com/us/app/vanderhall/id6761500330"],
   ["Vanderhall app for Android", "https://play.google.com/store/apps/details?id=com.vanderhall.customerapp"],
-  ["Safety notices", "https://portal.vanderhallusa.com/safety_notices"],
-  ["Careers", "https://dealer.vanderhallusa.com/careers"],
+  // V13: all three legal destinations are internal now. The external safety portal stays reachable, but from
+  // the Safety page itself as a clearly labelled fallback rather than from the footer of every page.
+  ["Safety notices", "/safety/"],
+  ["Careers", "/careers/"],
   ["Privacy policy", "/privacy/"],
 ];
 const EXPECTED_SOCIAL = 6;
 const EXPECTED_LEGAL = 3;
-// Vehicles, Owners, Connect, Follow. V11-I adds the fourth.
-const EXPECTED_FOOTER_COLUMNS = 4;
+// Vehicles, Experience, Owners, Connect, Follow. V13 adds the fifth.
+const EXPECTED_FOOTER_COLUMNS = 5;
 // The generator must agree with the record, in both directions, so neither can drift alone.
 if (JSON.stringify([...SOCIAL_LINKS, ...APP_LINKS, ...LEGAL_LINKS]) !== JSON.stringify(EXPECTED_FOOTER_LINKS)) {
   failures.push("The footer's link data no longer matches this script's independent record of Owen's destinations");
@@ -836,6 +1114,23 @@ for (const page of builtPages) {
   // six as text on 2026-08-05. An inline SVG appearing in this column means somebody has re-opened a
   // rights question, and it should fail until they have answered it.
   if (/<div class="footer-follow">[\s\S]*?<svg/.test(footer)) failures.push(`${relative}: a glyph appeared in the Follow column; the platform artwork rights behind it are not cleared`);
+
+  // V13, Q-V13-26. The complete inquiry address, visible as text, in the Connect column, on every page. The
+  // exact href matters as much as the label: a subject, a body, a tracking query, or a JavaScript handler
+  // would each turn a mail link into something else, and the whole point of Owen's request was that a visitor
+  // can read the address and use it however they like.
+  const emailLink = (footer.match(/<a class="footer-email" href="mailto:([^"]+)">([^<]+)<\/a>/) || []);
+  if (!emailLink.length) failures.push(`${relative}: the footer must carry the visible inquiry email link`);
+  else {
+    if (emailLink[1] !== INQUIRY_EMAIL) failures.push(`${relative}: the footer mail link points at ${emailLink[1]}, not ${INQUIRY_EMAIL}`);
+    if (emailLink[2] !== INQUIRY_EMAIL) failures.push(`${relative}: the footer must show the complete address as its visible text, found ${emailLink[2]}`);
+  }
+  if (/mailto:[^"]*[?&]/.test(footer)) failures.push(`${relative}: the footer mail link carries a query string`);
+  for (const generic of [">Email us<", ">Email<"]) {
+    if (footer.includes(generic)) failures.push(`${relative}: the inquiry address must not hide behind a generic label`);
+  }
+  // Connect's order: Dealers, Contact, then the address immediately after it.
+  if (!footer.includes('<a href="/contact/">Contact</a><a class="footer-email"')) failures.push(`${relative}: the inquiry address must sit immediately after Contact in the Connect column`);
 }
 // Owen pasted these URLs with his own session's analytics identifiers attached. Publishing one would
 // hand every visitor a copy of them, so the ban is on the whole built tree and on the source that
@@ -860,9 +1155,26 @@ const privacyHtml = pageBySuffix("/privacy/index.html");
 if (!privacyHtml) failures.push("/privacy/ was not built");
 else {
   if (!privacyHtml.includes("<h1>Privacy policy</h1>")) failures.push("/privacy/ must carry its title");
+  // V13. The document experience is redesigned and the copy is not. The unresolved-copy guard is the point:
+  // a polished layout must not be mistaken for approved legal text, so the page says so in visible copy and
+  // this asserts that it does.
+  if (!privacyHtml.includes("Prototype policy structure. Approved legal copy is required before publication.")) {
+    failures.push("/privacy/ must state that its structure is a prototype and that approved legal copy is required");
+  }
+  // The table of contents: one nav, twelve entries, every one resolving to a section that exists on the page.
+  const tocLinks = [...privacyHtml.matchAll(/<li><a href="#(policy-[a-z0-9-]+)">/g)].map((match) => match[1]);
+  if (tocLinks.length !== 24) failures.push(`/privacy/ contents must offer twelve entries in each of its two presentations, found ${tocLinks.length}`);
+  for (const id of new Set(tocLinks)) {
+    if (!privacyHtml.includes(`<section class="policy__section" id="${id}">`)) failures.push(`/privacy/ contents links to #${id}, which is not a section on the page`);
+  }
+  if ((privacyHtml.match(/<nav class="policy-toc"/g) || []).length !== 1) failures.push("/privacy/ must carry exactly one contents nav, styled two ways rather than duplicated");
+  // The document header is data-driven. Vanderhall publishes no effective or revision date, so neither may be
+  // invented: the header prints what the record has, and today that is the contact route alone.
+  if (/<dt>Effective<\/dt>|<dt>Last updated<\/dt>/.test(privacyHtml)) failures.push("/privacy/ prints a policy date Vanderhall has not published");
+  if (!privacyHtml.includes("<dt>Questions</dt>")) failures.push("/privacy/ header must offer a way to ask about the policy");
   // Sliced section by section rather than matched with one regex across the document, so the count is
   // of paragraphs inside the policy and cannot be inflated by anything the page or footer adds later.
-  const policySections = privacyHtml.split('<section class="policy__section">').slice(1)
+  const policySections = privacyHtml.split('<section class="policy__section" id=').slice(1)
     .map((chunk) => chunk.slice(0, chunk.indexOf("</section>")));
   // 13 sections, 44 paragraphs and 21 list items, written out here rather than counted from the data.
   // Mutation testing caught the circularity: with the expectation derived from privacySections,
@@ -895,7 +1207,11 @@ else {
 // the heading, so the assertion is that no page-header contains a caps-register label any more. The
 // concept detail pages keep theirs, and are excluded by name because CONCEPT says something the
 // wordmark title does not.
-const MARKED_HEADERS = ["/vehicles/index.html", "/concepts/index.html", "/dealers/index.html", "/recommend-dealer/index.html", "/dealer-inquiry/index.html", "/owners/index.html", "/privacy/index.html"];
+const MARKED_HEADERS = ["/vehicles/index.html", "/concepts/index.html", "/dealers/index.html", "/recommend-dealer/index.html", "/dealer-inquiry/index.html", "/owners/index.html", "/privacy/index.html",
+  // V13's new page types take the same header treatment, which is most of what makes them read as part of the
+  // same site rather than as pages added later.
+  "/contact/index.html", "/experience/index.html", "/blog/index.html", "/careers/index.html", "/safety/index.html",
+  "/blog/how-we-photograph-a-vehicle/index.html", "/careers/assembly-technician/index.html", "/safety/placeholder-notice-a/index.html"];
 for (const relative of MARKED_HEADERS) {
   const html = pageBySuffix(relative);
   const header = html.match(/<header class="page-header[^"]*">[\s\S]*?<\/header>/)?.[0];
@@ -998,6 +1314,216 @@ if (deliveredPosters.length !== 3) failures.push(`Expected three delivered poste
 for (const stem of ["brawley-canyon-hero-36-46", "brawley-canyon-action-13-23", "brawley-canyon-hero-poster", "brawley-canyon-action-13-23-poster"]) {
   const survivors = files.filter((path) => path.includes("/assets/video/") && path.includes(stem)).map((path) => path.replace(root, ""));
   if (survivors.length) failures.push(`Retired V11-A video delivery remains: ${survivors.join(", ")}`);
+}
+
+// ---------------------------------------------------------------------------------------------
+// V13. Four new assertion families: the public brand name, the mock-data production gate, the sample
+// markers, and the new routes' shape.
+// ---------------------------------------------------------------------------------------------
+
+// Q-V13-25. `Vanderhall Motor Works` may not appear in anything delivered to a visitor: HTML, titles,
+// metadata, JSON-LD, accessible labels, the web manifest, the sitemap, or robots.txt. Case-insensitive,
+// because a stylised lowercase spelling would be the same claim.
+//
+// Source comments, this file, archived plans, and the research notes are deliberately NOT scanned. The plan
+// permits the old name in material that is not delivered, and the reason is practical: the withheld legal
+// sentence and the reasoning behind removing it both have to be recorded somewhere, and a check that forbade
+// writing down what was removed would push that record out of the repository entirely.
+const DELIVERED_TEXT = [
+  ...builtPages.map((page) => [page.path.replace(root, ""), page.text]),
+  ["/sitemap.xml", sitemap],
+  ["/site.webmanifest", await readFile(resolve(root, "site.webmanifest"), "utf8")],
+  ["/robots.txt", await readFile(resolve(root, "robots.txt"), "utf8")],
+  ["/styles/bundle.css", bundleCss],
+  ["/scripts/site.js", await readFile(resolve(root, "scripts/site.js"), "utf8")],
+];
+for (const [name, text] of DELIVERED_TEXT) {
+  if (/vanderhall\s+motor\s+works/i.test(text)) failures.push(`${name}: the retired public brand name Vanderhall Motor Works reaches delivered output`);
+}
+// And the positive half, so the sweep cannot be satisfied by deleting the name rather than replacing it.
+for (const page of builtPages) {
+  const relative = page.path.replace(root, "");
+  if (!/<title>[^<]* \| Vanderhall<\/title>/.test(page.text)) failures.push(`${relative}: the document title must end in the Vanderhall-only suffix`);
+  if (!page.text.includes("<span>© 2026 Vanderhall. Hand-built in Provo, Utah.</span>")) failures.push(`${relative}: the footer must carry the Vanderhall-only copyright line`);
+  if (!page.text.includes('class="footer-lockup" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" width="231" height="24" loading="lazy" decoding="async" alt="Vanderhall"')) {
+    failures.push(`${relative}: the footer lockup's alt text must be Vanderhall, which is what the artwork actually draws`);
+  }
+}
+if (!homeHtml.includes('<p class="eyebrow">VANDERHALL</p>')) failures.push("The homepage eyebrow must read VANDERHALL");
+const manifestJson = JSON.parse(await readFile(resolve(root, "site.webmanifest"), "utf8"));
+if (manifestJson.name !== "Vanderhall" || manifestJson.short_name !== "Vanderhall") failures.push(`The web manifest must name the brand Vanderhall, found ${manifestJson.name} / ${manifestJson.short_name}`);
+for (const node of [...(homeSchemas[0]?.["@graph"] || [])]) {
+  if (node.name && node.name !== "Vanderhall") failures.push(`The homepage schema's ${node["@type"]} is named ${node.name}, not Vanderhall`);
+}
+const gtsSchema = gtsSchemas[0];
+if (gtsSchema?.brand?.name !== "Vanderhall") failures.push(`The GTS Product brand is ${gtsSchema?.brand?.name}, not Vanderhall`);
+if (gtsSchema?.offers?.seller?.name !== "Vanderhall") failures.push(`The GTS Offer seller is ${gtsSchema?.offers?.seller?.name}, not Vanderhall`);
+
+// Q-V13-27. The trademark attribution that named the corporate entity is withheld rather than paraphrased,
+// and this asserts both halves of that: the two safety sentences it shared a paragraph with still ship
+// verbatim, and no rewritten attribution has been invented in their place.
+if (!gtsHtml.includes("Never ride under the influence of alcohol or drugs. All riders should take a safety training course.")) {
+  failures.push("/brawley/gts/ must keep both safety sentences from the paragraph the trademark clause was removed from");
+}
+if (/registered trademarks/i.test(combinedHtml)) failures.push("A trademark attribution has been written into the public build without legal-approved wording");
+if (modelBySlug.brawley.gts.trademarkClause !== null) failures.push("The Brawley trademark clause must stay null until legal supplies Vanderhall-only wording");
+
+// The production gate. In prototype mode the build renders sample markers and the six mock-data routes carry a
+// noindex; a production build refuses to run at all. What is asserted here is that the gate exists, that its
+// blocker list is not empty while sample content is live, and that the two things stay consistent.
+if (!PRODUCTION_BLOCKERS.length) failures.push("The production blocker list is empty while mock records are still being published");
+const blockerIds = PRODUCTION_BLOCKERS.map((blocker) => blocker.id);
+for (const required of ["dealer-records", "contact-endpoint", "launch-interest-endpoint", "article-records", "career-records", "safety-records", "privacy-copy", "brawley-trademark-clause", "brawley-film"]) {
+  if (!blockerIds.includes(required)) failures.push(`The production blocker list is missing ${required}`);
+}
+for (const blocker of PRODUCTION_BLOCKERS) {
+  if (!blocker.owner || !blocker.detail) failures.push(`Production blocker ${blocker.id} has no owner or no detail`);
+}
+// INTEGRATION.md has to name every one of them. A blocker with no entry in the handoff document is a thing
+// John has not been told about.
+const integration = await readFile(resolve(root, "INTEGRATION.md"), "utf8");
+for (const blocker of PRODUCTION_BLOCKERS) {
+  if (!integration.includes(blocker.id)) failures.push(`INTEGRATION.md does not document the production blocker ${blocker.id}`);
+}
+
+// The visible sample markers. Mock operational content must be labelled on the page, not only in a data file.
+const SAMPLE_ROUTES = ["/dealers/index.html", "/experience/index.html", "/blog/index.html", "/careers/index.html", "/safety/index.html"];
+for (const relative of SAMPLE_ROUTES) {
+  if (!pageBySuffix(relative).includes('class="sample-note"')) failures.push(`${relative}: mock operational content must carry a visible sample marker`);
+}
+// Every safety record says so in its own words, index and detail alike, because this is the one page where a
+// plausible-looking record would be actively dangerous.
+const safetyHtml = pageBySuffix("/safety/index.html");
+const noticeTags = (safetyHtml.match(/>Sample notice</g) || []).length;
+if (noticeTags !== 3) failures.push(`/safety/ must mark all three notices as samples, found ${noticeTags}`);
+for (const relative of ["/safety/placeholder-notice-a/index.html", "/safety/placeholder-notice-b/index.html"]) {
+  const html = pageBySuffix(relative);
+  if (!html.includes(">Sample notice<")) failures.push(`${relative}: a safety detail page must carry the Sample notice marker`);
+  if (!html.includes("describes no hazard")) failures.push(`${relative}: a sample notice must say plainly that it describes no hazard`);
+}
+// The live notices on Vanderhall's portal must not have been adapted as sample content.
+for (const subject of ["accelerator", "tie-rod", "tie rod", "rear-steer", "rear steer", "electrical shock"]) {
+  if (safetyHtml.toLowerCase().includes(subject)) failures.push(`/safety/ appears to adapt the live ${subject} notice as sample content`);
+}
+// The external portal stays reachable from the safety pages while parity is unverified. Q-V13-10.
+if (!safetyHtml.includes("https://portal.vanderhallusa.com/safety_notices")) failures.push("/safety/ must keep the official portal reachable as a fallback");
+// Careers must not have copied the live postings.
+const careersHtml = pageBySuffix("/careers/index.html");
+for (const posting of ["Paralegal", "Welding Operator"]) {
+  if (careersHtml.includes(posting)) failures.push(`/careers/ copies the live ${posting} posting, which is a current operational record`);
+}
+// No applicant data is collected by a prototype apply action.
+for (const relative of ["/careers/assembly-technician/index.html", "/careers/customer-experience-specialist/index.html"]) {
+  const html = pageBySuffix(relative);
+  if (!/<button class="button button--primary" type="button" disabled/.test(html)) failures.push(`${relative}: the sample apply action must be disabled`);
+  if (html.includes("data-site-form")) failures.push(`${relative}: a prototype job page must collect no applicant data`);
+}
+
+// The noindex, on exactly the routes whose records are fictional and on no others. Both directions, because a
+// noindex on the homepage would be as wrong as its absence on /safety/.
+const NOINDEX_EXPECTED = new Set([
+  "/dealers/index.html", "/experience/index.html", "/blog/index.html",
+  "/blog/how-we-photograph-a-vehicle/index.html", "/blog/notes-from-the-design-studio/index.html",
+  "/careers/index.html", "/careers/assembly-technician/index.html", "/careers/customer-experience-specialist/index.html",
+  "/safety/index.html", "/safety/placeholder-notice-a/index.html", "/safety/placeholder-notice-b/index.html",
+  "/santarosa/launch-edition/index.html",
+]);
+for (const page of builtPages) {
+  const relative = page.path.replace(root, "");
+  const noindexed = page.text.includes('<meta name="robots" content="noindex, follow">');
+  if (NOINDEX_EXPECTED.has(relative) && !noindexed) failures.push(`${relative}: a route carrying fictional records must not be indexable`);
+  if (!NOINDEX_EXPECTED.has(relative) && noindexed) failures.push(`${relative}: this route carries no fictional record and must stay indexable`);
+}
+// robots.txt still allows crawling, deliberately: a Disallow rule would stop a crawler before it could read
+// the noindex above, which is the classic way to leave a page indexed while believing it is hidden.
+const robots = await readFile(resolve(root, "robots.txt"), "utf8");
+if (!robots.includes("Allow: /") || robots.includes("Disallow")) failures.push("robots.txt must keep crawling allowed so the per-route noindex can be read");
+
+// The Launch Edition. The required claims, the banned ones, and the distinction the whole page rests on.
+const launchHtml = pageBySuffix("/santarosa/launch-edition/index.html");
+if (!launchHtml) failures.push("/santarosa/launch-edition/ was not built");
+else {
+  for (const required of ["Be Among the First.", "The Vanderhall Santarosa Launch Edition", "United States only", "50 individually numbered vehicles", "40 kWh battery", "fourth quarter of 2026", "Existing Santarosa reservation holders", "Authorized Vanderhall dealers", "Public reservations, anticipated by the end of August 2026 and subject to availability"]) {
+    if (!launchHtml.includes(required)) failures.push(`/santarosa/launch-edition/ is missing required copy: ${required}`);
+  }
+  // The priority order, in order, rather than merely present.
+  const priorityOrder = [...launchHtml.matchAll(/<li>((?:Existing|Authorized|Public)[^<]*)<\/li>/g)].map((match) => match[1]);
+  if (priorityOrder.length !== 3 || !priorityOrder[0].startsWith("Existing") || !priorityOrder[1].startsWith("Authorized") || !priorityOrder[2].startsWith("Public")) {
+    failures.push(`/santarosa/launch-edition/ must publish the reservation priority in order, found ${priorityOrder.join(" / ")}`);
+  }
+  // Q-V13-20. No public reserve action while the campaign is interest-open, and no reservation language that
+  // would turn a registration of interest into a commitment.
+  if (/>Reserve<|Reserve your interest|reservations are now open/i.test(launchHtml)) failures.push("/santarosa/launch-edition/ offers a reservation action while the campaign is not in a verified public-reservation phase");
+  if (!launchHtml.includes("Registering does not create a reservation, assign a number, hold a build slot, or guarantee availability.")) {
+    failures.push("/santarosa/launch-edition/ must state what registering does not do");
+  }
+  // The qualifiers Owen's boss supplied are load-bearing: removing one materially changes the claim.
+  for (const qualifier of ["expected to begin", "anticipated by the end of August 2026", "subject to availability"]) {
+    if (!launchHtml.includes(qualifier)) failures.push(`/santarosa/launch-edition/ must preserve the qualifier "${qualifier}"`);
+  }
+  // No price, no deposit, no Offer schema, and no reintroduced Santarosa range or power.
+  for (const banned of ["MSRP", "deposit", "refundable", "Offer", "150 mi", "300 mi", "180 hp"]) {
+    if (launchHtml.includes(banned)) failures.push(`/santarosa/launch-edition/ must publish no ${banned}`);
+  }
+  // The 40 kWh figure carries the estimate note through the footnote system, not a typed asterisk.
+  if (!/40 kWh battery<sup class="fn-ref">/.test(launchHtml)) failures.push("/santarosa/launch-edition/ must mark the 40 kWh figure with the shared estimate footnote");
+  if (!launchHtml.includes(SPEC_DISCLAIMER)) failures.push("/santarosa/launch-edition/ must resolve its footnote on the same page");
+  if (!launchHtml.includes('data-form-id="santarosa-launch-interest"')) failures.push("/santarosa/launch-edition/ must carry its own form identity");
+  // Eight required fields, and no invented consent checkbox.
+  const requiredFields = (launchHtml.match(/required aria-required="true"/g) || []).length;
+  if (requiredFields !== 8) failures.push(`/santarosa/launch-edition/ must require all eight supplied fields, found ${requiredFields}`);
+  if (/type="checkbox"/.test(launchHtml)) failures.push("/santarosa/launch-edition/ carries a consent checkbox whose wording legal has not supplied");
+}
+
+// The homepage status band. Brawley first, in the DOM, with both actions read from the campaign data.
+const bandStart = homeHtml.indexOf('class="section--tight campaign-band"');
+if (bandStart < 0) failures.push("The homepage must carry the campaign status band");
+else {
+  const band = homeHtml.slice(bandStart, homeHtml.indexOf("</section>", bandStart));
+  const items = (band.match(/class="campaign-band__item"/g) || []).length;
+  if (items !== 2) failures.push(`The homepage status band must carry two items, found ${items}`);
+  const order = [...band.matchAll(/class="campaign-band__label">([^<]+)</g)].map((match) => match[1]);
+  if (!order[0]?.startsWith("Brawley")) failures.push(`The status band must lead with Brawley, found ${order[0]}`);
+  if (!order[1]?.startsWith("Santarosa")) failures.push(`The status band's second item must be Santarosa, found ${order[1]}`);
+  if (!band.includes('href="/brawley/"') || !band.includes('href="/santarosa/launch-edition/"')) failures.push("The status band's two actions must lead to Brawley and the Launch Edition");
+  if (/>Reserve</.test(band)) failures.push("The status band must not offer a public Reserve action outside a verified public-reservation phase");
+  // It sits after the hero and before the lineup, which is the placement Owen approved.
+  if (!(homeHtml.indexOf('class="hero bleed') < bandStart && bandStart < homeHtml.indexOf('id="vehicles"'))) {
+    failures.push("The status band must sit between the hero and the vehicle lineup");
+  }
+}
+// The approved homepage h1 is untouched by the band.
+if (!homeHtml.includes("<h1>Handcrafted electric vehicles.</h1>")) failures.push("The campaign band must not replace the approved homepage h1");
+
+// The Experience hub launches with Blog content only. Every one of these is an absence, and absences are what
+// this page needs asserted: a Coming soon event card is the exact thing Q-V13-18 forbids.
+const experienceHtml = pageBySuffix("/experience/index.html");
+if (!experienceHtml.includes("<h1>The Vanderhall experience.</h1>")) failures.push("/experience/ must carry its approved title");
+if (!experienceHtml.includes("Latest from Vanderhall.")) failures.push("/experience/ must head its Blog module");
+if (!experienceHtml.includes(">View all stories<")) failures.push("/experience/ must offer the archive action");
+// Narrowed deliberately. A sample ARTICLE whose category is Events is editorial and allowed; what Q-V13-18
+// forbids is an events surface, so the ban is on the shapes one would take: a module heading, a coming-soon
+// card, a registration action, an events route, or Event schema.
+for (const token of ["<h2>Events</h2>", "Coming soon", "coming soon", "Register now", 'href="/events/"', "EventSeries", '"@type":"Event"']) {
+  if (experienceHtml.includes(token)) failures.push(`/experience/ must render no event placeholder, found ${token}`);
+}
+if ((experienceHtml.match(/class="[^"]*experience-module[^"]*"/g) || []).length !== 1) failures.push("/experience/ must launch with exactly one module, the Blog area");
+const experiencePosts = (experienceHtml.match(/<article class="post-card/g) || []).length;
+if (experiencePosts !== 3) failures.push(`/experience/ must feature one story and two more, found ${experiencePosts}`);
+
+// The blog archive and the article template.
+const blogHtml = pageBySuffix("/blog/index.html");
+if ((blogHtml.match(/<article class="post-card/g) || []).length !== 3) failures.push("/blog/ must present all three sample records");
+// The record with no body is a card and not a link, so nothing leads to an empty page.
+if (blogHtml.includes('href="/blog/what-to-expect-at-an-event/"')) failures.push("/blog/ links to an article that was never built");
+if (!blogHtml.includes("This story is not published yet.")) failures.push("/blog/ must say plainly that one record has no article yet");
+for (const relative of ["/blog/how-we-photograph-a-vehicle/index.html", "/blog/notes-from-the-design-studio/index.html"]) {
+  const html = pageBySuffix(relative);
+  if (!html.includes('class="prose"')) failures.push(`${relative}: the article body did not render`);
+  // No WordPress furniture came across.
+  for (const token of ["Leave a comment", "comment-form", "Posted in", "Read more", "author-archive"]) {
+    if (html.includes(token)) failures.push(`${relative}: legacy blog furniture remains: ${token}`);
+  }
 }
 
 if (failures.length) {

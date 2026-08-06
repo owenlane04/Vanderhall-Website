@@ -1,8 +1,19 @@
 import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { models, SPEC_DISCLAIMER } from "./data/models.mjs";
-import { COUNTRIES, FORM_ENDPOINTS } from "./data/forms.mjs";
+import { currentModels, models, pastModels } from "./data/models.mjs";
+import { COUNTRIES, FORM_ENDPOINTS, INQUIRY_EMAIL, US_REGIONS } from "./data/forms.mjs";
+import { FOOTNOTE_SYMBOLS, footnoteText } from "./data/footnotes.mjs";
+import { IS_PROTOTYPE, SAMPLE_LABEL, SAMPLE_NOTICE_LABEL, SAMPLE_SENTENCE } from "./data/prototype.mjs";
+import { CONTACT_CATEGORIES, CONTACT_TIMEFRAMES } from "./data/mock/contact.mjs";
+import { campaignStatement } from "./data/mock/campaign.mjs";
+import { formatDate } from "./data/adapters.mjs";
+
+// The public brand name, in one place. V13, Q-V13-25: `Vanderhall` only, across visible copy, titles,
+// metadata, accessible labels, JSON-LD, and the web manifest. Every one of the ten source sites the plan
+// enumerated now reads this constant or a string built from it, so the name cannot be changed on one
+// surface and left on another. check-content bans the old phrase from delivered output outright.
+export const BRAND = "Vanderhall";
 
 // Delivered sizes are read from the build manifest rather than restated in data, because crops
 // change: the hub cards are cut to their vehicle band and the corrected photographs are cut
@@ -26,6 +37,58 @@ export const escapeHtml = (value = "") => String(value)
   .replaceAll('"', "&quot;");
 
 export const eyebrow = (text) => `<p class="eyebrow">${escapeHtml(text)}</p>`;
+
+// ---------------------------------------------------------------------------------------------
+// V13-F. Footnotes.
+//
+// One scope per region that prints its notes. A scope hands out symbols in first-use order, remembers how
+// many times each note has been referenced, and renders the note block. Nothing anywhere in this build
+// types an asterisk into copy: a row or a figure carries note IDs and the scope decides what mark it gets,
+// which is the difference between this and the legacy site's habit of reusing `*` for different text on
+// different pages.
+//
+// Why a scope rather than a module-level counter: two regions on one page must not share a symbol run, and
+// two pages built in the same process must not share one at all. A build is a single Node process rendering
+// twenty-odd pages, so any state outside a scope would leak across every page in the site.
+//
+// The note IDs are the DOM IDs (`fn-<noteId>`), so two notes can never collide, and a note referenced five
+// times has one body and five backlinkable references. The note links back to its first reference.
+export const footnoteScope = () => {
+  const order = [];
+  const counts = new Map();
+  const mark = (ids = []) => {
+    if (!ids?.length) return "";
+    return `<sup class="fn-ref">${ids.map((id) => {
+      footnoteText(id);
+      if (!order.includes(id)) order.push(id);
+      const index = order.indexOf(id);
+      if (index >= FOOTNOTE_SYMBOLS.length) {
+        throw new Error(`A page needs ${order.length} footnotes; use numbered footnotes rather than a fourth asterisk`);
+      }
+      const count = (counts.get(id) ?? 0) + 1;
+      counts.set(id, count);
+      // The glyph is decorative and the accessible name is the label, so assistive technology receives
+      // "Footnote 1" rather than a bare star it cannot interpret.
+      return `<a id="fnref-${id}-${count}" href="#fn-${id}" aria-label="Footnote ${index + 1}"><span aria-hidden="true">${FOOTNOTE_SYMBOLS[index]}</span></a>`;
+    }).join("")}</sup>`;
+  };
+  // tabindex="-1" on the note is what makes the forward jump move focus rather than only scroll: a
+  // paragraph is not focusable by default, so without it a keyboard visitor arrives at the note visually
+  // and is still, as far as the browser is concerned, back at the reference.
+  const notes = () => (order.length
+    ? `<div class="footnotes">${order.map((id, index) => `<p class="footnote" id="fn-${id}" tabindex="-1"><a class="footnote__back" href="#fnref-${id}-1" aria-label="Back to footnote ${index + 1} reference"><span aria-hidden="true">${FOOTNOTE_SYMBOLS[index]}</span></a> ${escapeHtml(footnoteText(id))}</p>`).join("")}</div>`
+    : "");
+  return { mark, notes, get used() { return order.length; } };
+};
+
+// The visible sample marker on mock operational content. Rendered from the prototype flag rather than
+// hard-coded, so a production build drops it in the same edit that clears the blocker.
+export const sampleNote = (sentence = SAMPLE_SENTENCE) => (IS_PROTOTYPE
+  ? `<p class="sample-note"><span class="sample-note__tag">${escapeHtml(SAMPLE_LABEL)}</span>${escapeHtml(sentence)}</p>`
+  : "");
+
+export const sampleTag = (label = SAMPLE_LABEL) => (IS_PROTOTYPE ? `<span class="sample-tag">${escapeHtml(label)}</span>` : "");
+export const sampleNoticeTag = () => sampleTag(SAMPLE_NOTICE_LABEL);
 
 export const buttonLink = (label, href, variant = "primary") => `<a class="button button--${variant}" href="${href}">${escapeHtml(label)}</a>`;
 
@@ -135,7 +198,7 @@ const splitMedia = (image, { eager = false, sizes = SPLIT_SIZES } = {}) => {
 // One section per vehicle, media on one side and content on the other, alternating down the
 // page. The homepage passes one photograph and the vehicles page passes three, which is the
 // only difference between the short version of this scroll and the fuller one.
-export const vehicleSection = (model, { index, copy, eager = false, level = 3, withSupport = false } = {}) => {
+export const vehicleSection = (model, { index, copy, eager = false, level = 3, withSupport = false, scope = null } = {}) => {
   // Each frame is a link to the model page, so the photograph answers a hover the way the concept
   // cards already do. It is removed from the tab order and hidden from assistive technology,
   // because the text link below says the same thing and should stay the one stop per section.
@@ -151,14 +214,43 @@ export const vehicleSection = (model, { index, copy, eager = false, level = 3, w
     </div>
     <div class="vehicle-section__body">
       ${modelHeadline(model.name, { level, pastModel: model.pastModel })}
-      <p>${escapeHtml(copy)}</p>
+      ${/* V13-F: the estimate note has to be resolved on the surface that prints the figure. These
+            sentences carry torque, power and travel figures, and a note on the model page cannot qualify
+            a sentence on the homepage, so the mark goes on the paragraph here and the lineup section
+            prints the note itself. */""}
+      <p>${escapeHtml(copy)}${model.copyNoteIds?.length && scope ? scope.mark(model.copyNoteIds) : ""}</p>
       ${textLink(`Explore ${model.name}`, `/${model.slug}/`)}
     </div>
   </section>`;
 };
 
-export const specRows = (rows) => rows
-  .map((row) => `<div class="spec-row"><span>${escapeHtml(row.label)}</span><strong>${escapeHtml(row.value)}</strong></div>`)
+// V13-D. The compact past-model card, for the Past Models group on /vehicles/.
+//
+// One image, the name, one sentence, and a way in. It carries no support frames, no figures, no price, no
+// warranty, and deliberately no `Past model` pill: the section heading above it already says so, and a
+// status pill inside an already-labelled group is the same word twice. The pill does stay beside the h1 on
+// each detail page, where there is no heading to supply the context.
+export const pastModelCard = (model) => {
+  const image = model.images.lead;
+  const { width, height } = sizeOf(image.src);
+  return `<article class="past-card">
+    <a class="past-card__media" href="/${model.slug}/" tabindex="-1" aria-hidden="true"><img src="${image.src}" srcset="${image.srcset}" width="${width}" height="${height}" sizes="(min-width: 768px) 45vw, 92vw" alt="${escapeHtml(image.alt)}" loading="lazy" decoding="async"></a>
+    <div class="past-card__body">
+      <h3 class="past-card__title"><a href="/${model.slug}/">${escapeHtml(model.name)}</a></h3>
+      <p>${escapeHtml(model.inventoryNote)}</p>
+      ${textLink("View gallery", `/${model.slug}/`)}
+    </div>
+  </article>`;
+};
+
+// V13-F: the mark rides after the value, inside the row, and the scope is a required argument rather than
+// an optional one. A row that carries note IDs and is rendered without a scope would print a figure whose
+// qualifier silently vanished, so there is no default that lets that happen quietly.
+export const specRows = (rows, scope) => rows
+  .map((row) => {
+    if (row.noteIds?.length && !scope) throw new Error(`The specification row "${row.label}" carries footnotes but was rendered without a footnote scope`);
+    return `<div class="spec-row"><span>${escapeHtml(row.label)}</span><strong>${escapeHtml(row.value)}${row.noteIds?.length ? scope.mark(row.noteIds) : ""}</strong></div>`;
+  })
   .join("");
 
 // A photograph, a label in the caps register, and the figures that photograph shows. V8 replaced
@@ -171,7 +263,7 @@ export const specRows = (rows) => rows
 //
 // A module with no figures runs full width with its label beneath, rather than taking the
 // two-column layout and stranding a lone label in an empty half-column.
-export const photoModule = (item, index) => {
+export const photoModule = (item, index, scope) => {
   const { width, height } = sizeOf(item.src);
   // The slot differs by layout, so the hint has to as well: a paired module's frame takes the wide
   // side of a two-column row, a plain one takes the whole content column. Declaring 58vw for a
@@ -180,12 +272,27 @@ export const photoModule = (item, index) => {
   return `<figure class="photo-module${item.specs ? (index % 2 === 1 ? " photo-module--reverse" : "") : " photo-module--plain"}">
     <div class="photo-module__media"><img src="${item.src}" srcset="${item.srcset}" width="${width}" height="${height}" sizes="${sizes}" alt="${escapeHtml(item.alt)}" loading="lazy" decoding="async"></div>
     <figcaption class="photo-module__body">
-      <p class="eyebrow">${escapeHtml(item.label)}</p>${item.specs ? `<div class="photo-module__specs">${specRows(item.specs.rows)}</div>` : ""}
+      <p class="eyebrow">${escapeHtml(item.label)}</p>${item.specs ? `<div class="photo-module__specs">${specRows(item.specs.rows, scope)}</div>` : ""}
     </figcaption>
   </figure>`;
 };
 
-export const photoScroll = (items) => `<div class="photo-scroll">${items.map((item, index) => photoModule(item, index)).join("")}</div>`;
+export const photoScroll = (items, scope) => `<div class="photo-scroll">${items.map((item, index) => photoModule(item, index, scope)).join("")}</div>`;
+
+// V13-C. The past-model gallery. Deliberately the simplest primitive that does the job, and deliberately
+// the concept gallery's shape rather than a third image system: a photograph at the content width, its
+// caption in the caps register beneath it, and nothing else. Six unrelated lifestyle and detail frames are
+// not eight angles of one vehicle, so the Brawley walkaround is exactly the wrong pattern here; there is no
+// carousel and no new JavaScript, because a vertical run of photographs needs neither.
+export const galleryFigure = (item) => {
+  const { width, height } = sizeOf(item.src);
+  return `<figure class="photo-gallery__figure">
+    <div class="photo-gallery__media"><img src="${item.src}" srcset="${item.srcset}" width="${width}" height="${height}" sizes="(min-width: 1280px) 1200px, 92vw" alt="${escapeHtml(item.alt)}" loading="lazy" decoding="async"></div>
+    <figcaption class="photo-gallery__caption">${escapeHtml(item.label)}</figcaption>
+  </figure>`;
+};
+
+export const gallery = (items) => `<div class="photo-gallery">${items.map(galleryFigure).join("")}</div>`;
 
 // V12-A: modelBar() is retired. Owen on 2026-08-06, looking at /brawley/: the bar under the hero
 // photograph read as clutter, and its three slots were each a repetition. The name it printed was
@@ -211,8 +318,8 @@ export const price = ({ label, value }, disclaimer, delivery) => `<p class="pric
 
 // Four figures already published in the specification table below, so the page never states a
 // number the table does not.
-export const figureBand = (figures) => `<div class="gts-figures">${figures.map((figure) => `<div class="gts-figure">
-      <span class="gts-figure__value">${escapeHtml(figure.value)}</span>
+export const figureBand = (figures, scope) => `<div class="gts-figures">${figures.map((figure) => `<div class="gts-figure">
+      <span class="gts-figure__value">${escapeHtml(figure.value)}${figure.noteIds?.length ? scope.mark(figure.noteIds) : ""}</span>
       <span class="gts-figure__label">${escapeHtml(figure.label)}</span>
     </div>`).join("")}</div>`;
 
@@ -286,19 +393,27 @@ export const hero = ({ src, srcset, tallSrcset, alt, focal, align = "", content,
 // their groups with photographs instead. Imperial only since V8: the manufacturer's own pages
 // carry broken conversions, and deriving a second unit system here would mean publishing figures
 // Vanderhall never stated.
-export const specTable = (model) => `<div class="spec-table">
+export const specTable = (model, scope) => `<div class="spec-table">
     ${model.specGroups.map((group) => `<div class="spec-group">
       <h3>${escapeHtml(group.name)}</h3>
-      <div class="spec-rows">${specRows(group.rows)}</div>
+      <div class="spec-rows">${specRows(group.rows, scope)}</div>
     </div>`).join("")}
   </div>`;
 
-// Warranty and the manufacturer's estimate sentence, under the paired photographs. Warranty is
-// not a paired row because no photograph shows one, and the past models carry a model-year
-// qualifier here instead, because their figures describe one year of a vehicle built across many.
-export const specNote = (model) => {
-  const lines = [model.specNote, model.warranty, SPEC_DISCLAIMER].filter(Boolean);
-  return `<div class="spec-note">${lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("")}</div>`;
+// Warranty and, since V13-F, the estimate sentence as a real footnote rather than a third paragraph.
+//
+// The order matters and it is not stylistic: warranty is a disclosure with its own meaning, so it stays a
+// paragraph, and the footnote block follows it because it belongs to the figures above rather than to the
+// warranty beside it. Price disclaimers, warranty terms, and safety copy are separate disclosure types and
+// none of them ever becomes an asterisk note.
+//
+// The past models no longer reach this component at all: a gallery publishes no figure, so it has no
+// warranty line to qualify, no model-year qualifier to state, and no estimate note to resolve.
+export const specNote = (model, scope) => {
+  const lines = [model.warranty].filter(Boolean);
+  const notes = scope?.notes() || "";
+  if (!lines.length && !notes) return "";
+  return `<div class="spec-note">${lines.map((line) => `<p>${escapeHtml(line)}</p>`).join("")}${notes}</div>`;
 };
 
 const requiredMark = `<span aria-hidden="true"> *</span><span class="sr-only"> required</span>`;
@@ -319,22 +434,127 @@ const formOpen = (id, formId) => `<form class="lead-form" id="${id}" novalidate 
   <p class="form-key">Fields marked * are required.</p>
   <div class="form-error-summary" role="alert" tabindex="-1" hidden></div>`;
 
-export const leadForm = (id = "contact-lead") => {
-  const interests = [...models.map((model) => model.name), "Concepts", "Not sure yet"];
-  return `${formOpen(id, "request-info")}
-    <div class="form-grid form-grid--pairs">
-      <div class="field">${label(`${id}-first`, "First name", true)}<input id="${id}-first" name="first_name" autocomplete="given-name" required aria-required="true">${error(`${id}-first`)}</div>
-      <div class="field">${label(`${id}-last`, "Last name", true)}<input id="${id}-last" name="last_name" autocomplete="family-name" required aria-required="true">${error(`${id}-last`)}</div>
-    </div>
-    <div class="field">${label(`${id}-email`, "Email", true)}<input id="${id}-email" name="email" type="email" autocomplete="email" inputmode="email" required aria-required="true">${error(`${id}-email`)}</div>
-    <div class="field">${label(`${id}-phone`, "Phone")}<input id="${id}-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel">${error(`${id}-phone`)}</div>
-    <div class="field">${label(`${id}-zip`, "ZIP", true)}<input id="${id}-zip" name="zip" autocomplete="postal-code" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" required aria-required="true">${error(`${id}-zip`)}</div>
-    <fieldset class="field-group"><legend>I'm interested in</legend><div class="checkbox-grid">${interests.map((interest) => { const value = interest.toLowerCase().replaceAll(" ", "-"); return `<label class="check"><input type="checkbox" name="interest" value="${value}"> <span>${interest}</span></label>`; }).join("")}</div></fieldset>
-    <div class="field">${label(`${id}-timeframe`, "Timeframe")}<select id="${id}-timeframe" name="timeframe"><option value="">Select a timeframe</option><option>Ready now</option><option>1 to 3 months</option><option>3 to 6 months</option><option>Just looking</option></select>${error(`${id}-timeframe`)}</div>
-    <div class="field">${label(`${id}-message`, "Message")}<textarea id="${id}-message" name="message" rows="4"></textarea>${error(`${id}-message`)}</div>
-    ${integrationFields("request-info", "Send request")}
+// V13-G. leadForm() is retired with the /dealers/ inquiry it served. Its identity is retired with it: the
+// `request-info` form ID, the `#request-info` anchor, and the endpoint key are all gone, because the form
+// that replaces it is not the same form. The old one asked for a ZIP, a checklist of interests and a
+// timeframe in one step; contactForm() below has a category taxonomy, conditional ownership fields, and a
+// support route that has nothing to do with sales. Letting the new submissions arrive under the old key
+// would have meant John's endpoint receiving a payload labelled as something it is not.
+
+// The Contact form. One accessible progressive form rather than the legacy multi-step page: visible step
+// headings, a Back action that preserves what has been typed, and every branch reachable by keyboard.
+//
+// The progressive behaviour is entirely additive. Without JavaScript every step and every branch is visible
+// and usable, which is why the step navigation ships hidden: a Continue button that cannot advance anything
+// is worse than a longer form. site.js reveals the navigation, hides the branches that do not apply, and
+// announces the step. That is the walkaround's rule applied to a form.
+export const contactForm = (id = "contact-form") => {
+  const branch = (category) => {
+    const fields = [];
+    if (category.subcategories) {
+      fields.push(`<div class="field">${label(`${id}-${category.value}-subcategory`, "What is your request about?", true)}<select id="${id}-${category.value}-subcategory" name="subcategory" data-branch-required>${["<option value=\"\">Select a request type</option>", ...category.subcategories.map((option) => `<option value="${option.value}">${escapeHtml(option.label)}</option>`)].join("")}</select>${error(`${id}-${category.value}-subcategory`)}</div>`);
+    }
+    if (category.topics) {
+      fields.push(`<div class="field">${label(`${id}-${category.value}-topic`, "Request topic", true)}<select id="${id}-${category.value}-topic" name="topic" data-branch-required>${["<option value=\"\">Select a topic</option>", ...category.topics.map((option) => `<option value="${option.value}">${escapeHtml(option.label)}</option>`)].join("")}</select>${error(`${id}-${category.value}-topic`)}</div>`);
+    }
+    if (category.models) {
+      fields.push(`<div class="field">${label(`${id}-${category.value}-model`, "Model")}<select id="${id}-${category.value}-model" name="model" data-model-select>${["<option value=\"\">Select a model</option>", ...category.models.map((option) => `<option value="${option.value}">${escapeHtml(option.label)}${option.pastModel ? " (past model)" : ""}</option>`)].join("")}</select>${error(`${id}-${category.value}-model`)}</div>`);
+    }
+    if (category.fields.includes("timeframe")) {
+      fields.push(`<div class="field">${label(`${id}-${category.value}-timeframe`, "Purchase timeframe")}<select id="${id}-${category.value}-timeframe" name="timeframe">${["<option value=\"\">Select a timeframe</option>", ...CONTACT_TIMEFRAMES.map((option) => `<option>${escapeHtml(option)}</option>`)].join("")}</select>${error(`${id}-${category.value}-timeframe`)}</div>`);
+    }
+    if (category.fields.includes("postalCode")) {
+      fields.push(`<div class="field">${label(`${id}-${category.value}-postal`, "ZIP or postal code")}<input id="${id}-${category.value}-postal" name="postalCode" autocomplete="postal-code" inputmode="numeric">${error(`${id}-${category.value}-postal`)}</div>`);
+    }
+    if (category.fields.includes("dealer")) {
+      fields.push(`<div class="field">${label(`${id}-${category.value}-dealer`, "Dealer or location, if you know it")}<input id="${id}-${category.value}-dealer" name="dealerId" autocomplete="off">${error(`${id}-${category.value}-dealer`)}</div>`);
+    }
+    if (category.fields.includes("ownership")) {
+      // The gate on every ownership field below it. A general documentation question must never be blocked
+      // behind a VIN, which is why this is a question rather than an assumption.
+      fields.push(`<fieldset class="field-group" data-radio-group data-ownership><legend>Do you own the vehicle?</legend><div class="radio-row">${["Yes", "No"].map((value) => `<label class="check"><input id="${id}-${category.value}-owns-${value.toLowerCase()}" type="radio" name="ownsVehicle" value="${value.toLowerCase()}"> <span>${value}</span></label>`).join("")}</div><span class="field__error" id="${id}-${category.value}-owns-error"></span></fieldset>`);
+    }
+    if (category.fields.includes("vin")) {
+      const vinWhen = category.vinWhen ? ` data-vin-when="${category.vinWhen}"` : "";
+      const ownershipGated = category.fields.includes("ownership") ? ' data-ownership-field' : "";
+      fields.push(`<div class="field conditional-field" data-vin${vinWhen}${ownershipGated}>${label(`${id}-${category.value}-vin`, "VIN")}<input id="${id}-${category.value}-vin" name="vin" autocomplete="off" aria-describedby="${id}-${category.value}-vin-help ${id}-${category.value}-vin-error"><span class="field__help" id="${id}-${category.value}-vin-help">Seventeen characters, from the vehicle or its registration.</span>${error(`${id}-${category.value}-vin`)}</div>`);
+    }
+    if (category.fields.includes("dealerOfPurchase")) {
+      fields.push(`<div class="field conditional-field" data-ownership-field>${label(`${id}-${category.value}-purchase-dealer`, "Dealer of purchase")}<input id="${id}-${category.value}-purchase-dealer" name="dealerOfPurchase" autocomplete="off">${error(`${id}-${category.value}-purchase-dealer`)}</div>`);
+    }
+    if (category.fields.includes("purchaseDate")) {
+      fields.push(`<div class="field conditional-field" data-ownership-field>${label(`${id}-${category.value}-purchase-date`, "Purchase date")}<input id="${id}-${category.value}-purchase-date" name="purchaseDate" type="date" autocomplete="off">${error(`${id}-${category.value}-purchase-date`)}</div>`);
+    }
+    if (category.fields.includes("message")) {
+      fields.push(`<div class="field">${label(`${id}-${category.value}-message`, "Message")}<textarea id="${id}-${category.value}-message" name="message" rows="4"></textarea>${error(`${id}-${category.value}-message`)}</div>`);
+    }
+    return `<div class="form-branch" data-branch="${category.value}">
+      <h3 class="form-branch__title">${escapeHtml(category.label)}</h3>
+      <p class="field__help">${escapeHtml(category.help)}</p>
+      ${fields.join("")}
+    </div>`;
+  };
+  return `${formOpen(id, "contact")}
+    <p class="form-step-status" aria-live="polite" data-step-status></p>
+    <fieldset class="form-fieldset form-step" data-step="1">
+      <legend>Your details</legend>
+      <div class="form-grid form-grid--pairs">
+        <div class="field">${label(`${id}-first`, "First name", true)}<input id="${id}-first" name="firstName" autocomplete="given-name" required aria-required="true">${error(`${id}-first`)}</div>
+        <div class="field">${label(`${id}-last`, "Last name", true)}<input id="${id}-last" name="lastName" autocomplete="family-name" required aria-required="true">${error(`${id}-last`)}</div>
+      </div>
+      <div class="field">${label(`${id}-email`, "Email", true)}<input id="${id}-email" name="email" type="email" autocomplete="email" inputmode="email" required aria-required="true">${error(`${id}-email`)}</div>
+      ${/* Required in the prototype, and flagged for John. The legacy screen says contact information is
+            required but publishes no HTML required state anywhere, so the real rule cannot be proven from
+            the public UI. Q-V13-4: require it here and confirm the mapping before production. */""}
+      <div class="field">${label(`${id}-phone`, "Phone", true)}<input id="${id}-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required aria-required="true">${error(`${id}-phone`)}</div>
+      <div class="form-nav" data-form-nav hidden><button class="button button--secondary" type="button" data-step-next>Continue</button></div>
+    </fieldset>
+    <fieldset class="form-fieldset form-step" data-step="2">
+      <legend>Your request</legend>
+      ${/* Radios rather than the legacy select. Three options is a set to choose from rather than a list to
+            search, radios expose the whole set to a screen reader at once, and arrow keys move between them
+            without opening anything. */""}
+      <fieldset class="field-group" data-radio-group data-category-group><legend>What can we help with?${requiredMark}</legend><div class="radio-column">${CONTACT_CATEGORIES.map((category) => `<label class="check"><input id="${id}-category-${category.value}" type="radio" name="category" value="${category.value}" required aria-required="true"> <span>${escapeHtml(category.label)}</span></label>`).join("")}</div><span class="field__error" id="${id}-category-error"></span></fieldset>
+      <div class="form-nav" data-form-nav hidden><button class="button button--secondary" type="button" data-step-back>Back</button><button class="button button--secondary" type="button" data-step-next>Continue</button></div>
+    </fieldset>
+    <fieldset class="form-fieldset form-step" data-step="3">
+      <legend>Details</legend>
+      ${CONTACT_CATEGORIES.map(branch).join("")}
+      <div class="form-nav" data-form-nav hidden><button class="button button--secondary" type="button" data-step-back>Back</button></div>
+    </fieldset>
+    ${integrationFields("contact", "Send request")}
   </form>`;
 };
+
+// The Santarosa Launch Edition interest form. A separate identity from Contact and from both dealer forms:
+// a distinct route, a distinct endpoint key, and a distinct CRM destination once John supplies one. Every
+// visible field Owen's boss specified is required.
+//
+// There is no consent checkbox, and its absence is deliberate rather than an oversight. Phone and email are
+// both required and the introduction promises updates, which is marketing contact, and no approved email or
+// SMS consent language was supplied. Inventing checkbox text would be inventing a legal statement, so the
+// form collects nothing until legal supplies the wording; that is a production blocker, not a to-do.
+export const launchInterestForm = (id = "santarosa-launch-interest-form") => `${formOpen(id, "santarosa-launch-interest")}
+  <div class="form-grid form-grid--pairs">
+    <div class="field">${label(`${id}-first`, "First name", true)}<input id="${id}-first" name="firstName" autocomplete="given-name" required aria-required="true">${error(`${id}-first`)}</div>
+    <div class="field">${label(`${id}-last`, "Last name", true)}<input id="${id}-last" name="lastName" autocomplete="family-name" required aria-required="true">${error(`${id}-last`)}</div>
+  </div>
+  <div class="field">${label(`${id}-address`, "Address", true)}<input id="${id}-address" name="address" autocomplete="street-address" required aria-required="true">${error(`${id}-address`)}</div>
+  <div class="form-grid form-grid--pairs">
+    <div class="field">${label(`${id}-city`, "City", true)}<input id="${id}-city" name="city" autocomplete="address-level2" required aria-required="true">${error(`${id}-city`)}</div>
+    <div class="field">${label(`${id}-state`, "State", true)}<select id="${id}-state" name="state" autocomplete="address-level1" required aria-required="true">${["<option value=\"\">Select a state</option>", ...US_REGIONS.map(([code, name]) => `<option value="${code}">${escapeHtml(name)}</option>`)].join("")}</select>${error(`${id}-state`)}</div>
+  </div>
+  ${/* Five digits with a help line rather than a pattern that rejects anything else. Q-V13-22 is
+        unresolved: the campaign is stated as United States only, and nobody has said whether that includes
+        the territories or a military post, so validation stays inclusive and the campaign owner defines
+        eligibility before submissions open. */""}
+  <div class="field">${label(`${id}-postal`, "ZIP", true)}<input id="${id}-postal" name="postalCode" autocomplete="postal-code" inputmode="numeric" required aria-required="true" aria-describedby="${id}-postal-help ${id}-postal-error"><span class="field__help" id="${id}-postal-help">Five digits, or your ZIP+4.</span>${error(`${id}-postal`)}</div>
+  <div class="form-grid form-grid--pairs">
+    <div class="field">${label(`${id}-phone`, "Phone", true)}<input id="${id}-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required aria-required="true">${error(`${id}-phone`)}</div>
+    <div class="field">${label(`${id}-email`, "Email", true)}<input id="${id}-email" name="email" type="email" autocomplete="email" inputmode="email" required aria-required="true">${error(`${id}-email`)}</div>
+  </div>
+  ${integrationFields("santarosa-launch-interest", "Register your interest")}
+</form>`;
 
 export const recommendDealerForm = (id = "recommend-dealer-form") => `${formOpen(id, "recommend-dealer")}
   <div class="field">${label(`${id}-dealer-name`, "Recommended Dealer Name", true)}<input id="${id}-dealer-name" name="recommended_dealer_name" autocomplete="organization" required aria-required="true">${error(`${id}-dealer-name`)}</div>
@@ -387,12 +607,17 @@ export const internationalDealerForm = (id = "international-dealer-form") => `${
   ${integrationFields("international-dealer-inquiry", "Submit inquiry")}
 </form>`;
 
-// Dealers is both the inquiry destination and a navigation item: the header button is the
-// action, the navigation item is the place.
+// V13. Owners leaves the primary navigation and Experience takes its place, per Q-V13-17. Dealers stays and
+// becomes the locator; the header action is Contact, which is now a route of its own rather than a second
+// name for Dealers.
+//
+// Every route below Experience marks it current: the hub, the archive, and each article. An eventual
+// /events/ joins that prefix list when the route exists, and not before. Owner manuals stays reachable from
+// the footer on every page, which is asserted rather than assumed.
 const navItems = [
   ["Vehicles", "/vehicles/", ["/vehicles", ...models.map((model) => `/${model.slug}`)]],
   ["Concepts", "/concepts/", ["/concepts"]],
-  ["Owners", "/owners/", ["/owners"]],
+  ["Experience", "/experience/", ["/experience", "/blog"]],
   ["Dealers", "/dealers/", ["/dealers"]],
 ];
 
@@ -406,7 +631,7 @@ export const header = (path) => `<a class="skip-link" href="#main">Skip to conte
         ${navItems.map(([name, href, prefixes]) => `<a class="nav-link${isCurrent(path, prefixes) ? " is-current" : ""}" href="${href}"${isCurrent(path, prefixes) ? ' aria-current="page"' : ""}>${name}</a>`).join("")}
       </nav>
       <div class="site-header__actions">
-        <a class="button button--primary header-request" href="/dealers/">Contact</a>
+        <a class="button button--primary header-request" href="/contact/">Contact Us</a>
         <button class="icon-button menu-button" type="button" data-open-menu aria-label="Open menu" aria-expanded="false"><span aria-hidden="true">☰</span></button>
       </div>
     </div>
@@ -415,7 +640,7 @@ export const header = (path) => `<a class="skip-link" href="#main">Skip to conte
     <div class="sheet__top"><img class="brand brand--sheet" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" alt="Vanderhall" width="211" height="22"><button class="icon-button" type="button" data-close-menu aria-label="Close menu">×</button></div>
     <nav class="mobile-nav" aria-label="Mobile primary">
       ${navItems.map(([name, href]) => `<a href="${href}">${name}</a>`).join("")}
-      <a class="button button--primary" href="/dealers/">Contact</a>
+      <a class="button button--primary" href="/contact/">Contact Us</a>
     </nav>
   </div>
   <div class="sheet-backdrop" data-sheet-backdrop hidden></div>`;
@@ -443,13 +668,15 @@ export const APP_LINKS = [
   ["Vanderhall app for Android", "https://play.google.com/store/apps/details?id=com.vanderhall.customerapp"],
 ];
 
-// Safety and Careers stay on Vanderhall's own systems, which are the systems that hold the notices
-// and the openings. Reproducing either here would mean this site publishing a safety notice or a job
-// that Vanderhall had already changed. The privacy policy is different: it is a fixed document, so
-// V10 reproduces it rather than sending a visitor to the old site to read it.
+// V13. All three legal destinations are internal now. V10's reasoning for keeping two of them external was
+// sound and has been answered rather than overruled: reproducing a safety notice or a job posting risked
+// publishing a record Vanderhall had already changed, and the answer is that these routes are generated
+// from an adapter rather than transcribed. Until John connects the authoritative sources, /safety/ carries
+// explicitly fictional notices, keeps a clearly labelled link to Vanderhall's own portal as a fallback, and
+// is blocked from production by the mock-data guard. Q-V13-10.
 export const LEGAL_LINKS = [
-  ["Safety notices", "https://portal.vanderhallusa.com/safety_notices"],
-  ["Careers", "https://dealer.vanderhallusa.com/careers"],
+  ["Safety notices", "/safety/"],
+  ["Careers", "/careers/"],
   ["Privacy policy", "/privacy/"],
 ];
 
@@ -469,16 +696,29 @@ export const LEGAL_LINKS = [
 //
 // The visible word is the first half of the accessible name, so the longer label is additive and
 // Label in Name (WCAG 2.5.3) holds.
+// V13 changes three things about this footer and leaves everything else where V11-I put it.
+//
+// 1. A fifth column, Experience, carrying the hub and the archive. Events joins it when that route exists.
+// 2. Owners leads with `Owner manuals` rather than `Owner resources`, pointing at the same /owners/ route.
+//    That link is now the ONLY way into the manual library from the chrome, because Owners left the primary
+//    navigation, so it appears on every page and check-content asserts it on every page.
+// 3. Connect carries the complete inquiry address as visible text, immediately after Contact. Q-V13-26,
+//    Owen on 2026-08-06: the whole point is that a visitor can read the address, so it is not hidden behind
+//    an "Email us" label or an icon, and the accessible name is the address itself. The href is exactly
+//    mailto: plus the address, with no subject, no body, no query, and no script: a convenience route, not
+//    a form endpoint. That choice accepts ordinary address-scraping in exchange for the access Owen asked
+//    for, which is a tradeoff he made knowingly.
 export const footer = () => `<footer class="site-footer">
   <div class="footer-links">
     <div><h2>Vehicles</h2>${models.map((model) => `<a href="/${model.slug}/">${model.name}</a>`).join("")}<a href="/concepts/">Concepts</a></div>
-    <div><h2>Owners</h2><a href="/owners/">Owner resources</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a>${APP_LINKS.map(([label, href]) => `<a href="${href}">${escapeHtml(label)}</a>`).join("")}</div>
-    <div><h2>Connect</h2><a href="/dealers/">Dealers</a><a href="/recommend-dealer/">Recommend a dealer</a><a href="/dealer-inquiry/">Become a dealer</a></div>
-    <div class="footer-follow"><h2>Follow</h2>${SOCIAL_LINKS.map(([label, href]) => `<a href="${href}" aria-label="Vanderhall on ${escapeHtml(label)}">${escapeHtml(label)}</a>`).join("")}</div>
+    <div><h2>Experience</h2><a href="/experience/">Experience</a><a href="/blog/">Blog</a></div>
+    <div><h2>Owners</h2><a href="/owners/">Owner manuals</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a>${APP_LINKS.map(([label, href]) => `<a href="${href}">${escapeHtml(label)}</a>`).join("")}</div>
+    <div><h2>Connect</h2><a href="/dealers/">Dealers</a><a href="/contact/">Contact</a><a class="footer-email" href="mailto:${INQUIRY_EMAIL}">${escapeHtml(INQUIRY_EMAIL)}</a><a href="/recommend-dealer/">Recommend a dealer</a><a href="/dealer-inquiry/">Become a dealer</a></div>
+    <div class="footer-follow"><h2>Follow</h2>${SOCIAL_LINKS.map(([label, href]) => `<a href="${href}" aria-label="${BRAND} on ${escapeHtml(label)}">${escapeHtml(label)}</a>`).join("")}</div>
   </div>
   <div class="footer-legal">
-    <img class="footer-lockup" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" width="231" height="24" loading="lazy" decoding="async" alt="Vanderhall Motor Works">
-    <span>© 2026 Vanderhall Motor Works. Hand-built in Provo, Utah.</span>
+    <img class="footer-lockup" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" width="231" height="24" loading="lazy" decoding="async" alt="${BRAND}">
+    <span>© 2026 ${BRAND}. Hand-built in Provo, Utah.</span>
     <ul class="footer-legal__links">${LEGAL_LINKS.map(([label, href]) => `<li><a href="${href}">${escapeHtml(label)}</a></li>`).join("")}</ul>
   </div>
 </footer>`;
@@ -496,7 +736,7 @@ export const organizationSchema = () => jsonLd({
     {
       "@type": "Organization",
       "@id": `${SITE_URL}/#organization`,
-      name: "Vanderhall Motor Works",
+      name: BRAND,
       url: `${SITE_URL}/`,
       // Still the dark-ink lockup, not the reverse the header now paints: a consumer of this markup
       // draws the logo on its own surface, usually a light one, where a white mark disappears.
@@ -514,7 +754,7 @@ export const organizationSchema = () => jsonLd({
       "@type": "WebSite",
       "@id": `${SITE_URL}/#website`,
       url: `${SITE_URL}/`,
-      name: "Vanderhall Motor Works",
+      name: BRAND,
       publisher: { "@id": `${SITE_URL}/#organization` },
       inLanguage: "en-US",
     },
@@ -530,12 +770,12 @@ export const productSchema = (model) => {
   return jsonLd({
     "@context": "https://schema.org",
     "@type": "Product",
-    name: `Vanderhall ${gts.name}`,
+    name: `${BRAND} ${gts.name}`,
     sku: "brawley-gts",
     description: gts.descriptor,
     url: `${SITE_URL}/brawley/gts/`,
     image: `${SITE_URL}${frame}`,
-    brand: { "@type": "Brand", name: "Vanderhall Motor Works" },
+    brand: { "@type": "Brand", name: BRAND },
     manufacturer: { "@id": `${SITE_URL}/#organization` },
     offers: {
       "@type": "Offer",
@@ -543,7 +783,7 @@ export const productSchema = (model) => {
       priceCurrency: "USD",
       price: gts.price.value.replace(/[$,]/g, ""),
       availability: "https://schema.org/InStock",
-      seller: { "@type": "Organization", name: "Vanderhall Motor Works" },
+      seller: { "@type": "Organization", name: BRAND },
     },
     additionalProperty: gts.figures.map((figure) => ({
       "@type": "PropertyValue",
@@ -557,6 +797,22 @@ export const productSchema = (model) => {
 // mechanical reason: .page is capped at --w-page and centred, so a white field declared there would
 // leave dark bands down both sides of a 1600px viewport. main is full width. The header and the
 // footer sit outside it and stay dark, which is what D-V11-1 asked for.
+// V13. The routes whose records are fictional carry a noindex while the prototype flag is set. Decided here
+// from the path rather than passed in by each page builder, so a new mock-data route cannot forget it.
+//
+// This is a deliberate narrowing of the plan's "staging or mock-data deployments should be noindex", and the
+// reason is proportion. This deployment is mostly real: deindexing the homepage, the two current models, the
+// purchase page, the nine concepts, and the manual library because six new routes carry sample records would
+// cost Vanderhall its actual search presence to protect against pages nobody has linked to yet.
+//
+// `/contact/` and `/privacy/` are deliberately absent from the list. Contact carries no invented record, only
+// a null endpoint, which is the state the two dealer forms have shipped in since V3; and the privacy copy is
+// Vanderhall's own text, stale rather than fabricated. robots.txt still allows crawling everywhere, because a
+// Disallow rule would stop a crawler before it could read the tag, which is the classic way to leave a page
+// indexed while believing it is hidden.
+const NOINDEX_ROUTES = ["/dealers", "/experience", "/blog", "/careers", "/safety", "/santarosa/launch-edition"];
+const isNoindex = (path) => IS_PROTOTYPE && NOINDEX_ROUTES.some((route) => path === route || path.startsWith(`${route}/`));
+
 export const shell = ({ title, description, path, body, schema = "", mainClass = "" }) => `<!doctype html>
 <html lang="en">
 <head>
@@ -564,7 +820,7 @@ export const shell = ({ title, description, path, body, schema = "", mainClass =
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="description" content="${escapeHtml(description)}">
-  <title>${escapeHtml(title)} | Vanderhall Motor Works</title>
+  ${isNoindex(path) ? '<meta name="robots" content="noindex, follow">\n  ' : ""}<title>${escapeHtml(title)} | ${BRAND}</title>
   <link rel="icon" href="/assets/brand/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/assets/brand/favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
@@ -580,3 +836,309 @@ export const shell = ({ title, description, path, body, schema = "", mainClass =
   <script>addEventListener('load',()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{const s=document.createElement('script');s.src='/scripts/site.js';document.body.append(s)})),{once:true})</script>
 </body>
 </html>`;
+
+// ---------------------------------------------------------------------------------------------
+// V13. New page components. Every one of them receives records as arguments and imports no adapter, so
+// John replaces src/data/adapters.mjs and nothing below changes.
+// ---------------------------------------------------------------------------------------------
+
+// The allowlisted rich-text block model, shared by articles and safety notices.
+//
+// It throws on an unknown type for the same reason the privacy renderer does: a body that silently drops a
+// block is a document that lost a paragraph without telling anybody, and a body that passes a CMS field
+// through as HTML is an injection. Nothing here accepts markup. Every string is escaped.
+const BODY_BLOCKS = {
+  p: (block) => `<p>${escapeHtml(block.text)}</p>`,
+  h2: (block) => `<h2>${escapeHtml(block.text)}</h2>`,
+  h3: (block) => `<h3>${escapeHtml(block.text)}</h3>`,
+  ul: (block) => `<ul>${block.items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`,
+  quote: (block) => `<blockquote class="prose__quote"><p>${escapeHtml(block.text)}</p>${block.attribution ? `<footer>${escapeHtml(block.attribution)}</footer>` : ""}</blockquote>`,
+  image: (block) => {
+    const { width, height } = sizeOf(block.src);
+    return `<figure class="prose__figure"><img src="${block.src}"${block.srcset ? ` srcset="${block.srcset}"` : ""} width="${width}" height="${height}" sizes="(min-width: 1280px) 800px, 92vw" alt="${escapeHtml(block.alt)}" loading="lazy" decoding="async">${block.caption ? `<figcaption>${escapeHtml(block.caption)}</figcaption>` : ""}</figure>`;
+  },
+};
+
+export const prose = (blocks) => `<div class="prose">${blocks.map((block) => {
+  const render = BODY_BLOCKS[block.type];
+  if (!render) throw new Error(`Unknown body block type: ${block.type}`);
+  return render(block);
+}).join("")}</div>`;
+
+// ---------------------------------------------------------------------------------------------
+// Editorial
+// ---------------------------------------------------------------------------------------------
+const postMeta = (post) => {
+  const parts = [
+    `<span class="post-meta__author">${escapeHtml(post.author)}</span>`,
+    `<time datetime="${post.publishedAt}">${escapeHtml(formatDate(post.publishedAt))}</time>`,
+  ];
+  if (post.updatedAt) parts.push(`<span>Updated <time datetime="${post.updatedAt}">${escapeHtml(formatDate(post.updatedAt))}</time></span>`);
+  if (post.readingMinutes) parts.push(`<span>${post.readingMinutes} min read</span>`);
+  return `<p class="post-meta">${parts.join("")}</p>`;
+};
+
+const postImage = (image, { sizes, eager = false }) => {
+  const { width, height } = sizeOf(image.src);
+  return `<img src="${image.src}"${image.srcset ? ` srcset="${image.srcset}"` : ""} width="${width}" height="${height}" sizes="${sizes}" alt="${escapeHtml(image.alt)}" loading="${eager ? "eager" : "lazy"}"${eager ? ' fetchpriority="high"' : ""} decoding="async">`;
+};
+
+// A card whose record has no article body links nowhere and says so, rather than offering a link into an
+// empty page. That state is not a defect to design around: it is the ordinary condition of a real archive
+// with a story in progress, and the index has to look finished with one in it.
+export const postCard = (post, { featured = false, level = 3, linkable = true } = {}) => {
+  const href = `/blog/${post.slug}/`;
+  const title = linkable ? `<a class="post-card__link" href="${href}">${escapeHtml(post.title)}</a>` : escapeHtml(post.title);
+  return `<article class="post-card${featured ? " post-card--featured" : ""}">
+    ${post.hero ? `<div class="post-card__media">${linkable ? `<a href="${href}" tabindex="-1" aria-hidden="true">${postImage(post.hero, { sizes: featured ? "(min-width: 1024px) 60vw, 92vw" : "(min-width: 1024px) 30vw, 92vw", eager: featured })}</a>` : postImage(post.hero, { sizes: "(min-width: 1024px) 30vw, 92vw" })}</div>` : ""}
+    <div class="post-card__body">
+      <p class="post-card__category">${escapeHtml(post.category)}</p>
+      <h${level} class="post-card__title">${title}</h${level}>
+      <p class="post-card__excerpt">${escapeHtml(post.excerpt)}</p>
+      ${postMeta(post)}
+      ${linkable ? "" : `<p class="post-card__pending">This story is not published yet.</p>`}
+    </div>
+  </article>`;
+};
+
+export const articleHeader = (post, back) => `<header class="page-header page-header--marked article-header">
+  ${backLink(back)}
+  <p class="article-header__category">${escapeHtml(post.category)}</p>
+  <h1>${escapeHtml(post.title)}</h1>
+  <p class="article-header__standfirst">${escapeHtml(post.standfirst)}</p>
+  ${postMeta(post)}
+</header>`;
+
+export const relatedPosts = (posts) => (posts.length
+  ? `<section class="section--tight related">
+      ${sectionHeading("MORE STORIES", "Related reading.")}
+      <div class="card-grid card-grid--posts">${posts.map((post) => postCard(post, { level: 3, linkable: Boolean(post.bodyBlocks?.length) })).join("")}</div>
+    </section>`
+  : "");
+
+// ---------------------------------------------------------------------------------------------
+// Experience hub
+// ---------------------------------------------------------------------------------------------
+// The hub renders an ordered module description rather than a hand-built page, which is what makes Events an
+// integration rather than a second redesign: a new approved module joins the list and lands here in place.
+// An unknown type throws at build time. V13 launches with one module, and it has to look intentional with
+// one, so the Blog area carries a real featured story, three cards, and one way into the archive.
+export const experienceModules = (modules, { byId }) => modules.map((module) => {
+  if (module.type !== "blog") throw new Error(`Unknown Experience module type: ${module.type}`);
+  const featured = byId.get(module.featuredId);
+  if (!featured) throw new Error(`Experience blog module references an unknown featured post: ${module.featuredId}`);
+  const recent = module.recentIds.map((id) => {
+    const post = byId.get(id);
+    if (!post) throw new Error(`Experience blog module references an unknown post: ${id}`);
+    return post;
+  });
+  return `<section class="section experience-module">
+    ${sectionHeading("BLOG", module.heading)}
+    ${postCard(featured, { featured: true, level: 3, linkable: Boolean(featured.bodyBlocks?.length) })}
+    ${recent.length ? `<div class="card-grid card-grid--posts">${recent.map((post) => postCard(post, { level: 3, linkable: Boolean(post.bodyBlocks?.length) })).join("")}</div>` : ""}
+    <div class="cluster">${buttonLink(module.archive.label, module.archive.href, "secondary")}</div>
+  </section>`;
+}).join("");
+
+// ---------------------------------------------------------------------------------------------
+// Careers
+// ---------------------------------------------------------------------------------------------
+const jobFacts = (job) => `<ul class="fact-row">
+  <li>${escapeHtml(job.department)}</li>
+  <li>${escapeHtml(job.location)}</li>
+  <li>${escapeHtml(job.workMode)}</li>
+  <li>${escapeHtml(job.employmentType)}</li>
+  ${job.compensation ? `<li>${escapeHtml(job.compensation)}</li>` : ""}
+</ul>`;
+
+export const jobCard = (job, { linkable = true, level = 2 } = {}) => {
+  const href = `/careers/${job.slug}/`;
+  return `<article class="record-card">
+    <div class="record-card__head">
+      ${/* h2 by default: on the index these are the first headings under the page title. */""}
+      <h${level} class="record-card__title">${linkable ? `<a href="${href}">${escapeHtml(job.title)}</a>` : escapeHtml(job.title)}</h${level}>
+      ${sampleTag()}
+    </div>
+    ${jobFacts(job)}
+    <p class="record-card__summary">${escapeHtml(job.summary)}</p>
+    <p class="record-card__meta">Posted <time datetime="${job.postedAt}">${escapeHtml(formatDate(job.postedAt))}</time></p>
+    ${linkable ? textLink("View this role", href) : `<p class="record-card__pending">This posting has no detail page yet.</p>`}
+  </article>`;
+};
+
+// The apply action, and the one thing it must never do is work. A mock apply that accepted a name and a
+// resume and then discarded them would be collecting applicant data into nothing, so the control is a
+// disabled button that says why, and the prototype has no upload, no fields, and no destination.
+export const applyAction = (job) => (job.applyUrl
+  ? `<div class="cluster">${buttonLink("Apply for this role", job.applyUrl)}</div>`
+  : `<div class="cluster apply-disabled"><button class="button button--primary" type="button" disabled aria-describedby="apply-note">Apply for this role</button><p class="form-note" id="apply-note">Sample posting. There is no application destination yet, so this action is disabled and no applicant information is collected.</p></div>`);
+
+export const jobSections = (sections) => sections.map((section) => `<section class="record-section">
+  <h2>${escapeHtml(section.heading)}</h2>
+  ${section.items.length === 1 ? `<p>${escapeHtml(section.items[0])}</p>` : `<ul>${section.items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`}
+</section>`).join("");
+
+// ---------------------------------------------------------------------------------------------
+// Safety
+// ---------------------------------------------------------------------------------------------
+// Calm and authoritative, not a marketing page, and every key fact visible on the card without a hover: a
+// visitor scanning for whether a notice concerns them should not have to open anything to find out.
+export const safetyCard = (notice, { linkable = true, level = 2 } = {}) => {
+  const href = `/safety/${notice.slug}/`;
+  return `<article class="record-card record-card--notice">
+    <div class="record-card__head">
+      <h${level} class="record-card__title">${linkable ? `<a href="${href}">${escapeHtml(notice.title)}</a>` : escapeHtml(notice.title)}</h${level}>
+      ${sampleNoticeTag()}
+    </div>
+    <dl class="notice-facts">
+      <dt>Notice</dt><dd>${escapeHtml(notice.id)}</dd>
+      <dt>Posted</dt><dd><time datetime="${notice.postedAt}">${escapeHtml(formatDate(notice.postedAt))}</time></dd>
+      ${notice.revisedAt ? `<dt>Revised</dt><dd><time datetime="${notice.revisedAt}">${escapeHtml(formatDate(notice.revisedAt))}</time></dd>` : ""}
+      <dt>Affected</dt><dd>${notice.affectedProducts.map((product) => escapeHtml(product)).join(", ")}</dd>
+      <dt>Hazard</dt><dd>${escapeHtml(notice.hazardSummary)}</dd>
+      <dt>Remedy</dt><dd>${escapeHtml(notice.remedySummary)}</dd>
+    </dl>
+    ${linkable ? textLink("Read this notice", href) : `<p class="record-card__pending">This notice has no detail page yet.</p>`}
+  </article>`;
+};
+
+export const emptyState = (message, actions = "") => `<div class="empty-state"><p>${escapeHtml(message)}</p>${actions}</div>`;
+
+// ---------------------------------------------------------------------------------------------
+// Policy document
+// ---------------------------------------------------------------------------------------------
+// The document header and its table of contents. Both are driven by the record: the two dates print only
+// when the record carries them, and Vanderhall's legacy page publishes neither, so today the header shows a
+// contact route and nothing else rather than an invented effective date.
+export const policyHeader = (policy, back) => `<header class="page-header page-header--marked policy-header">
+  ${backLink(back)}
+  <h1>${escapeHtml(policy.title)}</h1>
+  <p>${escapeHtml(policy.sourceLine)}</p>
+  <dl class="policy-header__meta">
+    ${policy.effectiveAt ? `<dt>Effective</dt><dd><time datetime="${policy.effectiveAt}">${escapeHtml(formatDate(policy.effectiveAt))}</time></dd>` : ""}
+    ${policy.updatedAt ? `<dt>Last updated</dt><dd><time datetime="${policy.updatedAt}">${escapeHtml(formatDate(policy.updatedAt))}</time></dd>` : ""}
+    <dt>Questions</dt><dd><a href="${policy.contactUrl}">Contact Vanderhall</a></dd>
+  </dl>
+</header>`;
+
+// On desktop a restrained sticky column beside the body; on mobile the same list inside a details
+// disclosure. One nav element, styled two ways, rather than two copies of the same links in the DOM.
+export const policyContents = (policy) => {
+  const items = policy.sections.filter((section) => section.heading);
+  if (!items.length) return "";
+  const list = `<ol class="policy-toc__list">${items.map((section) => `<li><a href="#${section.id}">${escapeHtml(section.heading)}</a></li>`).join("")}</ol>`;
+  return `<nav class="policy-toc" aria-label="On this page">
+    <details class="policy-toc__mobile">
+      <summary>On this page</summary>
+      ${list}
+    </details>
+    <div class="policy-toc__desktop">
+      <h2 class="policy-toc__title">On this page</h2>
+      ${list}
+    </div>
+  </nav>`;
+};
+
+// ---------------------------------------------------------------------------------------------
+// Homepage campaign status band
+// ---------------------------------------------------------------------------------------------
+// Two operational statements, Brawley first in the DOM and on the screen, both read from the campaign data
+// rather than written into this component. There is no countdown, no flashing, no modal, and nothing to
+// dismiss: it is a hairline band of concise type that belongs to the page, not an alert bar bolted onto it.
+export const campaignBand = (delivery, campaign) => {
+  const santarosa = campaignStatement(campaign);
+  const item = (label, action) => `<div class="campaign-band__item">
+    <p class="campaign-band__label">${escapeHtml(label)}</p>
+    ${textLink(action.label, action.href)}
+  </div>`;
+  return `<section class="section--tight campaign-band" aria-label="Current availability">
+    ${item(delivery.label, delivery.action)}
+    ${item(santarosa.label, santarosa.action)}
+  </section>`;
+};
+
+// ---------------------------------------------------------------------------------------------
+// Dealer locator
+// ---------------------------------------------------------------------------------------------
+// Two panes above 1024px, a segmented List and Map control below it, and the complete dealer list rendered
+// as HTML in both cases. The map is an enhancement and never the only way to find a dealer: with no key, a
+// failed SDK, or no JavaScript at all, every dealer's address, telephone number, website, and directions
+// link is still on the page and still works.
+//
+// Everything a visitor cannot use without JavaScript ships hidden, which is the walkaround's rule again: the
+// search field, the filters, the mode switch, and the per-card map selection are all revealed by site.js.
+// The list itself is not, because it needs nothing.
+const capabilityLabels = { ev: "Electric", gas: "Gas", service: "Service" };
+
+const dealerCard = (dealer) => {
+  const capabilities = Object.entries(dealer.capabilities || {}).filter(([, value]) => value).map(([key]) => capabilityLabels[key]).filter(Boolean);
+  const address = [dealer.address1, dealer.address2, `${dealer.city}, ${dealer.region} ${dealer.postalCode}`].filter(Boolean);
+  // The official directions URL, with coordinates rather than a formatted address: the coordinates are what
+  // the record actually knows, and a re-geocoded address string is a second chance to land on the wrong side
+  // of a highway.
+  const directions = `https://www.google.com/maps/dir/?api=1&destination=${dealer.latitude},${dealer.longitude}`;
+  return `<article class="dealer-card" id="dealer-${dealer.slug}" data-dealer="${dealer.slug}" data-lat="${dealer.latitude}" data-lng="${dealer.longitude}" data-ev="${Boolean(dealer.capabilities?.ev)}" data-gas="${Boolean(dealer.capabilities?.gas)}" data-service="${Boolean(dealer.capabilities?.service)}" data-city="${escapeHtml(dealer.city)}" data-region="${escapeHtml(dealer.region)}" data-postal="${escapeHtml(dealer.postalCode)}" tabindex="-1">
+    <div class="dealer-card__head">
+      ${/* h2, not h3: these are the first headings under the page title, and axe is right that skipping a
+             level breaks the document outline a screen-reader user navigates by. */""}
+      <h2 class="dealer-card__name">${escapeHtml(dealer.name)}</h2>
+      <p class="dealer-card__distance" data-dealer-distance></p>
+    </div>
+    <p class="dealer-card__address">${address.map((line) => escapeHtml(line)).join("<br>")}</p>
+    ${capabilities.length ? `<ul class="dealer-card__tags">${capabilities.map((label) => `<li>${escapeHtml(label)}</li>`).join("")}</ul>` : ""}
+    ${dealer.models?.length ? `<p class="dealer-card__models">${escapeHtml(dealer.models.join(", "))}</p>` : ""}
+    ${dealer.hours || dealer.status ? `<p class="dealer-card__hours">${[dealer.hours, dealer.status].filter(Boolean).map((line) => escapeHtml(line)).join(". ")}</p>` : ""}
+    <div class="dealer-card__actions">
+      <a href="tel:${escapeHtml(dealer.phone)}">${escapeHtml(dealer.phone)}</a>
+      <a href="${dealer.websiteUrl}">Website</a>
+      <a href="${directions}">Directions</a>
+      <button class="dealer-card__select" type="button" data-dealer-select="${dealer.slug}" hidden>Show on map</button>
+    </div>
+  </article>`;
+};
+
+export const dealerLocator = (dealers, filters, { mapKey = "", mapId = "" } = {}) => `<section class="locator" data-locator data-map="${mapKey ? "google" : "none"}"${mapKey ? ` data-map-key="${escapeHtml(mapKey)}"` : ""}${mapId ? ` data-map-id="${escapeHtml(mapId)}"` : ""}>
+  <form class="locator__search" data-locator-search hidden>
+    <div class="field">
+      <label for="locator-location">City or postal code</label>
+      ${/* No geolocation request on load, ever. The visitor types where they are, or does not, and the
+            complete list is what they see either way. */""}
+      <input id="locator-location" name="location" type="search" autocomplete="postal-code" inputmode="search" placeholder="Provo, or 84601">
+    </div>
+    <fieldset class="field-group" data-locator-filters>
+      <legend>Show</legend>
+      <div class="radio-row">${filters.map((filter, index) => `<label class="check"><input type="radio" name="capability" value="${filter.value}"${index === 0 ? " checked" : ""}> <span>${escapeHtml(filter.label)}</span></label>`).join("")}</div>
+    </fieldset>
+    <div class="locator__search-actions">
+      <button class="button button--primary" type="submit">Search</button>
+      <button class="button button--secondary" type="reset" data-locator-reset>Clear</button>
+    </div>
+  </form>
+  <div class="locator__bar">
+    <p class="locator__count" data-locator-count>${dealers.length} ${dealers.length === 1 ? "dealer" : "dealers"}</p>
+    <div class="locator__modes" data-locator-modes hidden role="group" aria-label="View">
+      <button class="locator__mode is-selected" type="button" data-locator-mode="list" aria-pressed="true">List</button>
+      <button class="locator__mode" type="button" data-locator-mode="map" aria-pressed="false">Map</button>
+    </div>
+  </div>
+  <p class="locator__state" data-locator-state="searching" role="status" hidden>Searching</p>
+  <p class="locator__state" data-locator-state="data-failed" role="alert" hidden>The dealer list could not be loaded. Please try again, or contact Vanderhall.</p>
+  <div class="locator__panes" data-locator-panes data-mode="list">
+    <div class="locator__list" data-locator-list>
+      ${dealers.map(dealerCard).join("")}
+      <div class="locator__no-results" data-locator-state="no-results" hidden>
+        <p>No dealers matched this search. Try another location, contact Vanderhall, or recommend a local dealer.</p>
+        <div class="cluster">${buttonLink("Recommend a dealer", "/recommend-dealer/", "secondary")}${buttonLink("Contact Vanderhall", "/contact/", "secondary")}</div>
+      </div>
+    </div>
+    <div class="locator__map">
+      <div class="locator__canvas" data-locator-canvas></div>
+      ${/* The honest fallback. It does not pretend to be a map that is still loading, and it does not
+            pretend to be a map at all: it says the map is unavailable and points at the list, which has
+            everything. This is what renders with no key, with a blocked SDK, and with no JavaScript. */""}
+      <div class="locator__map-fallback" data-locator-map-fallback>
+        <p class="locator__map-message">The map is unavailable right now. You can still search the dealer list and use its phone, website, and directions links.</p>
+      </div>
+    </div>
+  </div>
+</section>`;

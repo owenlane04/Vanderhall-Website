@@ -1,3 +1,4 @@
+import { execFile } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -15,7 +16,12 @@ const report = { routes: [], accessibility: {}, heroes: {}, zoom200: {}, forms: 
 const failures = [];
 const conceptSlugs = ["indio", "coachella", "brawley-r", "santarosa-r", "speedster", "yuma", "yuma-defense", "laduna", "balboa"];
 const conceptRoutes = conceptSlugs.map((slug) => `/concepts/${slug}/`);
-const routes = ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/santarosa/", "/carmel/", "/venice/", "/concepts/", ...conceptRoutes, "/dealers/", "/recommend-dealer/", "/dealer-inquiry/", "/owners/", "/privacy/", "/404/"];
+// V13 adds twelve routes. Every one of them joins this smoke pass, the axe array, and the reveal coverage
+// suite, because a route that is not in all three is a route nobody is checking.
+const articleRoutes = ["/blog/how-we-photograph-a-vehicle/", "/blog/notes-from-the-design-studio/"];
+const careerRoutes = ["/careers/assembly-technician/", "/careers/customer-experience-specialist/"];
+const noticeRoutes = ["/safety/placeholder-notice-a/", "/safety/placeholder-notice-b/"];
+const routes = ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/santarosa/", "/santarosa/launch-edition/", "/carmel/", "/venice/", "/concepts/", ...conceptRoutes, "/experience/", "/blog/", ...articleRoutes, "/dealers/", "/contact/", "/careers/", ...careerRoutes, "/safety/", ...noticeRoutes, "/recommend-dealer/", "/dealer-inquiry/", "/owners/", "/privacy/", "/404/"];
 
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 const page = await context.newPage();
@@ -63,11 +69,18 @@ for (const route of routes) {
   const bodyLength = (await page.locator("body").innerText()).trim().length;
   await loadLazyMedia(page);
   const brokenImages = await page.locator("img").evaluateAll((images) => images.filter((image) => image.complete && image.naturalWidth === 0).map((image) => image.currentSrc || image.getAttribute("src")));
+  // V13: Owners left the primary navigation and Experience took its place. Both halves are pinned on every
+  // route, and the footer entry that keeps the manual library reachable is pinned alongside them.
   const ownersInNav = await page.locator('.desktop-nav a[href="/owners/"]').count();
+  const experienceInNav = await page.locator('.desktop-nav a[href="/experience/"]').count();
   const dealersInNav = await page.locator('.desktop-nav a[href="/dealers/"]').count();
+  const ownersInFooter = await page.locator('.footer-links a[href="/owners/"]').count();
   const pageHeight = await page.evaluate(() => document.documentElement.scrollHeight);
-  report.routes.push({ route, status, h1Count, bodyLength, brokenImages, ownersInNav, dealersInNav, pageHeight });
-  if (status !== 200 || h1Count !== 1 || bodyLength < 100 || brokenImages.length || ownersInNav !== 1 || dealersInNav !== 1) failures.push(`Route check failed for ${route}`);
+  report.routes.push({ route, status, h1Count, bodyLength, brokenImages, ownersInNav, experienceInNav, dealersInNav, ownersInFooter, pageHeight });
+  if (status !== 200 || h1Count !== 1 || bodyLength < 100 || brokenImages.length) failures.push(`Route check failed for ${route}`);
+  if (ownersInNav !== 0) failures.push(`${route}: Owners must not remain in the primary navigation`);
+  if (experienceInNav !== 1 || dealersInNav !== 1) failures.push(`${route}: expected Experience and Dealers once each in the primary navigation`);
+  if (ownersInFooter !== 1) failures.push(`${route}: the manual library must stay reachable from the footer`);
 }
 
 // Probed on a throwaway page so the expected 404s do not pollute the console-error audit.
@@ -76,7 +89,9 @@ for (const route of routes) {
 const probeContext = await browser.newContext();
 const probePage = await probeContext.newPage();
 report.interactions.retiredRoutes = {};
-for (const [route, destination] of [["/about/", "/"], ["/contact/", "/dealers/"], ["/faq/", null]]) {
+// V13-G: /contact/ is a real route now, asserted in the smoke pass above and in contactFlow below. About and
+// FAQ keep their retirement behaviour.
+for (const [route, destination] of [["/about/", "/"], ["/faq/", null]]) {
   const response = await probePage.goto(`${base}${route}`, { waitUntil: "load" });
   const landedOn = new URL(probePage.url()).pathname;
   const removed = response?.status() === 404 || (destination !== null && landedOn === destination);
@@ -90,7 +105,9 @@ await probeContext.close();
 // markup, and a long wrapping link, so it is the page most likely to fail on contrast or reflow.
 // V11-E puts the concepts hub and all nine detail pages on a white field, which changes every
 // contrast pair on ten routes at once, so all ten are audited rather than the hub and one sample.
-for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/santarosa/", "/venice/", "/carmel/", "/recommend-dealer/", "/dealer-inquiry/", "/concepts/", ...conceptRoutes, "/owners/", "/dealers/", "/privacy/", "/404/"]) {
+// V13 adds the Experience hub, the Launch Edition, and every new index plus one representative detail of
+// each. The two past-model galleries stay in the list because their layout changed completely.
+for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/santarosa/", "/santarosa/launch-edition/", "/venice/", "/carmel/", "/recommend-dealer/", "/dealer-inquiry/", "/concepts/", ...conceptRoutes, "/owners/", "/dealers/", "/contact/", "/experience/", "/blog/", "/blog/how-we-photograph-a-vehicle/", "/careers/", "/careers/assembly-technician/", "/safety/", "/safety/placeholder-notice-a/", "/privacy/", "/404/"]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   await page.addScriptTag({ content: axe.source });
   const result = await page.evaluate(async () => axe.run(document, { resultTypes: ["violations"] }));
@@ -155,15 +172,17 @@ report.interactions.vehicleSections = {
   sections: await page.locator(".vehicle-section").count(),
   leadFrames: await page.locator(".vehicle-section__lead img").count(),
   supportFrames: await page.locator(".vehicle-section__support img").count(),
-  modelLinks: await page.locator(".vehicle-section__body a").evaluateAll((anchors) => anchors.map((anchor) => new URL(anchor.href).pathname)),
+  modelLinks: await page.locator(".vehicle-section__body a").evaluateAll((anchors) => anchors
+    .filter((anchor) => !anchor.getAttribute("href").startsWith("#"))
+    .map((anchor) => new URL(anchor.href).pathname)),
   hasSpecsOrPrices: await page.locator(".spec-table, .price, .photo-module__specs").count(),
   // The photographs became links in V6. They must stay out of the tab order, so each section
   // still offers exactly one stop, the text link beneath the copy.
   focusableMedia: await page.locator('.vehicle-section__lead:not([tabindex="-1"]), .vehicle-section__support:not([tabindex="-1"])').count(),
 };
 const sectionShape = report.interactions.vehicleSections;
-if (sectionShape.sections !== 4 || sectionShape.leadFrames !== 4 || sectionShape.supportFrames !== 8 || sectionShape.hasSpecsOrPrices !== 0) failures.push("Vehicles section structure failed");
-if (JSON.stringify(sectionShape.modelLinks) !== JSON.stringify(["/brawley/", "/santarosa/", "/carmel/", "/venice/"])) failures.push(`Vehicles sections must link to each model once in order, got ${sectionShape.modelLinks.join(", ")}`);
+if (sectionShape.sections !== 2 || sectionShape.leadFrames !== 2 || sectionShape.supportFrames !== 4 || sectionShape.hasSpecsOrPrices !== 0) failures.push(`Vehicles section structure failed: ${JSON.stringify(sectionShape)}`);
+if (JSON.stringify(sectionShape.modelLinks) !== JSON.stringify(["/brawley/", "/santarosa/"])) failures.push(`Vehicles sections must link to each current model once in order, got ${sectionShape.modelLinks.join(", ")}`);
 if (sectionShape.focusableMedia !== 0) failures.push(`${sectionShape.focusableMedia} vehicle media links are still in the tab order`);
 
 // Model pages: each photo module carries a photograph, a label, and the figures that photograph
@@ -172,11 +191,11 @@ if (sectionShape.focusableMedia !== 0) failures.push(`${sectionShape.focusableMe
 // which is measured here as boxes rather than read from the markup: the link must be inside the
 // photograph's content column and above the heading, which is the whole point of the move.
 report.interactions.photoScroll = {};
+// V13-C: only the two current models have a photo scroll at all. Carmel and Venice are galleries and have
+// their own suite below.
 for (const [route, expected, pairedGroups, tags, heroCta] of [
   ["/brawley/", 6, 6, 0, "/brawley/gts/"],
-  ["/santarosa/", 5, 5, 0, "/dealers/"],
-  ["/carmel/", 6, 3, 1, "/dealers/"],
-  ["/venice/", 6, 4, 1, "/dealers/"],
+  ["/santarosa/", 5, 5, 0, "/contact/?category=product-information"],
 ]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   const shape = await page.evaluate(() => {
@@ -236,7 +255,9 @@ for (const [route, expected, pairedGroups, tags, heroCta] of [
 // The way back, exercised by navigation rather than by reading markup: one sample of each page
 // type, clicked, landing on its declared parent.
 report.interactions.backLinks = {};
-for (const [route, parent] of [["/vehicles/", "/"], ["/venice/", "/vehicles/"], ["/brawley/gts/", "/brawley/"], ["/concepts/indio/", "/concepts/"], ["/recommend-dealer/", "/dealers/"], ["/owners/", "/"]]) {
+// One sample of each page type, clicked. V13 adds the four new hierarchies: Experience under Home, Blog under
+// Experience, an article under Blog, and the Launch Edition under Santarosa.
+for (const [route, parent] of [["/vehicles/", "/"], ["/venice/", "/vehicles/"], ["/brawley/gts/", "/brawley/"], ["/concepts/indio/", "/concepts/"], ["/recommend-dealer/", "/dealers/"], ["/owners/", "/"], ["/experience/", "/"], ["/blog/", "/experience/"], ["/blog/how-we-photograph-a-vehicle/", "/blog/"], ["/santarosa/launch-edition/", "/santarosa/"], ["/careers/assembly-technician/", "/careers/"], ["/safety/placeholder-notice-a/", "/safety/"]]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   const link = page.locator(".back-nav a").first();
   const count = await page.locator(".back-nav").count();
@@ -304,7 +325,7 @@ report.interactions.gtsSpecTable = await page.evaluate(() => ({
   disclaimerCount: [...document.querySelectorAll("p")].filter((node) => node.textContent.includes("Features and specifications are estimated")).length,
 }));
 const gtsShape = report.interactions.gtsSpecTable;
-if (gtsShape.tables !== 1 || gtsShape.toggles !== 0 || gtsShape.emptyValues !== 0 || gtsShape.figures !== 4) {
+if (gtsShape.tables !== 1 || gtsShape.toggles !== 0 || gtsShape.emptyValues !== 0 || gtsShape.figures !== 3) {
   failures.push(`Purchase page specification table failed: ${JSON.stringify(gtsShape)}`);
 }
 if (gtsShape.bars !== 0 || gtsShape.notes !== 0) failures.push(`The purchase page must carry no model bar and no duplicated note: ${JSON.stringify(gtsShape)}`);
@@ -434,27 +455,126 @@ if (dark.toggles !== 0 || dark.themeAttribute !== null || dark.storedTheme !== n
 if (!dark.reverseLockup) failures.push("The header must paint the reverse lockup without a CSS swap");
 if (dark.inlineScripts !== 0) failures.push(`${dark.inlineScripts} inline scripts still read stored state before paint`);
 
-await page.goto(`${base}/dealers/?model=brawley`, { waitUntil: "networkidle" });
-const requestForm = page.locator("#contact-lead");
-report.interactions.requestFormCount = await page.locator("[data-form-id='request-info']").count();
-if (report.interactions.requestFormCount !== 1) failures.push("The dealers page must hold exactly one request-info form");
-await requestForm.getByLabel(/^First name/).fill("Test");
-await requestForm.getByLabel(/^Last name/).fill("Visitor");
-await requestForm.getByLabel(/^Email/).fill("test@example.com");
-await requestForm.getByLabel(/^ZIP/).fill("84601");
-await requestForm.locator("[name='render_timestamp']").evaluate((input) => { input.value = String(Date.now() - 3000); });
-await requestForm.getByRole("button", { name: "Send request" }).click();
-const formStatus = await requestForm.locator(".form-status").innerText();
-report.interactions.formValidation = formStatus === "This form is not connected yet. Your information was not sent.";
-if (!report.interactions.formValidation) failures.push("Lead form validation flow failed");
+// V13-G. The request form moved to /contact/ and became a three-step progressive form. Every claim below is
+// about behaviour: the step advances, the branch matches the category, Back preserves what was typed, and the
+// prototype says plainly that nothing was sent.
+report.interactions.contactFlow = {};
+await page.goto(`${base}/contact/`, { waitUntil: "networkidle" });
+const contactForm = page.locator("#contact-form");
+report.interactions.requestFormCount = await page.locator("[data-form-id='contact']").count();
+report.interactions.dealersFormCount = 0;
+if (report.interactions.requestFormCount !== 1) failures.push("/contact/ must hold exactly one contact form");
+// Step one only, and the submit control is not offered before the last step: a visitor must not be able to
+// send a request whose category has not been chosen and then be told so by an error summary.
+report.interactions.contactFlow.initial = await page.evaluate(() => ({
+  visibleSteps: [...document.querySelectorAll("[data-step]")].filter((step) => !step.hidden).map((step) => step.dataset.step),
+  navVisible: [...document.querySelectorAll("[data-form-nav]")].some((nav) => !nav.hidden),
+  submitVisible: !document.querySelector(".form-submit-row").hidden,
+  status: document.querySelector("[data-step-status]").textContent,
+}));
+const contactInitial = report.interactions.contactFlow.initial;
+if (JSON.stringify(contactInitial.visibleSteps) !== JSON.stringify(["1"])) failures.push(`/contact/ must open on step one, found ${contactInitial.visibleSteps.join(", ")}`);
+if (!contactInitial.navVisible) failures.push("/contact/ step navigation must be revealed by the island");
+if (contactInitial.submitVisible) failures.push("/contact/ must not offer the submit control before the last step");
+if (contactInitial.status !== "Step 1 of 3") failures.push(`/contact/ must announce its step, found ${contactInitial.status}`);
 
-report.interactions.modelPrefill = {};
-for (const value of ["brawley", "santarosa", "carmel", "venice", "concepts", "not-sure-yet"]) {
-  await page.goto(`${base}/dealers/?model=${value}`, { waitUntil: "networkidle" });
-  const checked = await page.locator(`[name='interest'][value='${value}']`).isChecked();
-  report.interactions.modelPrefill[value] = checked;
-  if (!checked) failures.push(`Dealers model prefill failed for ${value}`);
+// Continue with an empty step one must refuse and say which items, rather than advancing.
+await contactForm.getByRole("button", { name: "Continue" }).first().click();
+report.interactions.contactFlow.blocked = await page.evaluate(() => ({
+  visibleSteps: [...document.querySelectorAll("[data-step]")].filter((step) => !step.hidden).map((step) => step.dataset.step),
+  summaryVisible: !document.querySelector(".form-error-summary").hidden,
+  summaryFocused: document.activeElement?.classList.contains("form-error-summary"),
+}));
+const contactBlocked = report.interactions.contactFlow.blocked;
+if (JSON.stringify(contactBlocked.visibleSteps) !== JSON.stringify(["1"])) failures.push("/contact/ advanced past an incomplete step one");
+if (!contactBlocked.summaryVisible || !contactBlocked.summaryFocused) failures.push(`/contact/ must focus an error summary on a blocked step: ${JSON.stringify(contactBlocked)}`);
+
+await contactForm.getByLabel(/^First name/).fill("Test");
+await contactForm.getByLabel(/^Last name/).fill("Visitor");
+await contactForm.getByLabel(/^Email/).fill("test@example.com");
+await contactForm.getByLabel(/^Phone/).fill("5550100");
+await contactForm.getByRole("button", { name: "Continue" }).first().click();
+await page.locator("#contact-form-category-customer-service").check();
+await contactForm.getByRole("button", { name: "Continue" }).nth(0).click();
+// Only the chosen branch is present, and the fields of the other two are disabled rather than merely hidden:
+// a required control inside an invisible branch would fail validation with an error nobody could reach.
+report.interactions.contactFlow.branch = await page.evaluate(() => ({
+  visibleSteps: [...document.querySelectorAll("[data-step]")].filter((step) => !step.hidden).map((step) => step.dataset.step),
+  visibleBranches: [...document.querySelectorAll("[data-branch]")].filter((branch) => !branch.hidden).map((branch) => branch.dataset.branch),
+  disabledInHidden: [...document.querySelectorAll("[data-branch][hidden] input, [data-branch][hidden] select, [data-branch][hidden] textarea")].filter((control) => !control.disabled).length,
+  // The ownership fields stay closed until the visitor says they own the vehicle.
+  ownershipVisible: [...document.querySelectorAll("[data-branch]:not([hidden]) [data-ownership-field]")].filter((field) => !field.hidden).length,
+}));
+const contactBranch = report.interactions.contactFlow.branch;
+if (JSON.stringify(contactBranch.visibleSteps) !== JSON.stringify(["3"])) failures.push(`/contact/ did not reach step three, found ${contactBranch.visibleSteps.join(", ")}`);
+if (JSON.stringify(contactBranch.visibleBranches) !== JSON.stringify(["customer-service"])) failures.push(`/contact/ must show only the chosen branch, found ${contactBranch.visibleBranches.join(", ")}`);
+if (contactBranch.disabledInHidden !== 0) failures.push(`${contactBranch.disabledInHidden} controls in hidden branches are still enabled`);
+if (contactBranch.ownershipVisible !== 0) failures.push("Customer Service must not open its ownership fields before the visitor says they own the vehicle");
+
+// Saying yes opens them; that is the conditional the plan asks for, in both directions.
+await page.locator("#contact-form-customer-service-owns-yes").check();
+report.interactions.contactFlow.ownership = await page.evaluate(() => [...document.querySelectorAll("[data-branch]:not([hidden]) [data-ownership-field]")].filter((field) => !field.hidden).length);
+if (report.interactions.contactFlow.ownership < 3) failures.push(`Ownership fields must open once the visitor owns the vehicle, found ${report.interactions.contactFlow.ownership}`);
+
+// Back preserves every value. This is the assertion that matters most about a multi-step form.
+await contactForm.getByRole("button", { name: "Back" }).first().click();
+await contactForm.getByRole("button", { name: "Back" }).first().click();
+report.interactions.contactFlow.preserved = await page.evaluate(() => ({
+  step: [...document.querySelectorAll("[data-step]")].filter((step) => !step.hidden).map((step) => step.dataset.step),
+  firstName: document.querySelector("#contact-form-first").value,
+  email: document.querySelector("#contact-form-email").value,
+  category: document.querySelector("[name='category']:checked")?.value,
+}));
+const preserved = report.interactions.contactFlow.preserved;
+if (JSON.stringify(preserved.step) !== JSON.stringify(["1"])) failures.push(`/contact/ Back did not return to step one, found ${preserved.step.join(", ")}`);
+if (preserved.firstName !== "Test" || preserved.email !== "test@example.com" || preserved.category !== "customer-service") {
+  failures.push(`/contact/ Back cleared entered values: ${JSON.stringify(preserved)}`);
 }
+
+// The prototype result, reached by submitting a complete form. Nothing is transmitted; the request listener
+// below proves it rather than trusting the message.
+const contactRequests = [];
+page.on("request", (request) => { if (request.method() === "POST") contactRequests.push(request.url()); });
+await contactForm.getByRole("button", { name: "Continue" }).first().click();
+await contactForm.getByRole("button", { name: "Continue" }).nth(0).click();
+await page.locator("#contact-form-customer-service-topic").selectOption("owner-documentation");
+await contactForm.locator("[name='render_timestamp']").evaluate((input) => { input.value = String(Date.now() - 3000); });
+await contactForm.getByRole("button", { name: "Send request" }).click();
+const formStatus = await contactForm.locator(".form-status").innerText();
+report.interactions.formValidation = formStatus === "This form is not connected yet. Your information was not sent.";
+report.interactions.contactFlow.posted = contactRequests.length;
+if (!report.interactions.formValidation) failures.push(`Contact form prototype result failed: ${formStatus}`);
+if (contactRequests.length) failures.push(`The prototype contact form transmitted ${contactRequests.length} requests`);
+
+// Query prefill for each valid category, and two invalid values that must select nothing and not throw.
+report.interactions.modelPrefill = {};
+for (const value of ["dealer-experience", "product-information", "customer-service"]) {
+  await page.goto(`${base}/contact/?category=${value}`, { waitUntil: "networkidle" });
+  const shape = await page.evaluate((wanted) => ({
+    checked: document.querySelector("[name='category']:checked")?.value,
+    branch: [...document.querySelectorAll("[data-branch]")].filter((branch) => !branch.hidden).map((branch) => branch.dataset.branch),
+    step: [...document.querySelectorAll("[data-step]")].filter((step) => !step.hidden).map((step) => step.dataset.step),
+    wanted,
+  }), value);
+  report.interactions.modelPrefill[value] = shape;
+  if (shape.checked !== value || JSON.stringify(shape.branch) !== JSON.stringify([value])) failures.push(`Contact prefill failed for ${value}: ${JSON.stringify(shape)}`);
+  if (JSON.stringify(shape.step) !== JSON.stringify(["3"])) failures.push(`A prefilled category should open the step that needs attention, found ${shape.step.join(", ")}`);
+}
+for (const value of ["nonsense", "DEALER"]) {
+  await page.goto(`${base}/contact/?category=${value}`, { waitUntil: "networkidle" });
+  const shape = await page.evaluate(() => ({
+    checked: document.querySelector("[name='category']:checked")?.value ?? null,
+    visibleBranches: [...document.querySelectorAll("[data-branch]")].filter((branch) => !branch.hidden).length,
+    step: [...document.querySelectorAll("[data-step]")].filter((step) => !step.hidden).map((step) => step.dataset.step),
+  }));
+  report.interactions.modelPrefill[value] = shape;
+  if (shape.checked !== null || shape.visibleBranches !== 0) failures.push(`An invalid category query must select nothing: ${value} gave ${JSON.stringify(shape)}`);
+  if (JSON.stringify(shape.step) !== JSON.stringify(["1"])) failures.push(`An invalid category query must leave the form on step one, found ${shape.step.join(", ")}`);
+}
+// The model query lands on the branch's model select.
+await page.goto(`${base}/contact/?category=product-information&model=santarosa`, { waitUntil: "networkidle" });
+report.interactions.contactFlow.modelQuery = await page.locator("#contact-form-product-information-model").inputValue();
+if (report.interactions.contactFlow.modelQuery !== "santarosa") failures.push(`The model query did not prefill the model select, found ${report.interactions.contactFlow.modelQuery}`);
 
 // The studio walkaround. Every claim here is about behaviour a visitor can feel: the frame
 // changes, the announcement follows it, choosing paint keeps the angle, and the partial colour
@@ -565,7 +685,8 @@ report.interactions.mobileMenuLinks = await page.locator("[data-menu-sheet] .mob
 await page.keyboard.press("Escape");
 report.interactions.mobileMenuEscape = await page.locator("[data-menu-sheet]").getAttribute("aria-hidden") === "true";
 if (!report.interactions.mobileMenuOpen || !report.interactions.mobileMenuEscape) failures.push("Mobile menu keyboard flow failed");
-if (JSON.stringify(report.interactions.mobileMenuLinks) !== JSON.stringify(["/vehicles/", "/concepts/", "/owners/", "/dealers/", "/dealers/"])) failures.push(`Mobile menu does not mirror the desktop navigation: ${report.interactions.mobileMenuLinks.join(", ")}`);
+// V13 closes a carried open item here: the sheet used to list Dealers and Contact both pointing at /dealers/.
+if (JSON.stringify(report.interactions.mobileMenuLinks) !== JSON.stringify(["/vehicles/", "/concepts/", "/experience/", "/dealers/", "/contact/"])) failures.push(`Mobile menu does not mirror the desktop navigation: ${report.interactions.mobileMenuLinks.join(", ")}`);
 
 await page.setViewportSize({ width: 1440, height: 1000 });
 // The homepage carries both surfaces the motion touches: a hero photograph and the reveals.
@@ -770,7 +891,7 @@ if (report.motion.marquee.afterSecondPress.playState !== "running" || report.mot
 // first viewport stays still. So the assertion is "something below the fold was marked, nothing above
 // it was", per route, rather than an exact count.
 report.motion.coverage = {};
-for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/concepts/", "/concepts/indio/", "/owners/", "/dealers/", "/privacy/", "/recommend-dealer/", "/dealer-inquiry/"]) {
+for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/carmel/", "/venice/", "/santarosa/launch-edition/", "/concepts/", "/concepts/indio/", "/owners/", "/dealers/", "/contact/", "/experience/", "/blog/", "/blog/how-we-photograph-a-vehicle/", "/careers/", "/careers/assembly-technician/", "/safety/", "/privacy/", "/recommend-dealer/", "/dealer-inquiry/"]) {
   await motionPage.goto(`${base}${route}`, { waitUntil: "networkidle" });
   await motionPage.waitForTimeout(400);
   const shape = await motionPage.evaluate(async () => {
@@ -797,7 +918,7 @@ for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/concepts
 // The stagger is a feature and it must be reaching something, or groups snap in as blocks. Asserted
 // across the set rather than per route, because which groups fall below the fold varies by page.
 report.motion.totalStaggered = Object.values(report.motion.coverage).reduce((sum, shape) => sum + shape.staggered, 0);
-if (report.motion.totalStaggered < 3) failures.push(`The reveal stagger reached only ${report.motion.totalStaggered} elements across eleven routes`);
+if (report.motion.totalStaggered < 3) failures.push(`The reveal stagger reached only ${report.motion.totalStaggered} elements across the audited routes`);
 
 await motionContext.close();
 
@@ -1093,10 +1214,14 @@ report.interactions.contactRename = await page.evaluate(() => ({
   headerHref: document.querySelector(".header-request")?.getAttribute("href"),
 }));
 const rename = report.interactions.contactRename;
-if (rename.headerLabel !== "Contact" || rename.retired || rename.headerHref !== "/dealers/") failures.push(`Contact rename failed: ${JSON.stringify(rename)}`);
+if (rename.headerLabel !== "Contact Us" || rename.retired || rename.headerHref !== "/contact/") failures.push(`Contact rename failed: ${JSON.stringify(rename)}`);
+await page.goto(`${base}/contact/`, { waitUntil: "networkidle" });
+report.interactions.contactHeading = await page.locator("h1").innerText();
+if (report.interactions.contactHeading !== "Contact Vanderhall.") failures.push(`The contact title is ${report.interactions.contactHeading}`);
+// And the form heading that used to sit on /dealers/ is gone with the form.
 await page.goto(`${base}/dealers/`, { waitUntil: "networkidle" });
-report.interactions.contactHeading = await page.locator(".form-heading").innerText();
-if (report.interactions.contactHeading !== "Contact Vanderhall") failures.push(`The dealers form heading is ${report.interactions.contactHeading}`);
+report.interactions.dealersFormHeadings = await page.locator(".form-heading").count();
+if (report.interactions.dealersFormHeadings !== 0) failures.push("/dealers/ still carries a form heading");
 
 // The footer's new destinations, read off the rendered page rather than the markup, and asserted on a
 // sample of routes because the footer is generated once for all of them.
@@ -1115,11 +1240,20 @@ for (const route of ["/", "/brawley/gts/", "/privacy/", "/concepts/indio/"]) {
       // The links a visitor can actually reach with a keyboard, which is the only test that matters
       // for a row of small text links.
       focusable: social.filter((anchor) => anchor.tabIndex >= 0).length,
+      // V13. Five columns, Experience joining the four; the manual library under Owners; and the visible
+      // inquiry address in Connect, read as rendered text rather than from the markup.
+      columns: [...document.querySelectorAll(".footer-links > div h2")].map((heading) => heading.textContent),
+      ownerManuals: [...document.querySelectorAll(".footer-links a")].filter((anchor) => anchor.getAttribute("href") === "/owners/").map((anchor) => anchor.textContent),
+      experience: hrefs(".footer-links a").filter((href) => href === "/experience/" || href === "/blog/"),
     };
   });
   const footer = report.interactions.footer[route];
   if (footer.social.length !== 6) failures.push(`${route}: expected six social links in the footer, found ${footer.social.length}`);
-  if (footer.legal.length !== 3 || !footer.legal.includes("/privacy/")) failures.push(`${route}: the footer legal row must carry three links including /privacy/, got ${footer.legal.join(", ")}`);
+  if (JSON.stringify(footer.columns) !== JSON.stringify(["Vehicles", "Experience", "Owners", "Connect", "Follow"])) failures.push(`${route}: footer columns are ${footer.columns.join(", ")}`);
+  if (JSON.stringify(footer.ownerManuals) !== JSON.stringify(["Owner manuals"])) failures.push(`${route}: the Owners column must lead with Owner manuals, found ${footer.ownerManuals.join(", ")}`);
+  if (JSON.stringify(footer.experience) !== JSON.stringify(["/experience/", "/blog/"])) failures.push(`${route}: the Experience column must carry Experience and Blog, found ${footer.experience.join(", ")}`);
+  // V13: the three legal destinations are internal routes now, not two external hosts.
+  if (JSON.stringify(footer.legal) !== JSON.stringify(["/safety/", "/careers/", "/privacy/"])) failures.push(`${route}: the footer legal row must be the three internal routes, got ${footer.legal.join(", ")}`);
   if (footer.app.length !== 2) failures.push(`${route}: expected two app store links, found ${footer.app.length}`);
   if (footer.tracked.length) failures.push(`${route}: a footer link carries tracking parameters: ${footer.tracked.join(", ")}`);
   if (footer.focusable !== 6) failures.push(`${route}: ${6 - footer.focusable} social links are not reachable by keyboard`);
@@ -1129,8 +1263,11 @@ for (const route of ["/", "/brawley/gts/", "/privacy/", "/concepts/indio/"]) {
 }
 // The legal links resolve. The two external ones are checked by request rather than by navigation, so
 // a Vanderhall system that has moved a page fails here instead of on a visitor's screen.
+// V13: the three footer legal destinations are internal, so they are checked against this build. The external
+// safety portal is checked separately, because it is now a labelled fallback on /safety/ rather than a footer
+// destination, and it must stay reachable while data parity is unverified.
 report.interactions.legalTargets = [];
-for (const href of ["https://portal.vanderhallusa.com/safety_notices", "https://dealer.vanderhallusa.com/careers", `${base}/privacy/`]) {
+for (const href of [`${base}/safety/`, `${base}/careers/`, `${base}/privacy/`, "https://portal.vanderhallusa.com/safety_notices"]) {
   try {
     const response = await page.request.get(href, { maxRedirects: 5, timeout: 20000 });
     report.interactions.legalTargets.push({ href, status: response.status() });
@@ -1144,7 +1281,7 @@ for (const href of ["https://portal.vanderhallusa.com/safety_notices", "https://
 // One title per page header, and the accent mark that replaced the caps label. Read from computed
 // style, because the mark is a ::before and there is nothing in the markup to find.
 report.interactions.pageHeaders = {};
-for (const route of ["/vehicles/", "/concepts/", "/dealers/", "/recommend-dealer/", "/dealer-inquiry/", "/owners/", "/privacy/"]) {
+for (const route of ["/vehicles/", "/concepts/", "/dealers/", "/recommend-dealer/", "/dealer-inquiry/", "/owners/", "/privacy/", "/contact/", "/experience/", "/blog/", "/careers/", "/safety/"]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   report.interactions.pageHeaders[route] = await page.evaluate(() => {
     const header = document.querySelector(".page-header");
@@ -1194,7 +1331,7 @@ for (const route of ["/vehicles/", "/concepts/", "/dealers/", "/recommend-dealer
   if (header.markDisplay !== "block") failures.push(`${route}: the title mark is ${header.markDisplay}, which puts it inline with the title instead of above it`);
 }
 if (report.interactions.pageHeaders["/concepts/"].title !== "Concepts") failures.push(`The concepts page title is ${report.interactions.pageHeaders["/concepts/"].title}`);
-if (report.interactions.pageHeaders["/owners/"].title !== "Owner resources") failures.push(`The owners page title is ${report.interactions.pageHeaders["/owners/"].title}`);
+if (report.interactions.pageHeaders["/owners/"].title !== "Owner manuals.") failures.push(`The owners page title is ${report.interactions.pageHeaders["/owners/"].title}`);
 
 // The policy page. The claim worth testing is that a long legal document renders as one readable
 // column and that its longest link cannot widen a phone.
@@ -1237,6 +1374,7 @@ report.noJs = {
   // The figures are plain markup, so all 33 of Brawley's V11-C rows render with no script at all. The
   // metric assertion is negative on purpose: it proves metric was removed rather than hidden by a
   // stylesheet the way the old toggle hid it.
+  // V13-B: 32 rows, not 33. The Range row is gone.
   visibleSpecRows: await noJsPage.locator(".photo-module__specs .spec-row:visible").count(),
   showsImperial: noJsBodyText.includes("488 lb-ft"),
   showsMetric: noJsBodyText.includes("661 Nm"),
@@ -1245,7 +1383,7 @@ report.noJs = {
   forms: {},
 };
 if (report.noJs.status !== 200 || report.noJs.bodyLength < 500 || report.noJs.navLinks === 0) failures.push("No-JS verification failed");
-if (report.noJs.visibleSpecRows !== 33) failures.push(`No-JS /brawley/ must render all 33 specification rows, found ${report.noJs.visibleSpecRows}`);
+if (report.noJs.visibleSpecRows !== 32) failures.push(`No-JS /brawley/ must render all 32 specification rows, found ${report.noJs.visibleSpecRows}`);
 if (!report.noJs.showsImperial) failures.push("No-JS /brawley/ is missing its imperial torque figure");
 if (report.noJs.showsMetric) failures.push("No-JS /brawley/ still carries a metric value");
 if (report.noJs.backLinks !== 1) failures.push(`No-JS /brawley/ must offer one way back, found ${report.noJs.backLinks}`);
@@ -1369,9 +1507,11 @@ const REVEAL_SELECTOR = [
   ".section-heading", ".spec-table", ".gts-figures", ".gts-scene", ".disclosures", ".resource-group",
   ".photo-module__specs .spec-row", ".vehicle-section__row .vehicle-section__support",
   ".policy__section", ".lede", ".spec-note", ".form-heading",
-  ".lead-form > .field", ".lead-form > .form-fieldset", ".lead-form > .form-submit-row",
+  ".lead-form > .field", ".lead-form > .form-fieldset:not(.form-step)", ".lead-form > .form-submit-row",
+  ".campaign-band__item", ".past-card", ".photo-gallery__figure", ".post-card", ".record-card", ".record-section",
+  ".launch-highlights li", ".launch-fact", ".article-hero", ".prose", ".empty-state", ".sample-note",
 ].join(", ");
-for (const route of ["/", "/vehicles/", "/brawley/", "/concepts/", "/owners/"]) {
+for (const route of ["/", "/vehicles/", "/brawley/", "/concepts/", "/owners/", "/blog/", "/safety/", "/santarosa/launch-edition/"]) {
   await noJsPage.goto(`${base}${route}`, { waitUntil: "load" });
   const before = await noJsPage.evaluate((selector) => {
     document.documentElement.style.scrollBehavior = "auto";
@@ -1455,7 +1595,10 @@ if (report.noJs.footer.social !== 6 || report.noJs.footer.legal !== 3 || !report
 await noJsPage.goto(`${base}/`, { waitUntil: "load" });
 report.noJs.vehiclesHref = await noJsPage.getByRole("link", { name: "Vehicles", exact: true }).first().getAttribute("href");
 if (report.noJs.vehiclesHref !== "/vehicles/") failures.push("No-JS Vehicles navigation is not a plain link");
-for (const route of ["/dealers/", "/recommend-dealer/", "/dealer-inquiry/"]) {
+// V13: without JavaScript the Contact form shows every step and every branch, with nothing disabled, which is
+// exactly what this audit asserts. /dealers/ leaves the list because its only form is the locator's search,
+// which ships hidden.
+for (const route of ["/contact/", "/recommend-dealer/", "/dealer-inquiry/"]) {
   await noJsPage.goto(`${base}${route}`, { waitUntil: "load" });
   const formAudit = await noJsPage.locator("[data-site-form]").last().evaluate((form) => {
     const controls = [...form.querySelectorAll("input:not([type=hidden]), select, textarea")];
@@ -1466,7 +1609,9 @@ for (const route of ["/dealers/", "/recommend-dealer/", "/dealer-inquiry/"]) {
 }
 await noJsContext.close();
 
-for (const route of ["/dealers/", "/recommend-dealer/", "/dealer-inquiry/"]) {
+// V13: /dealers/ carries no submission form, and /contact/ is exercised by its own suite above, because a
+// three-step form cannot be completed by walking a flat list of required controls.
+for (const route of ["/recommend-dealer/", "/dealer-inquiry/"]) {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   const form = page.locator("[data-site-form]").last();
@@ -1577,6 +1722,15 @@ for (const route of ["/concepts/", "/concepts/indio/", "/concepts/yuma/", "/conc
 await page.goto(`${base}/`, { waitUntil: "networkidle" });
 report.studio.homeScoped = await page.evaluate(() => document.querySelector("main").classList.contains("page--studio"));
 if (report.studio.homeScoped) failures.push("The studio scope reached the homepage, whose imagery is not authored on white");
+// V13 adds twelve routes and none of them takes the white field: the rule is that a page earns it when its
+// imagery was shot in a white studio, and none of the new pages has any.
+report.studio.v13Routes = {};
+for (const route of ["/dealers/", "/contact/", "/experience/", "/blog/", "/careers/", "/safety/", "/santarosa/launch-edition/"]) {
+  await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  const scoped = await page.evaluate(() => document.querySelector("main").classList.contains("page--studio"));
+  report.studio.v13Routes[route] = scoped;
+  if (scoped) failures.push(`${route}: a V13 route took the white studio field, which is reserved for studio-shot imagery`);
+}
 
 // V11-F. The filmstrip fade, measured at three scroll positions rather than asserted by presence.
 // Owen: "I want it to go through the middle of that and fade out a lot sooner than that." The claim
@@ -1694,10 +1848,8 @@ await narrowContext.close();
 // figure or nine, and that the premium treatment is really the stacked one and not the table.
 report.interactions.specDistribution = {};
 for (const [route, expected] of [
-  ["/brawley/", [5, 6, 5, 6, 6, 5]],
-  ["/santarosa/", [6, 6, 6, 5, 5]],
-  ["/carmel/", [5, 5, 0, 5, 0, 0]],
-  ["/venice/", [5, 6, 5, 4, 0, 0]],
+  ["/brawley/", [5, 6, 4, 6, 6, 5]],
+  ["/santarosa/", [5, 4, 6, 5, 5]],
 ]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   const shape = await page.evaluate(() => {
@@ -1760,22 +1912,24 @@ for (const route of ["/", "/dealers/"]) {
   report.interactions.pathwaysRetired[route] = await page.evaluate(() => ({
     pathways: document.querySelectorAll(".pathways, .pathway").length,
     // Every destination those cards carried must still be one click away from here.
-    reachable: ["/owners/", "/dealers/", "/recommend-dealer/", "/dealer-inquiry/"].filter((href) => document.querySelector(`a[href="${href}"]`)).length,
+    reachable: ["/owners/", "/dealers/", "/recommend-dealer/", "/dealer-inquiry/", "/contact/", "/experience/"].filter((href) => document.querySelector(`a[href="${href}"]`)).length,
   }));
   const retired = report.interactions.pathwaysRetired[route];
   if (retired.pathways !== 0) failures.push(`${route}: ${retired.pathways} pathway cards survive`);
-  if (retired.reachable !== 4) failures.push(`${route}: only ${retired.reachable} of the four pathway destinations are still reachable`);
+  if (retired.reachable !== 6) failures.push(`${route}: only ${retired.reachable} of the six required destinations are one click away`);
 }
 // V11-H. The dealers title.
 await page.goto(`${base}/dealers/`, { waitUntil: "networkidle" });
 report.interactions.dealersTitle = await page.locator("h1").innerText();
-if (report.interactions.dealersTitle !== "Talk with Vanderhall.") failures.push(`The dealers title is ${report.interactions.dealersTitle}`);
+if (report.interactions.dealersTitle !== "Find a Vanderhall dealer.") failures.push(`The dealers title is ${report.interactions.dealersTitle}`);
 
 // V11 amendment. The past-model tag sits beside the name rather than under it, on all four surfaces
 // that carry one. Measured as boxes rather than read from the markup: what Owen asked for is that it
 // stops taking a row of its own.
 report.interactions.pastModelTag = {};
-for (const route of ["/", "/vehicles/", "/carmel/", "/venice/"]) {
+// V13-D: two surfaces, not four. The homepage no longer lists the past models and the Past Models group on
+// /vehicles/ carries the status in its heading, so the tag survives only beside each detail page's h1.
+for (const route of ["/carmel/", "/venice/"]) {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   report.interactions.pastModelTag[route] = await page.evaluate(() => {
@@ -1806,13 +1960,13 @@ await page.setViewportSize({ width: 1440, height: 1000 });
 // satisfied only the first would give a 2560 monitor lines of text a metre wide.
 report.wide = {};
 for (const width of [1440, 2560]) {
-  for (const route of ["/", "/brawley/", "/concepts/"]) {
+  for (const route of ["/", "/brawley/", "/concepts/", "/dealers/", "/blog/", "/venice/", "/santarosa/launch-edition/"]) {
     await page.setViewportSize({ width, height: 1000 });
     await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
     const shape = await page.evaluate(() => {
       const pageEl = document.querySelector(".page");
       const bleed = document.querySelector(".page > .bleed");
-      const content = [...document.querySelectorAll(".page > *:not(.bleed)")].find((node) => node.getBoundingClientRect().width > 0);
+      const content = [...document.querySelectorAll(".page > *:not(.bleed):not(.narrow)")].find((node) => node.getBoundingClientRect().width > 0);
       const contentRect = content?.getBoundingClientRect();
       const brand = document.querySelector(".site-header .brand")?.getBoundingClientRect();
       return {
@@ -1848,6 +2002,730 @@ report.wide.heroRung = await page.evaluate(() => {
 });
 if (!report.wide.heroRung.currentSrc.includes("2560")) failures.push(`At 2560 the Brawley hero requested ${report.wide.heroRung.currentSrc} rather than its widest rung`);
 await page.setViewportSize({ width: 1440, height: 1000 });
+
+// ---------------------------------------------------------------------------------------------
+// V13. The new page types, measured rather than asserted by class name.
+// ---------------------------------------------------------------------------------------------
+await page.setViewportSize({ width: 1440, height: 1000 });
+
+// brandNaming. The Vanderhall-only rule, read off the rendered page rather than the markup: visible text, the
+// title, the description, every accessible name in the accessibility tree's reach, the serialized JSON-LD, and
+// the web manifest fetched as the browser would fetch it.
+report.brandNaming = {};
+for (const route of ["/", "/brawley/gts/", "/privacy/", "/experience/", "/dealers/"]) {
+  await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  report.brandNaming[route] = await page.evaluate(() => {
+    const banned = /vanderhall\s+motor\s+works/i;
+    const labels = [...document.querySelectorAll("[aria-label], [alt], [title]")]
+      .flatMap((node) => [node.getAttribute("aria-label"), node.getAttribute("alt"), node.getAttribute("title")])
+      .filter(Boolean);
+    const schema = [...document.querySelectorAll('script[type="application/ld+json"]')].map((node) => node.textContent).join(" ");
+    return {
+      title: document.title,
+      inText: banned.test(document.body.innerText),
+      inLabels: labels.filter((label) => banned.test(label)),
+      inSchema: banned.test(schema),
+      inMeta: banned.test(document.querySelector('meta[name="description"]')?.content || ""),
+      copyright: [...document.querySelectorAll(".footer-legal span")].map((node) => node.textContent)[0],
+      lockupAlt: document.querySelector(".footer-lockup")?.getAttribute("alt"),
+    };
+  });
+  const brand = report.brandNaming[route];
+  if (brand.inText || brand.inSchema || brand.inMeta || brand.inLabels.length) failures.push(`${route}: the retired brand name survives: ${JSON.stringify(brand)}`);
+  if (!brand.title.endsWith(" | Vanderhall")) failures.push(`${route}: the title is ${brand.title}`);
+  if (brand.copyright !== "© 2026 Vanderhall. Hand-built in Provo, Utah.") failures.push(`${route}: the footer line is ${brand.copyright}`);
+  if (brand.lockupAlt !== "Vanderhall") failures.push(`${route}: the footer lockup alt is ${brand.lockupAlt}`);
+}
+const manifestResponse = await page.request.get(`${base}/site.webmanifest`);
+report.brandNaming.manifest = await manifestResponse.json();
+if (report.brandNaming.manifest.name !== "Vanderhall") failures.push(`The web manifest names the brand ${report.brandNaming.manifest.name}`);
+
+// footerInquiryEmail. Visible, complete, focusable, and a plain mail link, at desktop and mobile widths and
+// with JavaScript disabled. Opening a mail client is not attempted: the href is read, not followed.
+report.footerInquiryEmail = {};
+for (const width of [1440, 390]) {
+  await page.setViewportSize({ width, height: 900 });
+  for (const route of ["/", "/safety/"]) {
+    await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+    const shape = await page.evaluate(() => {
+      const link = document.querySelector(".footer-email");
+      if (!link) return { found: false };
+      link.focus();
+      const rect = link.getBoundingClientRect();
+      const style = getComputedStyle(link);
+      return {
+        found: true,
+        href: link.getAttribute("href"),
+        visibleText: link.textContent.trim(),
+        accessibleName: link.getAttribute("aria-label") || link.textContent.trim(),
+        painted: rect.width > 0 && rect.height > 0,
+        // Truncation would hide part of the address, which is exactly what Owen asked not to happen.
+        notTruncated: link.scrollWidth <= link.clientWidth + 1,
+        focused: document.activeElement === link,
+        focusRing: getComputedStyle(link, ":focus-visible").outlineStyle,
+        textOverflow: style.textOverflow,
+      };
+    });
+    report.footerInquiryEmail[`${width}${route}`] = shape;
+    if (!shape.found) failures.push(`${route} at ${width}: the footer inquiry email is missing`);
+    else {
+      if (shape.href !== "mailto:inquiry@vanderhall.com") failures.push(`${route} at ${width}: the mail href is ${shape.href}`);
+      if (shape.visibleText !== "inquiry@vanderhall.com") failures.push(`${route} at ${width}: the visible address is ${shape.visibleText}`);
+      if (!shape.accessibleName.includes("inquiry@vanderhall.com")) failures.push(`${route} at ${width}: the accessible name omits the address`);
+      if (!shape.painted || !shape.notTruncated) failures.push(`${route} at ${width}: the address is not fully visible: ${JSON.stringify(shape)}`);
+      if (!shape.focused) failures.push(`${route} at ${width}: the address is not keyboard focusable`);
+    }
+  }
+}
+await page.setViewportSize({ width: 1440, height: 1000 });
+
+// homepageCampaignStatus. Brawley first, both statements read from the campaign data, and no public Reserve
+// action while the phase is interest-open.
+await page.goto(`${base}/`, { waitUntil: "networkidle" });
+report.homepageCampaignStatus = await page.evaluate(() => {
+  const band = document.querySelector(".campaign-band");
+  if (!band) return { found: false };
+  const items = [...band.querySelectorAll(".campaign-band__item")];
+  const hero = document.querySelector(".hero").getBoundingClientRect();
+  const lineup = document.querySelector("#vehicles").getBoundingClientRect();
+  const bandRect = band.getBoundingClientRect();
+  return {
+    found: true,
+    items: items.length,
+    labels: items.map((item) => item.querySelector(".campaign-band__label").textContent),
+    actions: items.map((item) => item.querySelector("a").getAttribute("href")),
+    actionLabels: items.map((item) => item.querySelector("a").textContent.trim()),
+    // DOM order and visual order agree, which is what the mobile requirement reduces to.
+    domOrder: items.map((item) => item.querySelector(".campaign-band__label").textContent.split(" ")[0]),
+    afterHero: bandRect.top >= hero.bottom - 2,
+    beforeLineup: bandRect.bottom <= lineup.top + 2,
+    h1: document.querySelector("h1").textContent,
+    // No alert-bar behaviour: nothing to dismiss, no timer, no modal.
+    dismissers: document.querySelectorAll(".campaign-band [data-dismiss], .campaign-band button").length,
+  };
+});
+const campaign = report.homepageCampaignStatus;
+if (!campaign.found) failures.push("The homepage campaign status band is missing");
+else {
+  if (campaign.items !== 2) failures.push(`The status band carries ${campaign.items} items`);
+  if (campaign.domOrder[0] !== "Brawley" || campaign.domOrder[1] !== "Santarosa") failures.push(`The status band order is ${campaign.domOrder.join(", ")}`);
+  if (campaign.labels[0] !== "Brawley deliveries are underway.") failures.push(`The Brawley status reads ${campaign.labels[0]}`);
+  if (campaign.labels[1] !== "Santarosa Launch Edition registration of interest is open.") failures.push(`The Santarosa status reads ${campaign.labels[1]}`);
+  if (JSON.stringify(campaign.actions) !== JSON.stringify(["/brawley/", "/santarosa/launch-edition/"])) failures.push(`The status band actions are ${campaign.actions.join(", ")}`);
+  if (campaign.actionLabels.some((label) => label.startsWith("Reserve"))) failures.push("The status band offers a Reserve action outside a verified public-reservation phase");
+  if (!campaign.afterHero || !campaign.beforeLineup) failures.push(`The status band must sit between the hero and the lineup: ${JSON.stringify(campaign)}`);
+  if (campaign.h1 !== "Handcrafted electric vehicles.") failures.push(`The campaign band changed the homepage h1 to ${campaign.h1}`);
+  if (campaign.dismissers !== 0) failures.push("The status band must carry no dismiss control or timer");
+}
+// And the same band at 390, where Brawley must still be first both in the DOM and on the screen.
+await page.setViewportSize({ width: 390, height: 844 });
+await page.goto(`${base}/`, { waitUntil: "networkidle" });
+report.homepageCampaignStatus.mobile = await page.evaluate(() => {
+  const items = [...document.querySelectorAll(".campaign-band__item")];
+  return { tops: items.map((item) => Math.round(item.getBoundingClientRect().top)), labels: items.map((item) => item.querySelector(".campaign-band__label").textContent.split(" ")[0]) };
+});
+const bandMobile = report.homepageCampaignStatus.mobile;
+if (bandMobile.labels[0] !== "Brawley" || bandMobile.tops[0] > bandMobile.tops[1]) failures.push(`At 390px the status band must keep Brawley first: ${JSON.stringify(bandMobile)}`);
+await page.setViewportSize({ width: 1440, height: 1000 });
+
+// pastModelGrouping and pastModelGalleries. The group is quieter than the lineup and the galleries publish no
+// figure at all, which is the whole point of the conversion.
+await page.goto(`${base}/vehicles/`, { waitUntil: "networkidle" });
+report.pastModelGrouping = await page.evaluate(() => {
+  const group = document.querySelector("#past-models");
+  const sections = [...document.querySelectorAll(".vehicle-section")];
+  return {
+    currentSections: sections.length,
+    currentLinks: sections.map((section) => section.querySelector("a[href]").getAttribute("href")),
+    groupHeading: group?.querySelector("h2")?.textContent,
+    cards: group ? group.querySelectorAll(".past-card").length : 0,
+    imagesPerCard: group ? [...group.querySelectorAll(".past-card")].map((card) => card.querySelectorAll("img").length) : [],
+    pillsInGroup: group ? group.querySelectorAll(".model-tag").length : 0,
+    // Quieter, measured: a compact card's title must take a smaller step than a lineup section's name.
+    cardTitleSize: group ? Math.round(parseFloat(getComputedStyle(group.querySelector(".past-card__title")).fontSize)) : 0,
+    sectionTitleSize: Math.round(parseFloat(getComputedStyle(sections[0].querySelector("h2")).fontSize)),
+    groupAfterLineup: group && sections.length ? group.getBoundingClientRect().top > sections.at(-1).getBoundingClientRect().top : false,
+  };
+});
+const grouping = report.pastModelGrouping;
+if (grouping.currentSections !== 2) failures.push(`/vehicles/ must present two current-model sections, found ${grouping.currentSections}`);
+if (JSON.stringify(grouping.currentLinks) !== JSON.stringify(["/brawley/", "/santarosa/"])) failures.push(`/vehicles/ current sections are ${grouping.currentLinks.join(", ")}`);
+if (grouping.groupHeading !== "Past Models") failures.push(`The past-model group heading is ${grouping.groupHeading}`);
+if (grouping.cards !== 2 || JSON.stringify(grouping.imagesPerCard) !== JSON.stringify([1, 1])) failures.push(`The past-model group must be two one-image cards: ${JSON.stringify(grouping)}`);
+if (grouping.pillsInGroup !== 0) failures.push("The past-model group must not repeat the status as a pill on each card");
+if (!(grouping.cardTitleSize < grouping.sectionTitleSize)) failures.push(`A past-model card's title (${grouping.cardTitleSize}px) must be quieter than a current section's (${grouping.sectionTitleSize}px)`);
+if (!grouping.groupAfterLineup) failures.push("The past-model group must follow the current lineup");
+
+report.pastModelGalleries = {};
+for (const route of ["/carmel/", "/venice/"]) {
+  await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  await loadLazyMedia(page);
+  const shape = await page.evaluate(() => ({
+    frames: document.querySelectorAll(".photo-gallery__figure").length,
+    captions: [...document.querySelectorAll(".photo-gallery__caption")].map((node) => node.textContent.trim()).filter(Boolean).length,
+    // Responsive: every frame offers a srcset and none is upscaled past its natural width.
+    responsive: [...document.querySelectorAll(".photo-gallery__figure img")].filter((image) => image.srcset).length,
+    upscaled: [...document.querySelectorAll(".photo-gallery__figure img")].filter((image) => image.naturalWidth && image.getBoundingClientRect().width > image.naturalWidth + 1).length,
+    // The absences. A gallery must publish no figure, no price, no warranty, and no purchase action, and it
+    // must not have become a carousel.
+    specRows: document.querySelectorAll(".spec-row").length,
+    specTables: document.querySelectorAll(".spec-table").length,
+    specNotes: document.querySelectorAll(".spec-note").length,
+    footnotes: document.querySelectorAll(".fn-ref, .footnote").length,
+    prices: document.querySelectorAll(".price").length,
+    walkarounds: document.querySelectorAll("[data-walkaround]").length,
+    tag: document.querySelectorAll(".hero__content .model-tag").length,
+    inventory: document.querySelector(".page > .section--tight.narrow .lede")?.textContent.trim(),
+    dealerAction: [...document.querySelectorAll("a")].filter((anchor) => anchor.getAttribute("href") === "/dealers/" && anchor.closest(".page")).length,
+    bodyText: document.body.innerText,
+    noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1,
+  }));
+  report.pastModelGalleries[route] = { ...shape, bodyText: undefined };
+  if (shape.frames !== 6 || shape.captions !== 6) failures.push(`${route} must present six captioned gallery frames, found ${shape.frames} and ${shape.captions}`);
+  if (shape.responsive !== 6) failures.push(`${route} has ${6 - shape.responsive} gallery frames with no srcset`);
+  if (shape.upscaled !== 0) failures.push(`${route} upscales ${shape.upscaled} gallery frames`);
+  if (shape.specRows || shape.specTables || shape.specNotes || shape.footnotes) failures.push(`${route} still publishes specification markup: ${JSON.stringify(shape)}`);
+  if (shape.prices || shape.walkarounds) failures.push(`${route} must carry no price and no walkaround`);
+  if (shape.tag !== 1) failures.push(`${route} must carry one Past model tag beside its h1, found ${shape.tag}`);
+  if (!shape.inventory?.includes("Availability is not guaranteed.")) failures.push(`${route} must state that availability is not guaranteed, found ${shape.inventory}`);
+  if (shape.dealerAction === 0) failures.push(`${route} must offer a way to the dealer network`);
+  if (/\b\d[\d,.]*\s*(?:hp|lb-ft|in\b|lb\b)/.test(shape.bodyText)) failures.push(`${route} gallery page renders an engineering figure`);
+  if (!shape.noHorizontalScroll) failures.push(`${route} scrolls horizontally`);
+}
+
+// footnoteNavigation. Both jumps, at both widths, with focus surviving and the destination clear of the
+// sticky header.
+report.footnoteNavigation = {};
+for (const width of [1440, 390]) {
+  await page.setViewportSize({ width, height: 900 });
+  for (const route of ["/brawley/", "/brawley/gts/", "/santarosa/launch-edition/"]) {
+    await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+    const shape = await page.evaluate(() => {
+      const refs = [...document.querySelectorAll(".fn-ref a")];
+      const notes = [...document.querySelectorAll(".footnote")];
+      const symbols = refs.map((ref) => ref.textContent.trim());
+      const ids = notes.map((note) => note.id);
+      return {
+        refs: refs.length,
+        notes: notes.length,
+        // Deterministic first-use order: the first distinct symbol seen is one star, the second is two.
+        firstUseOrder: [...new Set(symbols)],
+        // Every reference resolves to a note on this page, and no note ID is shared.
+        unresolved: refs.filter((ref) => !ids.includes(ref.getAttribute("href").slice(1))).length,
+        duplicateIds: ids.length - new Set(ids).size,
+        labelled: refs.filter((ref) => /^Footnote \d+$/.test(ref.getAttribute("aria-label") || "")).length,
+        glyphsHidden: refs.filter((ref) => ref.querySelector("span[aria-hidden='true']")).length,
+        backLinks: notes.filter((note) => note.querySelector(".footnote__back")?.getAttribute("href")?.startsWith("#fnref-")).length,
+        headerHeight: Math.round(document.querySelector(".site-header").getBoundingClientRect().height),
+      };
+    });
+    // The forward jump, driven by the keyboard, then the jump back.
+    const firstRef = page.locator(".fn-ref a").first();
+    const noteId = (await firstRef.getAttribute("href")).slice(1);
+    await firstRef.focus();
+    await page.keyboard.press("Enter");
+    await page.waitForTimeout(400);
+    const forward = await page.evaluate((id) => {
+      const note = document.getElementById(id);
+      const rect = note.getBoundingClientRect();
+      const header = document.querySelector(".site-header").getBoundingClientRect();
+      return {
+        focused: document.activeElement === note,
+        // Not obscured by the sticky header, which is what the scroll-margin is for.
+        clearOfHeader: rect.top >= header.bottom - 1,
+        visible: rect.top >= 0 && rect.top < innerHeight,
+      };
+    }, noteId);
+    await page.locator(`#${noteId} .footnote__back`).press("Enter");
+    await page.waitForTimeout(400);
+    const backward = await page.evaluate(() => {
+      const active = document.activeElement;
+      const rect = active?.getBoundingClientRect();
+      const header = document.querySelector(".site-header").getBoundingClientRect();
+      return {
+        onReference: Boolean(active?.closest(".fn-ref")),
+        clearOfHeader: rect ? rect.top >= header.bottom - 1 : false,
+        focusVisible: active ? getComputedStyle(active).outlineStyle !== "none" || active.matches(":focus-visible") : false,
+      };
+    });
+    report.footnoteNavigation[`${width}${route}`] = { ...shape, forward, backward };
+    if (shape.refs === 0 || shape.notes === 0) failures.push(`${route} at ${width}: no footnote to navigate`);
+    if (shape.unresolved !== 0) failures.push(`${route} at ${width}: ${shape.unresolved} references resolve to no note`);
+    if (shape.duplicateIds !== 0) failures.push(`${route} at ${width}: two notes share one DOM id`);
+    if (shape.labelled !== shape.refs || shape.glyphsHidden !== shape.refs) failures.push(`${route} at ${width}: ${shape.refs - shape.labelled} marks reach assistive technology unlabelled`);
+    if (shape.backLinks !== shape.notes) failures.push(`${route} at ${width}: a note has no link back to its reference`);
+    if (shape.firstUseOrder[0] !== "*" || (shape.firstUseOrder[1] && shape.firstUseOrder[1] !== "**")) failures.push(`${route} at ${width}: symbols are not assigned in first-use order: ${shape.firstUseOrder.join(", ")}`);
+    if (shape.firstUseOrder.some((symbol) => symbol.length > 3)) failures.push(`${route} at ${width}: a fourth asterisk was rendered`);
+    if (!forward.focused || !forward.clearOfHeader) failures.push(`${route} at ${width}: the forward jump failed: ${JSON.stringify(forward)}`);
+    if (!backward.onReference || !backward.clearOfHeader) failures.push(`${route} at ${width}: the jump back failed: ${JSON.stringify(backward)}`);
+  }
+}
+await page.setViewportSize({ width: 1440, height: 1000 });
+
+// dealerLocator, dealerMapFailure and dealerMobileMode. The list is what has to work, and with no key that is
+// exactly the state under test: no map, no spinner, and every dealer reachable.
+await page.goto(`${base}/dealers/`, { waitUntil: "networkidle" });
+report.dealerLocator = await page.evaluate(() => {
+  const cards = [...document.querySelectorAll(".dealer-card")];
+  return {
+    cards: cards.length,
+    visible: cards.filter((card) => card.checkVisibility()).length,
+    // Every card carries the facts that matter without a hover or a click.
+    complete: cards.filter((card) => card.querySelector(".dealer-card__address") && card.querySelector('a[href^="tel:"]') && [...card.querySelectorAll("a")].some((anchor) => anchor.href.includes("google.com/maps/dir"))).length,
+    searchVisible: !document.querySelector("[data-locator-search]").hidden,
+    modesVisible: !document.querySelector("[data-locator-modes]").hidden,
+    selectButtons: [...document.querySelectorAll("[data-dealer-select]")].filter((button) => !button.hidden).length,
+    count: document.querySelector("[data-locator-count]").textContent,
+    filters: [...document.querySelectorAll("[name='capability']")].map((radio) => radio.value),
+    noResultsHidden: document.querySelector("[data-locator-state='no-results']").hidden,
+  };
+});
+const locator = report.dealerLocator;
+if (locator.cards !== 6 || locator.visible !== 6) failures.push(`/dealers/ must render six visible dealer cards, found ${locator.cards} and ${locator.visible}`);
+if (locator.complete !== 6) failures.push(`${6 - locator.complete} dealer cards are missing an address, a telephone number, or directions`);
+if (!locator.searchVisible || !locator.modesVisible || locator.selectButtons !== 6) failures.push(`The locator island did not reveal its controls: ${JSON.stringify(locator)}`);
+if (JSON.stringify(locator.filters) !== JSON.stringify(["all", "ev", "gas", "service"])) failures.push(`The locator filters are ${locator.filters.join(", ")}`);
+if (!locator.noResultsHidden) failures.push("The locator shows its no-results state with six results");
+
+// Each filter, then a search that matches nothing.
+report.dealerLocator.filtering = {};
+for (const [value, expected] of [["ev", 5], ["gas", 4], ["service", 4], ["all", 6]]) {
+  await page.locator(`[name='capability'][value='${value}']`).check();
+  await page.waitForTimeout(120);
+  const shape = await page.evaluate(() => ({
+    visible: [...document.querySelectorAll(".dealer-card")].filter((card) => !card.hidden).length,
+    count: document.querySelector("[data-locator-count]").textContent,
+  }));
+  report.dealerLocator.filtering[value] = shape;
+  if (shape.visible !== expected) failures.push(`The ${value} filter shows ${shape.visible} dealers, expected ${expected}`);
+  if (!shape.count.startsWith(String(expected))) failures.push(`The result count reads ${shape.count} for ${shape.visible} visible dealers`);
+}
+await page.locator("#locator-location").fill("Provo");
+await page.locator("[data-locator-search] button[type='submit']").click();
+await page.waitForTimeout(200);
+report.dealerLocator.textSearch = await page.evaluate(() => ({
+  visible: [...document.querySelectorAll(".dealer-card")].filter((card) => !card.hidden).length,
+  first: document.querySelector(".dealer-card:not([hidden]) .dealer-card__name")?.textContent,
+}));
+if (report.dealerLocator.textSearch.visible !== 1 || !report.dealerLocator.textSearch.first?.includes("Wasatch")) {
+  failures.push(`A city search did not narrow the list: ${JSON.stringify(report.dealerLocator.textSearch)}`);
+}
+await page.locator("#locator-location").fill("Nowheresville");
+await page.locator("[data-locator-search] button[type='submit']").click();
+await page.waitForTimeout(200);
+report.dealerLocator.noResults = await page.evaluate(() => {
+  const empty = document.querySelector("[data-locator-state='no-results']");
+  return {
+    visible: [...document.querySelectorAll(".dealer-card")].filter((card) => !card.hidden).length,
+    shown: !empty.hidden,
+    // The two ways out, which a locator that finds nothing must still offer.
+    links: [...empty.querySelectorAll("a")].map((anchor) => anchor.getAttribute("href")),
+  };
+});
+const empty = report.dealerLocator.noResults;
+if (empty.visible !== 0 || !empty.shown) failures.push(`The no-results state did not appear: ${JSON.stringify(empty)}`);
+if (!empty.links.includes("/recommend-dealer/") || !empty.links.includes("/contact/")) failures.push(`The no-results state must lead to Recommend a dealer and Contact, found ${empty.links.join(", ")}`);
+// Clear restores the whole list.
+await page.locator("[data-locator-reset]").click();
+await page.waitForTimeout(200);
+report.dealerLocator.afterReset = await page.evaluate(() => [...document.querySelectorAll(".dealer-card")].filter((card) => !card.hidden).length);
+if (report.dealerLocator.afterReset !== 6) failures.push(`Clearing the search must restore all six dealers, found ${report.dealerLocator.afterReset}`);
+
+// dealerMapFailure. No key is configured in this build, so this is the live state rather than a simulation: the
+// panel says the map is unavailable, no Google script is requested, and nothing spins.
+report.dealerMapFailure = await page.evaluate(() => ({
+  fallbackVisible: !document.querySelector("[data-locator-map-fallback]").hidden,
+  message: document.querySelector(".locator__map-message")?.textContent.trim(),
+  keyAttribute: document.querySelector("[data-locator]").getAttribute("data-map-key"),
+  googleScripts: [...document.querySelectorAll("script")].filter((node) => (node.src || "").includes("maps.googleapis.com")).length,
+  searchStillWorks: !document.querySelector("[data-locator-search]").hidden,
+  cardsStillVisible: [...document.querySelectorAll(".dealer-card")].filter((card) => !card.hidden).length,
+}));
+const mapFailure = report.dealerMapFailure;
+if (!mapFailure.fallbackVisible || !mapFailure.message?.startsWith("The map is unavailable")) failures.push(`The map fallback must be visible and honest: ${JSON.stringify(mapFailure)}`);
+if (mapFailure.keyAttribute) failures.push("A Google Maps key reached the rendered page");
+if (mapFailure.googleScripts !== 0) failures.push(`${mapFailure.googleScripts} Google Maps scripts were requested with no key configured`);
+if (!mapFailure.searchStillWorks || mapFailure.cardsStillVisible !== 6) failures.push("A missing map must leave the whole dealer list usable");
+// And no location permission was ever requested. Asserted by overriding the API and proving it is never called.
+const permissionContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+await permissionContext.addInitScript(() => {
+  window.__geolocationCalls = 0;
+  Object.defineProperty(navigator, "geolocation", { configurable: true, get: () => ({ getCurrentPosition: () => { window.__geolocationCalls += 1; }, watchPosition: () => { window.__geolocationCalls += 1; } }) });
+});
+const permissionPage = await permissionContext.newPage();
+await permissionPage.goto(`${base}/dealers/`, { waitUntil: "networkidle" });
+await permissionPage.waitForTimeout(600);
+report.dealerLocator.geolocationCalls = await permissionPage.evaluate(() => window.__geolocationCalls);
+if (report.dealerLocator.geolocationCalls !== 0) failures.push(`The locator requested the visitor's location ${report.dealerLocator.geolocationCalls} times on load`);
+await permissionContext.close();
+
+// dealerMobileMode. One pane at a time below 1024px, results first, and the map never the only way in.
+await page.setViewportSize({ width: 390, height: 844 });
+await page.goto(`${base}/dealers/`, { waitUntil: "networkidle" });
+report.dealerMobileMode = await page.evaluate(() => {
+  const panes = document.querySelector("[data-locator-panes]");
+  return {
+    mode: panes.dataset.mode,
+    listVisible: document.querySelector(".locator__list").checkVisibility(),
+    mapVisible: document.querySelector(".locator__map").checkVisibility(),
+    cards: [...document.querySelectorAll(".dealer-card")].filter((card) => card.checkVisibility()).length,
+    pressed: [...document.querySelectorAll("[data-locator-mode]")].map((button) => button.getAttribute("aria-pressed")),
+    noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1,
+  };
+});
+const mobileMode = report.dealerMobileMode;
+if (mobileMode.mode !== "list" || !mobileMode.listVisible || mobileMode.mapVisible) failures.push(`The locator must open on the list below 1024px: ${JSON.stringify(mobileMode)}`);
+if (mobileMode.cards !== 6) failures.push(`A phone must see all six dealers, found ${mobileMode.cards}`);
+if (JSON.stringify(mobileMode.pressed) !== JSON.stringify(["true", "false"])) failures.push(`The mode switch must expose its state, found ${mobileMode.pressed.join(", ")}`);
+if (!mobileMode.noHorizontalScroll) failures.push("The locator widened the document at 390px");
+await page.locator("[data-locator-mode='map']").click();
+await page.waitForTimeout(200);
+report.dealerMobileMode.afterSwitch = await page.evaluate(() => ({
+  mode: document.querySelector("[data-locator-panes]").dataset.mode,
+  listVisible: document.querySelector(".locator__list").checkVisibility(),
+  mapVisible: document.querySelector(".locator__map").checkVisibility(),
+  // With no key the map view shows the honest panel rather than an empty grey box.
+  fallbackVisible: !document.querySelector("[data-locator-map-fallback]").hidden,
+  pressed: [...document.querySelectorAll("[data-locator-mode]")].map((button) => button.getAttribute("aria-pressed")),
+}));
+const switched = report.dealerMobileMode.afterSwitch;
+if (switched.mode !== "map" || switched.listVisible || !switched.mapVisible) failures.push(`The Map view did not switch: ${JSON.stringify(switched)}`);
+if (!switched.fallbackVisible) failures.push("The mobile Map view must show the honest fallback with no key configured");
+if (JSON.stringify(switched.pressed) !== JSON.stringify(["false", "true"])) failures.push(`The mode switch state did not follow the switch, found ${switched.pressed.join(", ")}`);
+await page.locator("[data-locator-mode='list']").click();
+await page.waitForTimeout(200);
+report.dealerMobileMode.backToList = await page.evaluate(() => document.querySelector("[data-locator-panes]").dataset.mode);
+if (report.dealerMobileMode.backToList !== "list") failures.push("The mode switch did not return to the list");
+await page.setViewportSize({ width: 1440, height: 1000 });
+
+// experienceHub. One module, real content, and none of the event placeholders Q-V13-18 forbids.
+await page.goto(`${base}/experience/`, { waitUntil: "networkidle" });
+report.experienceHub = await page.evaluate(() => {
+  const text = document.body.innerText;
+  return {
+    h1: document.querySelector("h1").textContent,
+    modules: document.querySelectorAll(".experience-module").length,
+    heading: document.querySelector(".experience-module h2")?.textContent,
+    featured: document.querySelectorAll(".post-card--featured").length,
+    cards: document.querySelectorAll(".post-card").length,
+    archive: [...document.querySelectorAll("a")].find((anchor) => anchor.textContent.includes("View all stories"))?.getAttribute("href"),
+    eventHeadings: [...document.querySelectorAll("h2, h3")].filter((node) => /^events$/i.test(node.textContent.trim())).length,
+    comingSoon: /coming soon/i.test(text),
+    registration: [...document.querySelectorAll("button, a")].filter((node) => /register now|rsvp/i.test(node.textContent)).length,
+    eventSchema: [...document.querySelectorAll('script[type="application/ld+json"]')].filter((node) => /"@type"\s*:\s*"Event/.test(node.textContent)).length,
+    schemaBlocks: document.querySelectorAll('script[type="application/ld+json"]').length,
+    sampleMarker: document.querySelectorAll(".sample-note").length,
+    navCurrent: document.querySelector('.desktop-nav a[aria-current="page"]')?.textContent,
+  };
+});
+const hub = report.experienceHub;
+if (hub.h1 !== "The Vanderhall experience.") failures.push(`The Experience h1 is ${hub.h1}`);
+if (hub.modules !== 1 || hub.heading !== "Latest from Vanderhall.") failures.push(`The hub must launch with one Blog module: ${JSON.stringify(hub)}`);
+if (hub.featured !== 1 || hub.cards !== 3) failures.push(`The hub must lead with one featured story and two more, found ${hub.cards} cards`);
+if (hub.archive !== "/blog/") failures.push(`The archive action leads to ${hub.archive}`);
+if (hub.eventHeadings || hub.comingSoon || hub.registration || hub.eventSchema) failures.push(`The hub renders event placeholders: ${JSON.stringify(hub)}`);
+if (hub.schemaBlocks !== 0) failures.push("A mock-record page must emit no structured data");
+if (hub.sampleMarker === 0) failures.push("The hub must mark its records as samples");
+if (hub.navCurrent !== "Experience") failures.push(`Experience must be the current primary section, found ${hub.navCurrent}`);
+
+// editorialTemplates. The archive, the two article states, and no WordPress furniture.
+report.editorialTemplates = {};
+await page.goto(`${base}/blog/`, { waitUntil: "networkidle" });
+report.editorialTemplates["/blog/"] = await page.evaluate(() => ({
+  cards: document.querySelectorAll(".post-card").length,
+  linked: document.querySelectorAll(".post-card__link").length,
+  pending: document.querySelectorAll(".post-card__pending").length,
+  // A record with no article links nowhere rather than to an empty page.
+  deadLinks: [...document.querySelectorAll(".post-card__link")].map((anchor) => anchor.getAttribute("href")).filter((href) => href.includes("what-to-expect")).length,
+  furniture: ["Leave a comment", "Posted in", "Read more"].filter((token) => document.body.innerText.includes(token)),
+}));
+const archive = report.editorialTemplates["/blog/"];
+if (archive.cards !== 3 || archive.linked !== 2 || archive.pending !== 1) failures.push(`The archive must show three records with two articles: ${JSON.stringify(archive)}`);
+if (archive.deadLinks) failures.push("The archive links to an article that was never built");
+if (archive.furniture.length) failures.push(`Legacy blog furniture remains: ${archive.furniture.join(", ")}`);
+for (const route of ["/blog/how-we-photograph-a-vehicle/", "/blog/notes-from-the-design-studio/"]) {
+  await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  const shape = await page.evaluate(() => ({
+    standfirst: Boolean(document.querySelector(".article-header__standfirst")?.textContent.trim()),
+    author: Boolean(document.querySelector(".post-meta__author")?.textContent.trim()),
+    published: document.querySelectorAll(".post-meta time").length,
+    // Long-form copy takes the narrow measure, which is the rule the policy page already follows.
+    measure: Math.round(document.querySelector(".prose p").getBoundingClientRect().width),
+    blocks: document.querySelectorAll(".prose > *").length,
+    related: document.querySelectorAll(".related .post-card").length,
+    cta: [...document.querySelectorAll(".page a")].filter((anchor) => anchor.getAttribute("href") === "/contact/").length,
+    unescaped: document.querySelector(".prose").innerHTML.includes("<script"),
+  }));
+  report.editorialTemplates[route] = shape;
+  if (!shape.standfirst || !shape.author || shape.published === 0) failures.push(`${route} article header is incomplete: ${JSON.stringify(shape)}`);
+  if (shape.measure > 820) failures.push(`${route} sets its body to ${shape.measure}px, wider than the narrow measure`);
+  if (shape.blocks < 3) failures.push(`${route} rendered ${shape.blocks} body blocks`);
+  if (shape.related !== 2) failures.push(`${route} must end on two related stories, found ${shape.related}`);
+  if (shape.cta === 0) failures.push(`${route} must offer a way to contact Vanderhall`);
+  if (shape.unescaped) failures.push(`${route} article body contains raw markup`);
+}
+
+// careersStates and safetyStates. Records, long titles, absent optional fields, and the disabled apply action.
+report.careersStates = await (async () => {
+  await page.goto(`${base}/careers/`, { waitUntil: "networkidle" });
+  const index = await page.evaluate(() => ({
+    cards: document.querySelectorAll(".record-card").length,
+    linked: document.querySelectorAll(".record-card__title a").length,
+    withCompensation: [...document.querySelectorAll(".record-card")].filter((card) => card.querySelectorAll(".fact-row li").length === 5).length,
+    withoutCompensation: [...document.querySelectorAll(".record-card")].filter((card) => card.querySelectorAll(".fact-row li").length === 4).length,
+    sampleTags: document.querySelectorAll(".sample-tag").length,
+    livePostings: ["Paralegal", "Welding Operator"].filter((title) => document.body.innerText.includes(title)),
+  }));
+  await page.goto(`${base}/careers/assembly-technician/`, { waitUntil: "networkidle" });
+  const detail = await page.evaluate(() => ({
+    sections: document.querySelectorAll(".record-section").length,
+    applyDisabled: document.querySelector(".apply-disabled button")?.disabled,
+    applyDescribed: Boolean(document.querySelector(".apply-disabled button")?.getAttribute("aria-describedby")),
+    forms: document.querySelectorAll("form").length,
+    schemaBlocks: document.querySelectorAll('script[type="application/ld+json"]').length,
+  }));
+  return { index, detail };
+})();
+const careers = report.careersStates;
+if (careers.index.cards !== 3 || careers.index.linked !== 2) failures.push(`/careers/ must list three openings with two detail pages: ${JSON.stringify(careers.index)}`);
+if (careers.index.withCompensation !== 1 || careers.index.withoutCompensation !== 2) failures.push(`/careers/ must render the optional compensation field only where a record has one: ${JSON.stringify(careers.index)}`);
+if (careers.index.sampleTags !== 3) failures.push(`/careers/ must mark all three records as samples, found ${careers.index.sampleTags}`);
+if (careers.index.livePostings.length) failures.push(`/careers/ copies live postings: ${careers.index.livePostings.join(", ")}`);
+if (careers.detail.sections < 3) failures.push(`A job detail page rendered ${careers.detail.sections} sections`);
+if (!careers.detail.applyDisabled || !careers.detail.applyDescribed) failures.push("A sample apply action must be disabled and say why");
+if (careers.detail.forms !== 0) failures.push("A prototype job page must collect no applicant data");
+if (careers.detail.schemaBlocks !== 0) failures.push("A mock job record must emit no JobPosting schema");
+
+report.safetyStates = await (async () => {
+  await page.goto(`${base}/safety/`, { waitUntil: "networkidle" });
+  const index = await page.evaluate(() => ({
+    cards: document.querySelectorAll(".record-card--notice").length,
+    // The key facts are visible on the card without a hover: hazard, remedy, product, date, and ID.
+    complete: [...document.querySelectorAll(".record-card--notice")].filter((card) => card.querySelectorAll(".notice-facts dt").length >= 5).length,
+    sampleTags: [...document.querySelectorAll(".sample-tag")].filter((tag) => tag.textContent === "Sample notice").length,
+    forbiddenClaim: /no active recalls/i.test(document.body.innerText),
+    liveSubjects: ["accelerator", "tie-rod", "rear-steer", "electrical shock"].filter((subject) => document.body.innerText.toLowerCase().includes(subject)),
+    portalLink: [...document.querySelectorAll("a")].filter((anchor) => (anchor.getAttribute("href") || "").includes("portal.vanderhallusa.com")).length,
+    // Severity is never colour alone: every status is a word.
+    statusWords: [...document.querySelectorAll(".notice-facts dd")].filter((node) => node.textContent.trim()).length,
+  }));
+  await page.goto(`${base}/safety/placeholder-notice-b/`, { waitUntil: "networkidle" });
+  const detail = await page.evaluate(() => ({
+    revised: /revised/i.test(document.body.innerText),
+    facts: document.querySelectorAll(".notice-facts--detail dt").length,
+    blocks: document.querySelectorAll(".prose > *").length,
+    saysSample: document.body.innerText.includes("describes no hazard"),
+    schemaBlocks: document.querySelectorAll('script[type="application/ld+json"]').length,
+  }));
+  return { index, detail };
+})();
+const safety = report.safetyStates;
+if (safety.index.cards !== 3 || safety.index.complete !== 3) failures.push(`/safety/ must list three complete notice cards: ${JSON.stringify(safety.index)}`);
+if (safety.index.sampleTags !== 3) failures.push(`/safety/ must mark all three notices as samples, found ${safety.index.sampleTags}`);
+if (safety.index.forbiddenClaim) failures.push("/safety/ must not claim there are no active recalls: only the authoritative system can determine that");
+if (safety.index.liveSubjects.length) failures.push(`/safety/ appears to adapt live notices: ${safety.index.liveSubjects.join(", ")}`);
+if (safety.index.portalLink === 0) failures.push("/safety/ must keep the official portal reachable as a fallback");
+if (!safety.detail.revised || safety.detail.facts < 6) failures.push(`A revised notice must show its revision date and full facts: ${JSON.stringify(safety.detail)}`);
+if (!safety.detail.saysSample) failures.push("A sample notice must say plainly that it describes no hazard");
+if (safety.detail.schemaBlocks !== 0) failures.push("A mock safety record must emit no structured data");
+
+// privacyDocument. The reading experience changed and the copy did not.
+report.privacyDocument = {};
+for (const width of [390, 1440]) {
+  await page.setViewportSize({ width, height: 900 });
+  await page.goto(`${base}/privacy/`, { waitUntil: "networkidle" });
+  const shape = await page.evaluate(() => {
+    const desktop = document.querySelector(".policy-toc__desktop");
+    const mobile = document.querySelector(".policy-toc__mobile");
+    const links = [...document.querySelectorAll(".policy-toc__list a")];
+    return {
+      navs: document.querySelectorAll(".policy-toc").length,
+      desktopVisible: desktop ? desktop.checkVisibility() : false,
+      mobileVisible: mobile ? mobile.checkVisibility() : false,
+      mobileOpenByDefault: mobile ? mobile.hasAttribute("open") : false,
+      entries: links.length,
+      unresolved: links.filter((anchor) => !document.querySelector(anchor.getAttribute("href").replace("#", "#"))).length,
+      prototypeLabel: document.body.innerText.includes("Prototype policy structure."),
+      dates: [...document.querySelectorAll(".policy-header__meta dt")].map((node) => node.textContent),
+      sections: document.querySelectorAll(".policy__section").length,
+      measure: Math.round(document.querySelector(".policy p").getBoundingClientRect().width),
+      noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1,
+    };
+  });
+  report.privacyDocument[width] = shape;
+  if (shape.navs !== 1) failures.push(`/privacy/ at ${width}: expected one contents nav, found ${shape.navs}`);
+  if (shape.unresolved !== 0) failures.push(`/privacy/ at ${width}: ${shape.unresolved} contents entries resolve to nothing`);
+  if (shape.entries === 0) failures.push(`/privacy/ at ${width}: the contents list is empty`);
+  if (!shape.prototypeLabel) failures.push(`/privacy/ at ${width}: the prototype label is missing`);
+  if (shape.dates.includes("Effective") || shape.dates.includes("Last updated")) failures.push(`/privacy/ at ${width}: a policy date was invented`);
+  if (shape.sections !== 13) failures.push(`/privacy/ at ${width}: renders ${shape.sections} sections`);
+  if (!shape.noHorizontalScroll) failures.push(`/privacy/ widened the document at ${width}px`);
+  if (width >= 1024 && (!shape.desktopVisible || shape.mobileVisible)) failures.push(`/privacy/ at ${width}: the desktop contents column must be the visible one`);
+  if (width < 1024 && (shape.desktopVisible || !shape.mobileVisible)) failures.push(`/privacy/ at ${width}: the mobile disclosure must be the visible one`);
+  if (width < 1024 && shape.mobileOpenByDefault) failures.push(`/privacy/ at ${width}: the contents disclosure must start closed`);
+}
+await page.setViewportSize({ width: 1440, height: 1000 });
+// The contents actually navigate, and the destination clears the sticky header.
+await page.goto(`${base}/privacy/`, { waitUntil: "networkidle" });
+const tocTarget = await page.locator(".policy-toc__desktop .policy-toc__list a").nth(3).getAttribute("href");
+await page.locator(".policy-toc__desktop .policy-toc__list a").nth(3).click();
+await page.waitForTimeout(500);
+report.privacyDocument.navigation = await page.evaluate((target) => {
+  const section = document.querySelector(target);
+  const rect = section.getBoundingClientRect();
+  const header = document.querySelector(".site-header").getBoundingClientRect();
+  return { landed: rect.top >= header.bottom - 2 && rect.top < innerHeight, top: Math.round(rect.top), headerBottom: Math.round(header.bottom) };
+}, tocTarget);
+if (!report.privacyDocument.navigation.landed) failures.push(`A contents entry did not land clear of the sticky header: ${JSON.stringify(report.privacyDocument.navigation)}`);
+
+// santarosaLaunchEdition and launchInterestForm.
+report.santarosaLaunchEdition = {};
+for (const width of [1440, 390]) {
+  await page.setViewportSize({ width, height: 900 });
+  await page.goto(`${base}/santarosa/launch-edition/`, { waitUntil: "networkidle" });
+  const shape = await page.evaluate(() => {
+    const text = document.body.innerText;
+    return {
+      h1: document.querySelector("h1").textContent,
+      market: document.querySelector(".launch-market")?.textContent,
+      highlights: document.querySelectorAll(".launch-highlights li").length,
+      battery: [...document.querySelectorAll(".launch-highlights li")].find((item) => item.textContent.includes("40 kWh"))?.querySelector(".fn-ref") !== null,
+      priority: [...document.querySelectorAll(".launch-priority li")].map((item) => item.textContent.trim().split(" ")[0]),
+      delivery: text.includes("expected to begin during the fourth quarter of 2026"),
+      state: document.querySelector(".launch-state")?.textContent,
+      reserveActions: [...document.querySelectorAll("a, button")].filter((node) => /^reserve/i.test(node.textContent.trim())).length,
+      disclaims: text.includes("Registering does not create a reservation"),
+      banned: ["MSRP", "deposit", "150 mi", "300 mi", "180 hp"].filter((token) => text.includes(token)),
+      consentCheckboxes: document.querySelectorAll("input[type='checkbox']").length,
+      noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1,
+      schemaBlocks: document.querySelectorAll('script[type="application/ld+json"]').length,
+      backLink: document.querySelector(".back-nav a")?.getAttribute("href"),
+    };
+  });
+  report.santarosaLaunchEdition[width] = shape;
+  if (shape.h1 !== "Be Among the First.") failures.push(`The Launch Edition h1 is ${shape.h1} at ${width}`);
+  if (shape.market !== "United States only") failures.push(`The market qualifier is ${shape.market} at ${width}`);
+  if (shape.highlights !== 10) failures.push(`The Launch Edition must list ten highlights, found ${shape.highlights} at ${width}`);
+  if (!shape.battery) failures.push(`The 40 kWh figure must carry a footnote mark at ${width}`);
+  if (JSON.stringify(shape.priority) !== JSON.stringify(["Existing", "Authorized", "Public"])) failures.push(`The priority order is ${shape.priority.join(", ")} at ${width}`);
+  if (!shape.delivery) failures.push(`The Q4 2026 delivery statement is missing or reworded at ${width}`);
+  if (shape.reserveActions) failures.push(`A Reserve action appeared while the campaign is interest-open, at ${width}`);
+  if (!shape.disclaims) failures.push(`The page must state what registering does not do, at ${width}`);
+  if (shape.banned.length) failures.push(`The Launch Edition publishes ${shape.banned.join(", ")} at ${width}`);
+  if (shape.consentCheckboxes) failures.push(`A consent checkbox appeared without approved wording, at ${width}`);
+  if (!shape.noHorizontalScroll) failures.push(`The Launch Edition widened the document at ${width}px`);
+  if (shape.schemaBlocks !== 0) failures.push(`The Launch Edition must emit no Product or Offer schema, found ${shape.schemaBlocks} blocks at ${width}`);
+  if (shape.backLink !== "/santarosa/") failures.push(`The Launch Edition back link leads to ${shape.backLink}`);
+}
+await page.setViewportSize({ width: 1440, height: 1000 });
+
+// launchInterestForm. All eight fields required, errors announced, values preserved, and nothing transmitted.
+await page.goto(`${base}/santarosa/launch-edition/`, { waitUntil: "networkidle" });
+const launchRequests = [];
+page.on("request", (request) => { if (request.method() === "POST") launchRequests.push(request.url()); });
+const launchForm = page.locator("#santarosa-launch-interest-form");
+await launchForm.locator("[name='render_timestamp']").evaluate((input) => { input.value = String(Date.now() - 3000); });
+await launchForm.getByRole("button", { name: "Register your interest" }).click();
+report.launchInterestForm = await page.evaluate(() => ({
+  requiredControls: document.querySelectorAll("#santarosa-launch-interest-form [required]").length,
+  invalid: document.querySelectorAll("#santarosa-launch-interest-form [aria-invalid='true']").length,
+  summaryVisible: !document.querySelector("#santarosa-launch-interest-form .form-error-summary").hidden,
+  summaryFocused: document.activeElement?.classList.contains("form-error-summary"),
+  summaryItems: document.querySelectorAll("#santarosa-launch-interest-form .form-error-summary li").length,
+}));
+const launch = report.launchInterestForm;
+if (launch.requiredControls !== 8) failures.push(`The Launch Edition form must require all eight fields, found ${launch.requiredControls}`);
+if (launch.invalid !== 8 || launch.summaryItems !== 8) failures.push(`An empty submit must flag all eight fields: ${JSON.stringify(launch)}`);
+if (!launch.summaryVisible || !launch.summaryFocused) failures.push(`The Launch Edition error summary must appear and take focus: ${JSON.stringify(launch)}`);
+// An invalid email is caught by type rather than by pattern, and the entered values survive.
+await launchForm.getByLabel(/^First name/).fill("Test");
+await launchForm.getByLabel(/^Last name/).fill("Visitor");
+await launchForm.getByLabel(/^Address/).fill("1 Sample Street");
+await launchForm.getByLabel(/^City/).fill("Provo");
+await launchForm.getByLabel(/^State/).selectOption("UT");
+await launchForm.getByLabel(/^ZIP/).fill("84601");
+await launchForm.getByLabel(/^Phone/).fill("5550100");
+await launchForm.getByLabel(/^Email/).fill("not-an-email");
+await launchForm.locator("[name='render_timestamp']").evaluate((input) => { input.value = String(Date.now() - 3000); });
+await launchForm.getByRole("button", { name: "Register your interest" }).click();
+report.launchInterestForm.invalidEmail = await page.evaluate(() => ({
+  flagged: document.querySelector("#santarosa-launch-interest-form-email").getAttribute("aria-invalid"),
+  preserved: document.querySelector("#santarosa-launch-interest-form-first").value,
+  state: document.querySelector("#santarosa-launch-interest-form-state").value,
+}));
+const invalidEmail = report.launchInterestForm.invalidEmail;
+if (invalidEmail.flagged !== "true") failures.push("An invalid email must be flagged on the Launch Edition form");
+if (invalidEmail.preserved !== "Test" || invalidEmail.state !== "UT") failures.push(`Validation cleared entered values: ${JSON.stringify(invalidEmail)}`);
+await launchForm.getByLabel(/^Email/).fill("test@example.com");
+await launchForm.locator("[name='render_timestamp']").evaluate((input) => { input.value = String(Date.now() - 3000); });
+await launchForm.getByRole("button", { name: "Register your interest" }).click();
+report.launchInterestForm.result = await launchForm.locator(".form-status").innerText();
+report.launchInterestForm.posted = launchRequests.length;
+if (report.launchInterestForm.result !== "This form is not connected yet. Your information was not sent.") failures.push(`The Launch Edition prototype result reads ${report.launchInterestForm.result}`);
+if (launchRequests.length) failures.push(`The Launch Edition prototype transmitted ${launchRequests.length} requests`);
+
+// ownerManualAccess. Reached from the footer, every file still where it was, and nothing about the manuals
+// changed except the order and the title.
+report.ownerManualAccess = {};
+for (const width of [1440, 390]) {
+  await page.setViewportSize({ width, height: 900 });
+  await page.goto(`${base}/`, { waitUntil: "networkidle" });
+  const footerLink = page.locator('.footer-links a[href="/owners/"]');
+  await footerLink.scrollIntoViewIfNeeded();
+  await footerLink.click();
+  await page.waitForLoadState("networkidle");
+  const shape = await page.evaluate(() => ({
+    landed: location.pathname,
+    h1: document.querySelector("h1").textContent,
+    groups: [...document.querySelectorAll(".resource-group")].map((group) => group.id),
+    cards: document.querySelectorAll(".resource-card").length,
+    pdfs: [...document.querySelectorAll(".resource-card")].filter((card) => card.getAttribute("type") === "application/pdf").length,
+    sizes: [...document.querySelectorAll(".resource-card__meta")].filter((meta) => /PDF · \d/.test(meta.textContent)).length,
+    hrefs: [...document.querySelectorAll(".resource-card")].map((card) => card.getAttribute("href")),
+    images: document.querySelectorAll(".resource-group__media img").length,
+  }));
+  report.ownerManualAccess[width] = shape;
+  if (shape.landed !== "/owners/") failures.push(`The footer Owner manuals link landed on ${shape.landed} at ${width}`);
+  if (shape.h1 !== "Owner manuals.") failures.push(`The manual library title is ${shape.h1} at ${width}`);
+  if (JSON.stringify(shape.groups) !== JSON.stringify(["brawley", "venice", "carmel", "speedster", "laguna"])) failures.push(`The manual groups run ${shape.groups.join(", ")} at ${width}`);
+  if (shape.cards !== 19 || shape.pdfs !== 19 || shape.sizes !== 19) failures.push(`All 19 manuals must keep their PDF type and size label: ${JSON.stringify(shape)}`);
+  if (shape.images !== 3) failures.push(`Three manual groups carry photography, found ${shape.images} at ${width}`);
+  if (shape.hrefs.some((href) => !href.startsWith("/assets/manuals/"))) failures.push("A manual URL moved");
+}
+await page.setViewportSize({ width: 1440, height: 1000 });
+
+// mockProductionGuard. The visible markers, the noindex set, and the negative test: a production build must
+// refuse to run while the blockers are open.
+report.mockProductionGuard = { routes: {} };
+for (const route of ["/dealers/", "/experience/", "/blog/", "/careers/", "/safety/", "/santarosa/launch-edition/"]) {
+  await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  const shape = await page.evaluate(() => ({
+    sampleMarkers: document.querySelectorAll(".sample-note, .sample-tag").length,
+    robots: document.querySelector('meta[name="robots"]')?.content ?? null,
+  }));
+  report.mockProductionGuard.routes[route] = shape;
+  if (shape.sampleMarkers === 0) failures.push(`${route}: mock content carries no visible sample marker`);
+  if (shape.robots !== "noindex, follow") failures.push(`${route}: a mock-data route must not be indexable, found ${shape.robots}`);
+}
+for (const route of ["/", "/brawley/", "/contact/", "/privacy/", "/owners/"]) {
+  await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  const robots = await page.evaluate(() => document.querySelector('meta[name="robots"]')?.content ?? null);
+  report.mockProductionGuard.routes[route] = { robots };
+  if (robots) failures.push(`${route}: this route carries no fictional record and must stay indexable, found ${robots}`);
+}
+const robotsTxt = await (await page.request.get(`${base}/robots.txt`)).text();
+report.mockProductionGuard.robotsTxt = robotsTxt.trim();
+if (!robotsTxt.includes("Allow: /") || robotsTxt.includes("Disallow")) failures.push(`robots.txt must keep crawling allowed so the per-route noindex can be read: ${robotsTxt.trim()}`);
+// The gate itself, run as a real build. This is the negative test the plan asks for: it must fail, and the
+// output must name the blockers.
+report.mockProductionGuard.productionBuild = await new Promise((done) => {
+  execFile("node", [resolve(root, "src/build.mjs")], { cwd: root, env: { ...process.env, VHW_MODE: "production" } }, (error, stdout, stderr) => {
+    done({ failed: Boolean(error), namesBlockers: /production blockers|blockers are open/i.test(`${stdout}${stderr}`), output: `${stderr}`.slice(0, 400) });
+  });
+});
+const guard = report.mockProductionGuard.productionBuild;
+if (!guard.failed) failures.push("A production build succeeded while mock records and null endpoints are still live");
+if (!guard.namesBlockers) failures.push(`The production gate failed without naming the blockers: ${guard.output}`);
 
 report.consoleErrors = [...new Set(report.consoleErrors)];
 if (report.consoleErrors.length) failures.push(`Console errors: ${report.consoleErrors.join(" | ")}`);

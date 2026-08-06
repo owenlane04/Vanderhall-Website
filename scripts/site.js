@@ -222,7 +222,19 @@ const REVEAL_SELECTORS = [
   // photo module's specification rows sit inside its revealed body and resolve together, which is
   // what deals them out one at a time rather than as a block.
   ".policy__section", ".lede", ".spec-note", ".form-heading",
-  ".lead-form > .field", ".lead-form > .form-fieldset", ".lead-form > .form-submit-row",
+  // V13. `:not(.form-step)` is load-bearing rather than tidy. The Contact form's steps are hidden and shown
+  // by the progressive island below, and an element that is `hidden` when its observer is created never
+  // intersects, so it would keep the start state and arrive at opacity 0 the moment Continue revealed it.
+  // The two dealer forms use .form-section rather than .form-step and keep their reveals.
+  ".lead-form > .field", ".lead-form > .form-fieldset:not(.form-step)", ".lead-form > .form-submit-row",
+  // V13 coverage for the new page types. Every new route has to mark something, or it has no scroll motion
+  // at all, which is the regression the coverage suite exists to catch.
+  ".campaign-band__item", ".past-card", ".photo-gallery__figure", ".post-card", ".record-card", ".record-section",
+  ".launch-highlights li", ".launch-fact", ".article-hero", ".prose", ".empty-state", ".sample-note",
+  // The dealer cards, and the locator clears the start state on any card it un-hides. See the note there: a
+  // hidden element never intersects, so a card filtered out and back in without a scroll would otherwise keep
+  // opacity 0. Nothing else in the locator is marked, because everything else in it is a control.
+  ".dealer-card",
 ].join(", ");
 
 // Groups are dealt out one at a time rather than snapping in together: a row of cards, a group of
@@ -240,6 +252,11 @@ const revealDelay = (element) => {
   if (element.matches(".vehicle-section__row .vehicle-section__support")) return step(position());
   if (element.matches(".lead-form > .field")) return step(position() % 4);
   if (element.matches(".vehicle-section__body, .photo-module__body")) return REVEAL_STEP;
+  // V13. The card grids and the two ruled record lists deal out one at a time, which is the same treatment
+  // the concept cards and the specification rows already have. The highlight list is capped like the rest, so
+  // a ten-item list does not wait on a queue.
+  if (element.matches(".card-grid--posts .post-card, .past-grid .past-card, .record-list .record-card, .launch-highlights li")) return step(position());
+  if (element.matches(".campaign-band__item")) return step(position());
   return 0;
 };
 
@@ -503,4 +520,349 @@ document.querySelectorAll("[data-site-form]").forEach((form) => {
     }
     status.textContent = "Sending";
   });
+});
+
+// ---------------------------------------------------------------------------------------------
+// V13. The Contact form's progressive disclosure.
+//
+// Additive, and that word carries the whole design. Without this island every step and every branch is
+// visible and every field is usable: the form is longer, and it works. So the step navigation ships hidden
+// and is revealed here, exactly as the walkaround's controls and the ambient pause button are, because a
+// Continue button that cannot advance anything is worse than a long form.
+//
+// Values are never cleared. Back and Continue change which fieldset is visible and nothing else, so a
+// visitor who goes back to correct an email address still has everything they typed after it.
+// ---------------------------------------------------------------------------------------------
+document.querySelectorAll("[data-form-id='contact']").forEach((form) => {
+  const steps = [...form.querySelectorAll("[data-step]")];
+  const branches = [...form.querySelectorAll("[data-branch]")];
+  const status = form.querySelector("[data-step-status]");
+  const submitRow = form.querySelector(".form-submit-row");
+  if (steps.length !== 3 || !branches.length) return;
+
+  let current = 1;
+
+  // A branch that is not the chosen category is hidden AND its controls are disabled. Hiding alone would
+  // leave them in the form's element list, so a required select inside an invisible branch would fail
+  // validation with an error nobody could see or reach.
+  const setBranch = (value) => {
+    for (const branch of branches) {
+      const active = branch.dataset.branch === value;
+      branch.hidden = !active;
+      for (const control of branch.querySelectorAll("input, select, textarea")) {
+        control.disabled = !active;
+        if (control.dataset.branchRequired !== undefined) {
+          if (active) control.setAttribute("required", "");
+          else control.removeAttribute("required");
+          control.setAttribute("aria-required", String(active));
+        }
+      }
+      if (active) applyConditionals(branch);
+    }
+  };
+
+  // The conditional fields inside a branch. VIN appears for Service only, because that is the one request
+  // type the legacy flow requires a VIN for; the ownership fields appear only once a visitor says they own
+  // the vehicle, so a documentation question is never blocked behind a vehicle identification number.
+  const applyConditionals = (branch) => {
+    const subcategory = branch.querySelector("[name='subcategory']");
+    const owns = branch.querySelector("[name='ownsVehicle']:checked");
+    for (const field of branch.querySelectorAll("[data-vin], [data-ownership-field]")) {
+      let show = true;
+      if (field.hasAttribute("data-vin") && field.dataset.vinWhen) show = subcategory?.value === field.dataset.vinWhen;
+      if (field.hasAttribute("data-ownership-field")) show = show && owns?.value === "yes";
+      field.hidden = !show;
+      for (const control of field.querySelectorAll("input, select, textarea")) control.disabled = !show;
+    }
+  };
+
+  const show = (index) => {
+    current = Math.min(Math.max(index, 1), steps.length);
+    steps.forEach((step, position) => { step.hidden = position + 1 !== current; });
+    // The submit control belongs to the last step. Offering it on step one would let a visitor submit a form
+    // whose category has not been chosen and then be told so by an error summary.
+    if (submitRow) submitRow.hidden = current !== steps.length;
+    if (status) status.textContent = `Step ${current} of ${steps.length}`;
+    const heading = steps[current - 1].querySelector("legend");
+    if (heading) {
+      heading.setAttribute("tabindex", "-1");
+      heading.focus();
+    }
+  };
+
+  form.querySelectorAll("[data-form-nav]").forEach((nav) => { nav.hidden = false; });
+  form.querySelectorAll("[data-step-next]").forEach((button) => button.addEventListener("click", () => {
+    // The step's own required fields have to be valid before it advances, and the message says which step,
+    // because an error summary listing fields on a screen the visitor cannot see is not an error message.
+    const step = steps[current - 1];
+    const invalid = [...step.querySelectorAll("input[required], select[required], textarea[required]")]
+      .filter((control) => !control.disabled && !control.validity.valid);
+    if (invalid.length) {
+      clearErrors(form);
+      const summary = form.querySelector(".form-error-summary");
+      const seen = new Set();
+      const listed = invalid.filter((control) => {
+        if (control.type !== "radio") return true;
+        if (seen.has(control.name)) return false;
+        seen.add(control.name);
+        return true;
+      });
+      listed.forEach((control) => setError(control, control.validity.typeMismatch ? "Enter a valid email address." : "This field is required."));
+      summary.hidden = false;
+      summary.innerHTML = `<strong>Please correct ${listed.length} ${listed.length === 1 ? "item" : "items"} before continuing.</strong><ul>${listed.map((control) => `<li><a href="#${control.id}">${control.labels?.[0]?.textContent?.replace(" *", "") || control.name}</a></li>`).join("")}</ul>`;
+      summary.querySelectorAll("a").forEach((anchor, index) => anchor.addEventListener("click", (event) => { event.preventDefault(); listed[index].focus(); }));
+      summary.focus();
+      return;
+    }
+    form.querySelector(".form-error-summary").hidden = true;
+    show(current + 1);
+  }));
+  form.querySelectorAll("[data-step-back]").forEach((button) => button.addEventListener("click", () => show(current - 1)));
+
+  form.querySelectorAll("[name='category']").forEach((radio) => radio.addEventListener("change", () => setBranch(radio.value)));
+  form.querySelectorAll("[name='subcategory'], [name='ownsVehicle']").forEach((control) => control.addEventListener("change", () => {
+    const branch = control.closest("[data-branch]");
+    if (branch) applyConditionals(branch);
+  }));
+
+  // Query prefill. An unknown or stale value selects nothing and never throws, which is the whole
+  // requirement: a link from an old email pointing at a category that no longer exists must leave the form
+  // in its ordinary starting state rather than break it.
+  const params = new URLSearchParams(location.search);
+  const wanted = params.get("category");
+  const chosen = wanted ? form.querySelector(`[name='category'][value='${CSS.escape(wanted)}']`) : null;
+  if (chosen) chosen.checked = true;
+  setBranch(chosen ? chosen.value : null);
+  const model = params.get("model");
+  if (model && chosen) {
+    const select = form.querySelector(`[data-branch='${CSS.escape(chosen.value)}'] [data-model-select]`);
+    if (select && [...select.options].some((option) => option.value === model)) select.value = model;
+  }
+  // A visitor who arrived with a category already chosen starts on the step that needs their attention.
+  show(chosen ? 3 : 1);
+});
+
+// ---------------------------------------------------------------------------------------------
+// V13. The dealer locator.
+//
+// The list is server-rendered HTML and stays that way. Everything below is enhancement: search, filtering,
+// distance, the mobile mode switch, and the map. Each control ships hidden and is revealed only once the
+// code that drives it is running, so a page without this file shows every dealer, every address, every
+// telephone number, and a working directions link, and shows no control it cannot honour.
+//
+// Google Maps is loaded on this route only, and only when the map area is near the viewport or the visitor
+// opens the Map view. Without a key the fallback panel stays and says so rather than pretending to load.
+// ---------------------------------------------------------------------------------------------
+document.querySelectorAll("[data-locator]").forEach((locator) => {
+  const search = locator.querySelector("[data-locator-search]");
+  const list = locator.querySelector("[data-locator-list]");
+  const panes = locator.querySelector("[data-locator-panes]");
+  const count = locator.querySelector("[data-locator-count]");
+  const canvas = locator.querySelector("[data-locator-canvas]");
+  const fallback = locator.querySelector("[data-locator-map-fallback]");
+  const cards = [...locator.querySelectorAll("[data-dealer]")];
+  const noResults = locator.querySelector("[data-locator-state='no-results']");
+  const searching = locator.querySelector("[data-locator-state='searching']");
+  if (!cards.length) return;
+
+  const dealers = cards.map((card) => ({
+    card,
+    slug: card.dataset.dealer,
+    lat: Number(card.dataset.lat),
+    lng: Number(card.dataset.lng),
+    ev: card.dataset.ev === "true",
+    gas: card.dataset.gas === "true",
+    service: card.dataset.service === "true",
+    haystack: [card.dataset.city, card.dataset.region, card.dataset.postal].join(" ").toLowerCase(),
+    distanceEl: card.querySelector("[data-dealer-distance]"),
+  }));
+
+  search.hidden = false;
+  locator.querySelector("[data-locator-modes]").hidden = false;
+  cards.forEach((card) => { const button = card.querySelector("[data-dealer-select]"); if (button) button.hidden = false; });
+
+  let origin = null;
+  let selected = null;
+  let map = null;
+  let markers = new Map();
+
+  // Great-circle distance, in miles. The mock adapter computes it here from the record's own coordinates; a
+  // production adapter may return results pre-sorted and this becomes a display of what it sent.
+  const distanceMiles = (from, to) => {
+    const radians = (value) => (value * Math.PI) / 180;
+    const dLat = radians(to.lat - from.lat);
+    const dLng = radians(to.lng - from.lng);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(radians(from.lat)) * Math.cos(radians(to.lat)) * Math.sin(dLng / 2) ** 2;
+    return 3958.8 * 2 * Math.asin(Math.sqrt(a));
+  };
+
+  const capability = () => locator.querySelector("[name='capability']:checked")?.value || "all";
+
+  const apply = () => {
+    const term = (search.querySelector("[name='location']")?.value || "").trim().toLowerCase();
+    const filter = capability();
+    let visible = dealers.filter((dealer) => {
+      if (filter !== "all" && !dealer[filter]) return false;
+      // Without a geocoder the text is matched against the record's own city, region and postal code. That
+      // is what the no-key path can honestly do, and it is what the mock data is for.
+      if (term && !origin && !dealer.haystack.includes(term)) return false;
+      return true;
+    });
+    if (origin) {
+      visible = visible
+        .map((dealer) => ({ ...dealer, distance: distanceMiles(origin, { lat: dealer.lat, lng: dealer.lng }) }))
+        .sort((a, b) => a.distance - b.distance);
+    }
+    const visibleSlugs = new Set(visible.map((dealer) => dealer.slug));
+    for (const dealer of dealers) {
+      const hidden = !visibleSlugs.has(dealer.slug);
+      const wasHidden = dealer.card.hidden;
+      dealer.card.hidden = hidden;
+      // A card coming BACK from hidden must not still be in a reveal's start state. An IntersectionObserver
+      // reports crossings, and a hidden element never crosses anything, so a card filtered out and back in
+      // without a scroll in between would sit at opacity 0 with nothing left to reveal it. Same reasoning as
+      // the scroll sweep above, applied to visibility instead of to scrolling.
+      //
+      // Gated on wasHidden, and that gate is the whole correctness of it: without it this ran on the island's
+      // own first pass and resolved every card before the visitor had scrolled at all, which is the reveal
+      // deleted rather than protected.
+      if (wasHidden && !hidden && dealer.card.dataset.reveal === "") dealer.card.dataset.reveal = "shown";
+      if (dealer.distanceEl) dealer.distanceEl.textContent = "";
+    }
+    // Reordered in the DOM as well as sorted in the array, so the reading order and the tab order match what
+    // a visitor sees. A visual sort that leaves the DOM alone is a list that reads out in the wrong order.
+    for (const dealer of visible) {
+      if (dealer.distanceEl && dealer.distance !== undefined) dealer.distanceEl.textContent = `${dealer.distance < 10 ? dealer.distance.toFixed(1) : Math.round(dealer.distance)} mi`;
+      list.insertBefore(dealer.card, noResults);
+    }
+    count.textContent = `${visible.length} ${visible.length === 1 ? "dealer" : "dealers"}`;
+    noResults.hidden = visible.length > 0;
+    if (map) fitMarkers(visible);
+    return visible;
+  };
+
+  const select = (slug, { scroll = false } = {}) => {
+    selected = slug;
+    for (const dealer of dealers) dealer.card.classList.toggle("is-selected", dealer.slug === slug);
+    const card = cards.find((item) => item.dataset.dealer === slug);
+    if (card && scroll) {
+      card.scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+      card.focus({ preventScroll: true });
+    }
+    const marker = markers.get(slug);
+    if (marker && map) {
+      // Panned to, never continuously re-zoomed: moving the camera every time focus passes through the list
+      // would make a keyboard visitor's screen lurch on every arrow press.
+      map.panTo({ lat: Number(card.dataset.lat), lng: Number(card.dataset.lng) });
+      for (const [key, item] of markers) item.content?.classList?.toggle("is-selected", key === slug);
+    }
+  };
+
+  cards.forEach((card) => {
+    card.querySelector("[data-dealer-select]")?.addEventListener("click", () => {
+      select(card.dataset.dealer);
+      if (matchMedia("(max-width: 1023px)").matches) setMode("map");
+    });
+  });
+
+  search.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const term = (search.querySelector("[name='location']")?.value || "").trim();
+    if (!term) { origin = null; apply(); return; }
+    searching.hidden = false;
+    origin = await geocode(term);
+    searching.hidden = true;
+    apply();
+  });
+  search.addEventListener("reset", () => {
+    origin = null;
+    // The reset lands after this handler, so the read has to wait a tick or it filters on the old value.
+    requestAnimationFrame(apply);
+  });
+  locator.querySelectorAll("[name='capability']").forEach((radio) => radio.addEventListener("change", apply));
+
+  const setMode = (mode) => {
+    panes.dataset.mode = mode;
+    locator.querySelectorAll("[data-locator-mode]").forEach((button) => {
+      const active = button.dataset.locatorMode === mode;
+      button.classList.toggle("is-selected", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+    if (mode === "map") loadMap();
+  };
+  locator.querySelectorAll("[data-locator-mode]").forEach((button) => button.addEventListener("click", () => setMode(button.dataset.locatorMode)));
+
+  // ---- Google Maps, on demand -------------------------------------------------------------------
+  const key = locator.dataset.mapKey;
+  const mapId = locator.dataset.mapId;
+  let mapRequested = false;
+
+  const geocode = async (term) => {
+    if (!key || !window.google?.maps) return null;
+    try {
+      const { Geocoder } = await google.maps.importLibrary("geocoding");
+      const response = await new Geocoder().geocode({ address: term, componentRestrictions: { country: "US" } });
+      const location = response?.results?.[0]?.geometry?.location;
+      return location ? { lat: location.lat(), lng: location.lng() } : null;
+    } catch {
+      return null;
+    }
+  };
+
+  const fitMarkers = (visible) => {
+    if (!map || !visible.length) return;
+    const bounds = new google.maps.LatLngBounds();
+    for (const dealer of visible) bounds.extend({ lat: dealer.lat, lng: dealer.lng });
+    if (origin) bounds.extend(origin);
+    // Bounds are fitted once per search rather than on every focus change, which is what section 4.1 asks
+    // for: the map follows the result set, not the cursor.
+    map.fitBounds(bounds, 48);
+  };
+
+  const loadMap = () => {
+    if (mapRequested) return;
+    mapRequested = true;
+    // No key means no map, and the panel already says so. It does not retry, and it does not spin.
+    if (!key) return;
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&libraries=marker,places,geocoding&loading=async&callback=__vhwLocatorReady`;
+    script.async = true;
+    // A failed SDK leaves the list, the search, and every link on the page working. That is the contract:
+    // the map is the only thing that is allowed to be missing.
+    script.addEventListener("error", () => { fallback.hidden = false; });
+    window.__vhwLocatorReady = async () => {
+      try {
+        const { Map } = await google.maps.importLibrary("maps");
+        const { AdvancedMarkerElement } = await google.maps.importLibrary("marker");
+        map = new Map(canvas, { mapId: mapId || undefined, center: { lat: 39.5, lng: -111.5 }, zoom: 5, disableDefaultUI: false, mapTypeControl: false });
+        for (const dealer of dealers) {
+          const pin = document.createElement("span");
+          pin.className = "locator__pin";
+          const marker = new AdvancedMarkerElement({ map, position: { lat: dealer.lat, lng: dealer.lng }, title: dealer.card.querySelector(".dealer-card__name").textContent, content: pin });
+          marker.addListener("click", () => select(dealer.slug, { scroll: true }));
+          markers.set(dealer.slug, marker);
+        }
+        fallback.hidden = true;
+        fitMarkers(apply());
+        if (selected) select(selected);
+      } catch {
+        fallback.hidden = false;
+      }
+    };
+    document.head.append(script);
+  };
+
+  // Loaded when the map area is near the viewport, never on page load: this route must not spend a byte on
+  // the Google SDK for a visitor who never scrolls to it, and the map must never become the LCP element.
+  if (canvas) {
+    new IntersectionObserver((entries, observer) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        observer.disconnect();
+        loadMap();
+      }
+    }, { rootMargin: "300px" }).observe(canvas);
+  }
+
+  apply();
 });

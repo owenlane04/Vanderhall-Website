@@ -1,5 +1,5 @@
 {
-  "name": "vanderhall-motor-works-site",
+  "name": "vanderhall-site",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,8 @@
     "check:content": "node scripts/check-content.mjs",
     "check:video": "node scripts/check-video.mjs",
     "check": "npm run check:links && npm run check:content && npm run check:video",
-    "verify:browser": "node scripts/verify-browser.mjs"
+    "verify:browser": "node scripts/verify-browser.mjs",
+    "build:production": "VHW_MODE=production node src/build.mjs && node scripts/prepare-vercel.mjs"
   },
   "devDependencies": {
     "axe-core": "^4.12.1",

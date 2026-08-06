@@ -667,7 +667,15 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 .form-key, .field__help, .form-note { color: var(--text-tertiary); font-size: var(--fs-caption); }
 /* Quiet footnote under the submit row rather than a bordered note, which is the difference
    between looking unfinished and looking careful. */
-.form-note { max-width: var(--w-text); margin-top: calc(var(--form-gap) * -0.5); }
+/* The negative pull belongs to the note INSIDE the form, where it exists to tuck the line up under the submit
+   row. Declaring it on every .form-note printed the ones outside the form on top of it: on /contact/ and on the
+   Launch Edition page a second note follows the form, and the two paragraphs overlapped. A sibling selector was
+   not enough, because those notes are not siblings of the form's own note; they are siblings of the form. */
+.form-note { max-width: var(--w-text); }
+.lead-form .form-note { margin-top: calc(var(--form-gap) * -0.5); }
+/* A column with real gaps, for a section that holds a form plus the paragraphs around it. Not .stack: that one
+   aligns to the start, which would collapse the form to its own content width instead of its measure. */
+.form-stack { display: flex; flex-direction: column; gap: var(--s-5); }
 .form-heading { margin-bottom: var(--sf-s); font-size: var(--fs-display-s); }
 .form-fieldset { display: flex; min-width: 0; flex-direction: column; gap: var(--form-gap); margin: 0; border: 0; padding: 0; }
 .form-fieldset > legend { padding: 0; color: var(--text-primary); font-size: var(--fs-title); font-weight: var(--wt-medium); }
@@ -863,9 +871,11 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
   .split--media-first .split__media { grid-area: 1 / 1; }
   .split--media-first .split__body { grid-area: 1 / 2; }
   .gts-figures { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-5); }
-  /* V11-I. Four columns, not three: Follow joins Vehicles, Owners and Connect. Below this the grid
-     is two columns, which lays four columns out as two tidy rows rather than three and a widow. */
-  .footer-links { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  /* V13 adds Experience, so there are five. Two columns below 768, three here, five at 1024: five
+     equal columns at tablet width leaves each one narrower than its longest link label, and the app
+     store links in Owners wrap to three lines. Three columns lays five out as a row of three and a
+     row of two, which reads as deliberate; five at 1024 gives each column room. */
+  .footer-links { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .vehicle-section { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sf-l); }
   .vehicle-section--reverse .vehicle-section__media { grid-area: 1 / 2; }
   .vehicle-section--reverse .vehicle-section__body { grid-area: 1 / 1; }
@@ -878,6 +888,7 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 }
 
 @media (min-width: 1024px) {
+  .footer-links { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .brand img { height: 1.75rem; }
   .desktop-nav { display: flex; }
   .menu-button { display: none; }
@@ -1209,4 +1220,269 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
   /* Scroll-driven animations advance with scroll position rather than time, so clearing the
      duration is not enough: the timeline itself has to go. */
   *, *::before, *::after { animation-timeline: auto !important; animation-name: none !important; }
+}
+
+/* ---------------------------------------------------------------------------------------------
+   V13. New page types, built out of the existing system rather than beside it. Every colour below is
+   a token, every step is on the existing type scale, every gap is a spacing token, and the corners
+   stay squared at --r-1 and --r-2. Nothing here introduces a second visual language: if a rule looks
+   familiar it is because it is the same rule an existing component already uses.
+   --------------------------------------------------------------------------------------------- */
+
+/* Footnotes. The mark is small, quiet, and never the accent: an orange asterisk beside a figure reads
+   as a warning rather than as a reference. */
+.fn-ref { font-size: var(--fs-caption); line-height: 0; }
+.fn-ref a { color: var(--text-tertiary); text-decoration: none; padding-inline: 1px; }
+.fn-ref a:hover { color: var(--text-primary); }
+.footnotes { display: flex; flex-direction: column; gap: var(--s-2); }
+.footnote { display: block; max-width: var(--w-text); color: var(--text-tertiary); font-size: var(--fs-caption); }
+/* The sticky header would otherwise cover a note jumped to from its reference. The same offset is why
+   the reference is reachable coming back: both ends of the jump clear the header. */
+.footnote, .fn-ref a { scroll-margin-top: calc(var(--header-h) + var(--s-5)); }
+.footnote:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: var(--focus-offset); }
+.footnote__back { color: var(--text-tertiary); text-decoration: none; }
+.footnote__back:hover { color: var(--text-primary); }
+
+/* The sample marker on mock operational content. Deliberately not styled as a warning: red is reserved
+   for genuine safety severity and form errors, so this is a hairline-bordered block in the quiet
+   surface with a caps tag, which reads as a label rather than an alarm. */
+.sample-note { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-2) var(--s-3); max-width: var(--w-text); border: var(--hairline) solid var(--line); border-left: 2px solid var(--accent); border-radius: var(--r-1); padding: var(--s-4); color: var(--text-secondary); font-size: var(--fs-body-sm); }
+/* A sample note followed by the thing it describes needs the gap, and only then: where it is the only child
+   of its own section the section's padding already provides one, and a margin there would double it. */
+.sample-note:not(:last-child) { margin-bottom: var(--sf-s); }
+.sample-note__tag, .sample-tag { color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); line-height: var(--lh-caps); text-transform: uppercase; white-space: nowrap; }
+.sample-tag { border: var(--hairline) solid var(--line-strong); border-radius: var(--r-pill); padding: var(--s-1) var(--s-3); }
+
+/* The homepage status band. One hairline boundary, concise type, and no urgency: the two items sit on
+   the page's own rhythm rather than in a coloured strip. */
+/* p and h have zero margin sitewide, so a paragraph followed by an action needs the gap declared rather than
+   inherited. Used where a short block is text-then-button: the past-model inventory note and the Launch
+   Edition's opening. */
+.stack { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-5); }
+.stack p { max-width: var(--w-text); }
+
+.campaign-band { display: grid; grid-template-columns: 1fr; gap: var(--sf-s); border-block: var(--hairline) solid var(--line); }
+.campaign-band__item { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-1); min-width: 0; }
+.campaign-band__label { color: var(--text-primary); font-size: var(--fs-body-lg); font-weight: var(--wt-medium); }
+
+/* Past models on /vehicles/. Quieter than a vehicle section by construction: two compact cards in a
+   grid rather than two full-bleed alternating rows. */
+.past-grid { display: grid; grid-template-columns: 1fr; gap: var(--card-gap); }
+.past-card { display: flex; min-width: 0; flex-direction: column; gap: var(--s-4); }
+.past-card__media { display: block; aspect-ratio: var(--ar-feature); overflow: hidden; border-radius: var(--r-2); background: var(--surface-1); }
+.past-card__media img { width: 100%; height: 100%; object-fit: cover; }
+.past-card__body { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-3); }
+.past-card__title { font-size: var(--fs-display-s); }
+.past-card__title a { text-decoration: none; }
+.past-card__title a:hover { text-decoration: underline; text-underline-offset: var(--s-2); }
+.past-card p { max-width: var(--w-text); font-size: var(--fs-body-sm); }
+.lineup-past { margin-top: var(--sf-m); }
+
+/* The past-model gallery. The concept gallery's shape: a photograph at the content width with its
+   caption beneath, stacked. No frame, no carousel, no controls. */
+.photo-gallery { display: flex; flex-direction: column; gap: var(--sf-m); }
+.photo-gallery__figure { margin: 0; }
+.photo-gallery__media { overflow: hidden; border-radius: var(--r-2); background: var(--surface-1); }
+.photo-gallery__media img { width: 100%; height: auto; }
+.photo-gallery__caption { margin-top: var(--s-3); color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); line-height: var(--lh-caps); text-transform: uppercase; }
+
+/* Editorial. Long-form copy takes the narrow measure, which is the rule the policy page already
+   follows: running text set to the full 1200px column is unreadable at any type size. */
+.prose { display: flex; flex-direction: column; gap: var(--s-5); max-width: var(--w-text); }
+.prose p { max-width: var(--w-text); }
+.prose h2 { margin-top: var(--sf-s); font-size: var(--fs-display-s); }
+.prose h3 { font-size: var(--fs-title); }
+.prose ul { max-width: var(--w-text); margin: 0; padding-left: var(--s-5); color: var(--text-secondary); }
+.prose li + li { margin-top: var(--s-2); }
+.prose__quote { margin: 0; border-left: 2px solid var(--accent); padding-left: var(--s-5); }
+.prose__quote p { color: var(--text-primary); font-size: var(--fs-body-lg); }
+.prose__quote footer { margin-top: var(--s-2); color: var(--text-tertiary); font-size: var(--fs-caption); }
+.prose__figure { margin: 0; }
+.prose__figure img { width: 100%; height: auto; border-radius: var(--r-2); }
+.prose__figure figcaption { margin-top: var(--s-2); color: var(--text-tertiary); font-size: var(--fs-caption); }
+
+/* The inquiry address is one unbreakable 22-character token. In the two-column footer grid at 320px its
+   column is about 130px wide, so without this it pushed the document wider than the viewport on every page.
+   Breaking mid-address is not pretty; it keeps the whole address visible, which is what Owen asked for, and a
+   truncated or clipped address would fail the requirement outright. */
+.footer-email { overflow-wrap: anywhere; }
+
+.card-grid--posts { grid-template-columns: 1fr; }
+.post-card { display: flex; min-width: 0; flex-direction: column; gap: var(--s-4); }
+.post-card__media { overflow: hidden; border-radius: var(--r-2); aspect-ratio: var(--ar-feature); background: var(--surface-1); }
+.post-card__media img, .post-card__media a { display: block; width: 100%; height: 100%; }
+.post-card__media img { object-fit: cover; transition: transform var(--dur-4) var(--ease-out); }
+.post-card__body { display: flex; min-width: 0; flex-direction: column; gap: var(--s-2); }
+.post-card__category { color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); line-height: var(--lh-caps); text-transform: uppercase; }
+.post-card__title { font-size: var(--fs-display-s); }
+.post-card__link { text-decoration: none; }
+.post-card__link:hover { text-decoration: underline; text-underline-offset: var(--s-2); }
+.post-card__excerpt { max-width: var(--w-text); font-size: var(--fs-body-sm); }
+.post-card__pending { color: var(--text-tertiary); font-size: var(--fs-caption); }
+.post-meta { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4); color: var(--text-tertiary); font-size: var(--fs-caption); }
+.post-meta__author { color: var(--text-secondary); }
+.article-header__category { color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); text-transform: uppercase; }
+.article-header__standfirst { max-width: var(--w-text); font-size: var(--fs-body-lg); }
+.article-hero { margin: 0; }
+.article-hero img { width: 100%; height: auto; border-radius: var(--r-2); }
+.experience-module + .experience-module { border-top: var(--hairline) solid var(--line); }
+
+/* Careers and safety records. One list treatment for both: a hairline-ruled stack rather than a card
+   wall, because both are things to read down rather than to browse across. */
+.record-list { display: flex; flex-direction: column; gap: 0; }
+.record-card { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-3); border-top: var(--hairline) solid var(--line); padding-block: var(--sf-s); }
+.record-card:last-child { border-bottom: var(--hairline) solid var(--line); }
+.record-card__head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-4); }
+.record-card__title { font-size: var(--fs-display-s); }
+.record-card__title a { text-decoration: none; }
+.record-card__title a:hover { text-decoration: underline; text-underline-offset: var(--s-2); }
+.record-card__summary { max-width: var(--w-text); }
+.record-card__meta, .record-card__pending { color: var(--text-tertiary); font-size: var(--fs-caption); }
+.record-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3) var(--s-5); }
+.record-section + .record-section { margin-top: var(--sf-m); }
+.record-section h2 { margin-bottom: var(--s-4); font-size: var(--fs-display-s); }
+.record-section ul { max-width: var(--w-text); margin: 0; padding-left: var(--s-5); color: var(--text-secondary); }
+.record-section li + li { margin-top: var(--s-2); }
+.record-legal, .record-fallback { max-width: var(--w-text); color: var(--text-tertiary); font-size: var(--fs-caption); }
+.fact-row { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4); margin: 0; padding: 0; list-style: none; color: var(--text-tertiary); font-size: var(--fs-caption); }
+.fact-row li { display: inline-flex; align-items: center; }
+/* A separator that is not a character in the accessible name: a bullet typed between list items is
+   read out, and a border is not. */
+.fact-row li + li { border-left: var(--hairline) solid var(--line-strong); padding-left: var(--s-4); }
+.fact-row--detail { font-size: var(--fs-body-sm); }
+.apply-disabled { flex-direction: column; align-items: flex-start; gap: var(--s-3); }
+.apply-disabled .button[disabled] { cursor: not-allowed; opacity: 0.55; }
+
+/* A safety notice's facts are a definition list, because that is what they are: a fixed set of labelled
+   values a visitor scans for one answer. Two columns from 640px, label above value below it. */
+.notice-facts { display: grid; grid-template-columns: 1fr; gap: var(--s-1) var(--s-4); margin: 0; }
+.notice-facts dt { color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); line-height: var(--lh-caps); text-transform: uppercase; }
+.notice-facts dd { margin: 0 0 var(--s-3); max-width: var(--w-text); color: var(--text-secondary); font-size: var(--fs-body-sm); }
+.notice-facts--detail dd { font-size: var(--fs-body); }
+.empty-state { border: var(--hairline) solid var(--line); border-radius: var(--r-2); padding: var(--sf-m); }
+.empty-state p { max-width: var(--w-text); }
+
+/* Privacy. The document keeps its narrow measure and gains a contents column beside it above 1024px. */
+.policy-header__meta { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-4); margin: 0; color: var(--text-tertiary); font-size: var(--fs-caption); }
+.policy-header__meta dt { font-weight: var(--wt-medium); }
+.policy-header__meta dd { margin: 0 var(--s-4) 0 0; }
+.policy-layout { display: grid; grid-template-columns: 1fr; gap: var(--sf-m); }
+.policy__section { scroll-margin-top: calc(var(--header-h) + var(--s-5)); }
+.policy-toc__desktop { display: none; }
+.policy-toc__mobile summary { display: flex; min-height: var(--hit-target); align-items: center; color: var(--text-primary); font-size: var(--fs-body-sm); font-weight: var(--wt-medium); cursor: pointer; }
+.policy-toc__list { display: flex; flex-direction: column; gap: var(--s-2); margin: var(--s-3) 0 0; padding-left: var(--s-5); color: var(--text-tertiary); font-size: var(--fs-body-sm); }
+.policy-toc__list a { color: var(--text-secondary); text-decoration: none; }
+.policy-toc__list a:hover { color: var(--text-primary); text-decoration: underline; text-underline-offset: var(--s-2); }
+.policy-toc__title { color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); text-transform: uppercase; }
+
+/* The Launch Edition page. Typography-led on purpose: no supplied photograph proves numbered badging or
+   a carbon-fiber part, so the page states the equipment in type rather than implying it with imagery. */
+.launch-market { color: var(--pure-white); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); text-transform: uppercase; }
+.launch-highlights { display: grid; grid-template-columns: 1fr; gap: 0; margin: 0; padding: 0; list-style: none; }
+.launch-highlights li { border-top: var(--hairline) solid var(--line); padding-block: var(--s-4); color: var(--text-primary); font-size: var(--fs-body-lg); }
+.launch-highlights li:last-child { border-bottom: var(--hairline) solid var(--line); }
+.launch-more { margin-top: var(--sf-s); color: var(--text-tertiary); font-size: var(--fs-caption); }
+.launch-facts { display: grid; grid-template-columns: 1fr; gap: var(--sf-m); border-top: var(--hairline) solid var(--line); padding-top: var(--sf-m); }
+.launch-fact h2 { margin-bottom: var(--s-4); font-size: var(--fs-display-s); }
+.launch-priority { max-width: var(--w-text); margin: var(--s-3) 0 0; padding-left: var(--s-5); color: var(--text-secondary); }
+.launch-priority li + li { margin-top: var(--s-2); }
+.launch-state { color: var(--text-primary); font-weight: var(--wt-medium); }
+
+/* Contact. The progressive form is one document with visible step headings; the step navigation and the
+   branch hiding are both site.js's, so without script this is a long, complete, usable form. */
+.form-step + .form-step { border-top: var(--hairline) solid var(--line); padding-top: var(--sf-m); }
+.form-step[hidden] { display: none; }
+.form-step-status { color: var(--text-tertiary); font-size: var(--fs-caption); }
+.form-branch { display: flex; flex-direction: column; gap: var(--form-gap); }
+.form-branch[hidden] { display: none; }
+.form-branch__title { font-size: var(--fs-title); }
+.form-nav { display: flex; flex-wrap: wrap; gap: var(--s-3); }
+.radio-column { display: flex; flex-direction: column; gap: var(--s-2); }
+
+/* The dealer locator. List and map, and the list is the one that has to work. */
+.locator { display: flex; flex-direction: column; gap: var(--sf-s); }
+.locator__search { display: grid; grid-template-columns: 1fr; gap: var(--s-5); border: var(--hairline) solid var(--line); border-radius: var(--r-2); padding: var(--card-pad); }
+.locator__search[hidden] { display: none; }
+.locator__search-actions { display: flex; flex-wrap: wrap; gap: var(--s-3); }
+.locator__bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-3); }
+.locator__count { color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); text-transform: uppercase; }
+.locator__modes { display: flex; border: var(--hairline) solid var(--line-strong); border-radius: var(--r-1); overflow: hidden; }
+.locator__modes[hidden] { display: none; }
+.locator__mode { min-height: var(--hit-target); border: 0; padding-inline: var(--s-5); background: transparent; color: var(--text-secondary); font-size: var(--fs-nav); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps); text-transform: uppercase; cursor: pointer; }
+.locator__mode.is-selected { background: var(--ink); color: var(--paper); }
+.locator__state { color: var(--text-secondary); font-size: var(--fs-body-sm); }
+.locator__state[hidden], .locator__no-results[hidden] { display: none; }
+.locator__panes { display: grid; grid-template-columns: 1fr; gap: var(--sf-s); }
+.locator__list { display: flex; flex-direction: column; gap: 0; }
+.locator__no-results { display: flex; flex-direction: column; gap: var(--s-4); border: var(--hairline) solid var(--line); border-radius: var(--r-2); padding: var(--card-pad); }
+.locator__map { position: relative; min-height: 20rem; overflow: hidden; border: var(--hairline) solid var(--line); border-radius: var(--r-2); background: var(--surface-1); }
+.locator__canvas { position: absolute; inset: 0; }
+.locator__map-fallback { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--card-pad); }
+.locator__map-fallback[hidden] { display: none; }
+.locator__map-message { max-width: 36ch; color: var(--text-tertiary); font-size: var(--fs-body-sm); text-align: center; }
+
+.dealer-card { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-3); border-top: var(--hairline) solid var(--line); padding-block: var(--sf-s); }
+.dealer-card:last-of-type { border-bottom: var(--hairline) solid var(--line); }
+.dealer-card[hidden] { display: none; }
+/* Selection is a left rule and a surface, never colour alone: a selected dealer has to be identifiable
+   without seeing the accent, which is the same reason the notice severity is a word rather than a hue. */
+.dealer-card.is-selected { border-left: 2px solid var(--accent); background: var(--surface-1); padding-left: var(--s-4); }
+.dealer-card.is-selected .dealer-card__name::after { content: " (selected)"; color: var(--text-tertiary); font-size: var(--fs-caption); font-weight: var(--wt-regular); }
+.dealer-card__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--s-2) var(--s-4); width: 100%; }
+.dealer-card__name { font-size: var(--fs-title); font-weight: var(--wt-medium); }
+.dealer-card__distance { color: var(--text-tertiary); font-size: var(--fs-caption); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dealer-card__address { font-size: var(--fs-body-sm); }
+.dealer-card__tags { display: flex; flex-wrap: wrap; gap: var(--s-2); margin: 0; padding: 0; list-style: none; }
+.dealer-card__tags li { border: var(--hairline) solid var(--line-strong); border-radius: var(--r-pill); padding: var(--s-1) var(--s-3); color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); text-transform: uppercase; }
+.dealer-card__models, .dealer-card__hours { color: var(--text-tertiary); font-size: var(--fs-caption); }
+.dealer-card__actions { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3) var(--s-5); }
+.dealer-card__actions a, .dealer-card__select { min-height: var(--hit-target); display: inline-flex; align-items: center; color: var(--text-primary); font-size: var(--fs-body-sm); font-weight: var(--wt-medium); text-decoration: underline; text-decoration-color: var(--line-strong); }
+.dealer-card__select { border: 0; padding: 0; background: transparent; cursor: pointer; }
+.dealer-card__select[hidden] { display: none; }
+
+@media (min-width: 640px) {
+  .card-grid--posts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .past-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .notice-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 768px) {
+  .campaign-band { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sf-m); }
+  .launch-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .locator__search { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto; align-items: end; }
+}
+
+@media (min-width: 1024px) {
+  .card-grid--posts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  /* The featured story runs media beside body rather than above it, which is what makes it read as
+     featured without a second type scale. */
+  .post-card--featured { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--sf-m); align-items: center; }
+  .post-card--featured .post-card__title { font-size: var(--fs-display-m); }
+  /* Roughly two fifths to three fifths, which is the proportion section 4.1 asks for, and the map is
+     sticky so it stays with the list a visitor is scrolling. */
+  .locator[data-map="google"] .locator__panes { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: var(--sf-m); align-items: start; }
+  .locator[data-map="google"] .locator__list { max-height: 42rem; overflow-y: auto; }
+  .locator[data-map="google"] .locator__map { position: sticky; top: calc(var(--header-h) + var(--s-4)); min-height: 34rem; }
+  .policy-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 3fr); gap: var(--sf-l); align-items: start; }
+  .policy-toc { position: sticky; top: calc(var(--header-h) + var(--s-5)); }
+  .policy-toc__mobile { display: none; }
+  .policy-toc__desktop { display: block; }
+  .policy-toc__desktop .policy-toc__list { max-height: 60svh; overflow-y: auto; margin-top: var(--s-4); }
+}
+
+/* Below 1024px the two panes become one, and the mode switch decides which is shown. Driven by a data
+   attribute rather than by a class on each pane, so one write to the container moves both. */
+/* No key, no two-pane layout. The list takes the whole column and the fallback panel becomes a short note
+   under it rather than a large empty box beside it. The panel stays, because it is what carries the honest
+   message and what the Map view shows on a phone. */
+.locator[data-map="none"] .locator__map { min-height: 9rem; }
+
+@media (max-width: 1023px) {
+  .locator__panes[data-mode="list"] .locator__map { display: none; }
+  .locator__panes[data-mode="map"] .locator__list { display: none; }
+  .locator__panes[data-mode="map"] .locator__map { min-height: 26rem; }
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .post-card__media:hover img { transform: scale(1.03); }
 }

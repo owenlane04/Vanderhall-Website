@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Contact Vanderhall about a dealer, a model, or support for a vehicle you own.">
+  <title>Contact Us | Vanderhall</title>
+  <link rel="icon" href="/assets/brand/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/assets/brand/favicon-32.png" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
+  <link rel="manifest" href="/site.webmanifest">
+  <link rel="canonical" href="https://vanderhall-website.vercel.app/contact/">
+  <link rel="stylesheet" href="/styles/bundle.css">
+  
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header" data-header>
+    <div class="site-header__inner">
+      <a class="brand" href="/"><img src="/assets/brand/vanderhall-lockup-horizontal-white.svg" alt="Vanderhall home" width="269" height="28"></a>
+      <nav class="desktop-nav" aria-label="Primary">
+        <a class="nav-link" href="/vehicles/">Vehicles</a><a class="nav-link" href="/concepts/">Concepts</a><a class="nav-link" href="/experience/">Experience</a><a class="nav-link" href="/dealers/">Dealers</a>
+      </nav>
+      <div class="site-header__actions">
+        <a class="button button--primary header-request" href="/contact/">Contact Us</a>
+        <button class="icon-button menu-button" type="button" data-open-menu aria-label="Open menu" aria-expanded="false"><span aria-hidden="true">☰</span></button>
+      </div>
+    </div>
+  </header>
+  <div class="sheet" data-menu-sheet hidden aria-hidden="true">
+    <div class="sheet__top"><img class="brand brand--sheet" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" alt="Vanderhall" width="211" height="22"><button class="icon-button" type="button" data-close-menu aria-label="Close menu">×</button></div>
+    <nav class="mobile-nav" aria-label="Mobile primary">
+      <a href="/vehicles/">Vehicles</a><a href="/concepts/">Concepts</a><a href="/experience/">Experience</a><a href="/dealers/">Dealers</a>
+      <a class="button button--primary" href="/contact/">Contact Us</a>
+    </nav>
+  </div>
+  <div class="sheet-backdrop" data-sheet-backdrop hidden></div>
+  <main id="main"><div class="page">
+    <header class="page-header page-header--marked form-shell"><nav class="back-nav" aria-label="Breadcrumb"><a href="/"><span aria-hidden="true">← </span>Home</a></nav><h1>Contact Vanderhall.</h1><p>Choose a request type and tell us how we can help. Your answers will guide your request to the right team.</p></header>
+    <section class="section--tight form-shell form-stack">
+      <form class="lead-form" id="contact-form" novalidate data-site-form data-form-id="contact" data-endpoint="">
+  <p class="form-key">Fields marked * are required.</p>
+  <div class="form-error-summary" role="alert" tabindex="-1" hidden></div>
+    <p class="form-step-status" aria-live="polite" data-step-status></p>
+    <fieldset class="form-fieldset form-step" data-step="1">
+      <legend>Your details</legend>
+      <div class="form-grid form-grid--pairs">
+        <div class="field"><label for="contact-form-first">First name<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="contact-form-first" name="firstName" autocomplete="given-name" required aria-required="true"><span class="field__error" id="contact-form-first-error"></span></div>
+        <div class="field"><label for="contact-form-last">Last name<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="contact-form-last" name="lastName" autocomplete="family-name" required aria-required="true"><span class="field__error" id="contact-form-last-error"></span></div>
+      </div>
+      <div class="field"><label for="contact-form-email">Email<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="contact-form-email" name="email" type="email" autocomplete="email" inputmode="email" required aria-required="true"><span class="field__error" id="contact-form-email-error"></span></div>
+      
+      <div class="field"><label for="contact-form-phone">Phone<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="contact-form-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" required aria-required="true"><span class="field__error" id="contact-form-phone-error"></span></div>
+      <div class="form-nav" data-form-nav hidden><button class="button button--secondary" type="button" data-step-next>Continue</button></div>
+    </fieldset>
+    <fieldset class="form-fieldset form-step" data-step="2">
+      <legend>Your request</legend>
+      
+      <fieldset class="field-group" data-radio-group data-category-group><legend>What can we help with?<span aria-hidden="true"> *</span><span class="sr-only"> required</span></legend><div class="radio-column"><label class="check"><input id="contact-form-category-dealer-experience" type="radio" name="category" value="dealer-experience" required aria-required="true"> <span>Dealer Experience</span></label><label class="check"><input id="contact-form-category-product-information" type="radio" name="category" value="product-information" required aria-required="true"> <span>Product Information</span></label><label class="check"><input id="contact-form-category-customer-service" type="radio" name="category" value="customer-service" required aria-required="true"> <span>Customer Service</span></label></div><span class="field__error" id="contact-form-category-error"></span></fieldset>
+      <div class="form-nav" data-form-nav hidden><button class="button button--secondary" type="button" data-step-back>Back</button><button class="button button--secondary" type="button" data-step-next>Continue</button></div>
+    </fieldset>
+    <fieldset class="form-fieldset form-step" data-step="3">
+      <legend>Details</legend>
+      <div class="form-branch" data-branch="dealer-experience">
+      <h3 class="form-branch__title">Dealer Experience</h3>
+      <p class="field__help">Questions about a dealer, a service visit, or parts.</p>
+      <div class="field"><label for="contact-form-dealer-experience-subcategory">What is your request about?<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><select id="contact-form-dealer-experience-subcategory" name="subcategory" data-branch-required><option value="">Select a request type</option><option value="parts">Parts</option><option value="service">Service</option><option value="sales">Sales</option></select><span class="field__error" id="contact-form-dealer-experience-subcategory-error"></span></div><div class="field"><label for="contact-form-dealer-experience-dealer">Dealer or location, if you know it</label><input id="contact-form-dealer-experience-dealer" name="dealerId" autocomplete="off"><span class="field__error" id="contact-form-dealer-experience-dealer-error"></span></div><div class="field conditional-field" data-vin data-vin-when="service"><label for="contact-form-dealer-experience-vin">VIN</label><input id="contact-form-dealer-experience-vin" name="vin" autocomplete="off" aria-describedby="contact-form-dealer-experience-vin-help contact-form-dealer-experience-vin-error"><span class="field__help" id="contact-form-dealer-experience-vin-help">Seventeen characters, from the vehicle or its registration.</span><span class="field__error" id="contact-form-dealer-experience-vin-error"></span></div>
+    </div><div class="form-branch" data-branch="product-information">
+      <h3 class="form-branch__title">Product Information</h3>
+      <p class="field__help">Questions about a Vanderhall model.</p>
+      <div class="field"><label for="contact-form-product-information-model">Model</label><select id="contact-form-product-information-model" name="model" data-model-select><option value="">Select a model</option><option value="brawley">Brawley</option><option value="santarosa">Santarosa</option><option value="carmel">Carmel (past model)</option><option value="venice">Venice (past model)</option></select><span class="field__error" id="contact-form-product-information-model-error"></span></div><div class="field"><label for="contact-form-product-information-timeframe">Purchase timeframe</label><select id="contact-form-product-information-timeframe" name="timeframe"><option value="">Select a timeframe</option><option>Ready now</option><option>1 to 3 months</option><option>3 to 6 months</option><option>Just looking</option></select><span class="field__error" id="contact-form-product-information-timeframe-error"></span></div><div class="field"><label for="contact-form-product-information-postal">ZIP or postal code</label><input id="contact-form-product-information-postal" name="postalCode" autocomplete="postal-code" inputmode="numeric"><span class="field__error" id="contact-form-product-information-postal-error"></span></div><div class="field"><label for="contact-form-product-information-message">Message</label><textarea id="contact-form-product-information-message" name="message" rows="4"></textarea><span class="field__error" id="contact-form-product-information-message-error"></span></div>
+    </div><div class="form-branch" data-branch="customer-service">
+      <h3 class="form-branch__title">Customer Service</h3>
+      <p class="field__help">Support for an owned vehicle, documentation, or a warranty question.</p>
+      <div class="field"><label for="contact-form-customer-service-topic">Request topic<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><select id="contact-form-customer-service-topic" name="topic" data-branch-required><option value="">Select a topic</option><option value="vehicle-support">Vehicle support</option><option value="owner-documentation">Owner documentation</option><option value="warranty-question">Warranty question</option><option value="other">Something else</option></select><span class="field__error" id="contact-form-customer-service-topic-error"></span></div><div class="field"><label for="contact-form-customer-service-model">Model</label><select id="contact-form-customer-service-model" name="model" data-model-select><option value="">Select a model</option><option value="brawley">Brawley</option><option value="santarosa">Santarosa</option><option value="carmel">Carmel (past model)</option><option value="venice">Venice (past model)</option></select><span class="field__error" id="contact-form-customer-service-model-error"></span></div><fieldset class="field-group" data-radio-group data-ownership><legend>Do you own the vehicle?</legend><div class="radio-row"><label class="check"><input id="contact-form-customer-service-owns-yes" type="radio" name="ownsVehicle" value="yes"> <span>Yes</span></label><label class="check"><input id="contact-form-customer-service-owns-no" type="radio" name="ownsVehicle" value="no"> <span>No</span></label></div><span class="field__error" id="contact-form-customer-service-owns-error"></span></fieldset><div class="field conditional-field" data-vin data-ownership-field><label for="contact-form-customer-service-vin">VIN</label><input id="contact-form-customer-service-vin" name="vin" autocomplete="off" aria-describedby="contact-form-customer-service-vin-help contact-form-customer-service-vin-error"><span class="field__help" id="contact-form-customer-service-vin-help">Seventeen characters, from the vehicle or its registration.</span><span class="field__error" id="contact-form-customer-service-vin-error"></span></div><div class="field conditional-field" data-ownership-field><label for="contact-form-customer-service-purchase-dealer">Dealer of purchase</label><input id="contact-form-customer-service-purchase-dealer" name="dealerOfPurchase" autocomplete="off"><span class="field__error" id="contact-form-customer-service-purchase-dealer-error"></span></div><div class="field conditional-field" data-ownership-field><label for="contact-form-customer-service-purchase-date">Purchase date</label><input id="contact-form-customer-service-purchase-date" name="purchaseDate" type="date" autocomplete="off"><span class="field__error" id="contact-form-customer-service-purchase-date-error"></span></div><div class="field"><label for="contact-form-customer-service-message">Message</label><textarea id="contact-form-customer-service-message" name="message" rows="4"></textarea><span class="field__error" id="contact-form-customer-service-message-error"></span></div>
+    </div>
+      <div class="form-nav" data-form-nav hidden><button class="button button--secondary" type="button" data-step-back>Back</button></div>
+    </fieldset>
+    
+  <div class="honeypot" aria-hidden="true"><label>Company<input name="honeypot" tabindex="-1" autocomplete="off"></label></div>
+  <input type="hidden" name="render_timestamp" value="">
+  <input type="hidden" name="form_id" value="contact">
+  <input type="hidden" name="page" value="">
+  <div class="form-submit-row"><button class="button button--primary" type="submit" data-submit-label="Send request">Send request</button></div>
+  <p class="form-status" tabindex="-1" aria-live="polite"></p>
+  <p class="form-note">This form is not connected yet, so nothing you enter here is sent.</p>
+  </form>
+      <p class="form-note">This is a design preview. Your information was not sent.</p>
+      <p class="form-note">Prefer email? Write to <a href="mailto:inquiry@vanderhall.com">inquiry@vanderhall.com</a>.</p>
+    </section>
+  </div></main>
+  <footer class="site-footer">
+  <div class="footer-links">
+    <div><h2>Vehicles</h2><a href="/brawley/">Brawley</a><a href="/santarosa/">Santarosa</a><a href="/carmel/">Carmel</a><a href="/venice/">Venice</a><a href="/concepts/">Concepts</a></div>
+    <div><h2>Experience</h2><a href="/experience/">Experience</a><a href="/blog/">Blog</a></div>
+    <div><h2>Owners</h2><a href="/owners/">Owner manuals</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a><a href="https://apps.apple.com/us/app/vanderhall/id6761500330">Vanderhall app for iPhone</a><a href="https://play.google.com/store/apps/details?id=com.vanderhall.customerapp">Vanderhall app for Android</a></div>
+    <div><h2>Connect</h2><a href="/dealers/">Dealers</a><a href="/contact/">Contact</a><a class="footer-email" href="mailto:inquiry@vanderhall.com">inquiry@vanderhall.com</a><a href="/recommend-dealer/">Recommend a dealer</a><a href="/dealer-inquiry/">Become a dealer</a></div>
+    <div class="footer-follow"><h2>Follow</h2><a href="https://www.facebook.com/vanderhallusa/" aria-label="Vanderhall on Facebook">Facebook</a><a href="https://www.instagram.com/vanderhall/" aria-label="Vanderhall on Instagram">Instagram</a><a href="https://twitter.com/vanderhallusa" aria-label="Vanderhall on Twitter">Twitter</a><a href="https://www.linkedin.com/company/vanderhall" aria-label="Vanderhall on LinkedIn">LinkedIn</a><a href="https://www.tiktok.com/@vanderhallusa" aria-label="Vanderhall on TikTok">TikTok</a><a href="https://www.youtube.com/@VanderhallUSA" aria-label="Vanderhall on YouTube">YouTube</a></div>
+  </div>
+  <div class="footer-legal">
+    <img class="footer-lockup" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" width="231" height="24" loading="lazy" decoding="async" alt="Vanderhall">
+    <span>© 2026 Vanderhall. Hand-built in Provo, Utah.</span>
+    <ul class="footer-legal__links"><li><a href="/safety/">Safety notices</a></li><li><a href="/careers/">Careers</a></li><li><a href="/privacy/">Privacy policy</a></li></ul>
+  </div>
+</footer>
+  <script>addEventListener('load',()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{const s=document.createElement('script');s.src='/scripts/site.js';document.body.append(s)})),{once:true})</script>
+</body>
+</html>

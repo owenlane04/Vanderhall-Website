@@ -4,6 +4,8 @@
 // for 1280 except the Brawley chassis crop, which is a tight window on a 1640px frame, and this
 // project does not upscale. Declaring the shorter srcset here is what keeps the page from asking for
 // a rung the pipeline never wrote: check-links would fail the build if it did.
+import { footnoteText } from "./footnotes.mjs";
+
 const FEATURE_WIDTHS = [640, 800, 960, 1280];
 const feature = (root, name, widths = FEATURE_WIDTHS) => ({
   src: `${root}/${name}-${widths.includes(960) ? 960 : widths.at(-1)}.webp`,
@@ -28,9 +30,14 @@ const modules = (root, specGroups, entries) => {
 // Completeness is checked per model rather than per modules() call, because Brawley draws its
 // photographs from two image roots and each call can only see its own batch. Run over the whole
 // module list, every group must be claimed exactly once.
+// V13-C. A past-model gallery declares no specification groups and no paired modules, so both loops run
+// over empty lists and the assertion passes by having nothing to check. That is the right shape: the rule
+// is "no group may be orphaned", and a page with no groups cannot orphan one. What would be wrong is
+// leaving the historical arrays attached to a model whose page never renders them, which is why
+// HISTORICAL_SPECS below holds them instead.
 const assertPairings = (model) => {
   const counts = new Map(model.specGroups.map((group) => [group.name, 0]));
-  for (const item of model.images.modules) {
+  for (const item of model.images.modules ?? []) {
     if (!item.specs) continue;
     counts.set(item.specs.name, (counts.get(item.specs.name) ?? 0) + 1);
   }
@@ -40,16 +47,38 @@ const assertPairings = (model) => {
   }
 };
 
+// V13-C. A past-model gallery frame: a photograph, a caption in the caps register, and alt text. No
+// specification group, ever. This is deliberately a different function from modules() rather than a flag
+// on it, because the whole point of the conversion is that a gallery renderer cannot reach a spec group:
+// there is no parameter here through which one could arrive.
+const galleryFrames = (root, entries) => entries.map(([name, label, alt, widths = FEATURE_WIDTHS]) => ({
+  ...feature(root, name, widths),
+  label,
+  alt,
+}));
+
 const VENICE_FEATURES = "/assets/images/v2/features/venice";
 const CARMEL_FEATURES = "/assets/images/v2/features/carmel";
 const SANTAROSA_FEATURES = "/assets/images/v2/features/santarosa";
 const BRAWLEY_LIFESTYLE = "/assets/images/brawley/lifestyle";
 const BRAWLEY_FEATURES = "/assets/images/v2/features/brawley";
 
-// Published verbatim from the live vanderhallusa.com Brawley GTS page, read 2026-08-05 and
-// approved by Owen the same day. Model pages publish figures now, so the estimate sentence rides
-// on all of them rather than on the purchase page alone.
-export const SPEC_DISCLAIMER = "Features and specifications are estimated and subject to change without notice.";
+// V13-F. The estimate sentence is no longer a flat paragraph appended to every page that publishes a
+// figure. It is the `spec-estimate` record in src/data/footnotes.mjs, referenced by note ID from the rows
+// and figures it actually qualifies, and rendered once per page as a real footnote in first-use order.
+// The string is unchanged, which is why it is still exported: the checks compare the published sentence
+// against this one source, and the sentence a visitor reads is the same sentence it always was.
+export const SPEC_ESTIMATE = "spec-estimate";
+export const SPEC_DISCLAIMER = footnoteText(SPEC_ESTIMATE);
+
+// The two note-reference shorthands used across the specification groups below. `EST` is the estimate
+// sentence; `GTS_ONLY` is the legacy Brawley page's own `**Available only on Brawley GTS, Brawley GTS+`,
+// which that page attaches to torque, horsepower, and the eCrab and eSteer drive modes. Nothing else on
+// this site claims a figure varies by trim, and nothing here invents one: a trim-availability note is
+// attached only where Vanderhall's own page published one.
+const EST = [SPEC_ESTIMATE];
+const EST_GTS_ONLY = [SPEC_ESTIMATE, "brawley-gts-availability"];
+const GTS_ONLY = ["brawley-gts-availability"];
 
 // Brawley GTS purchase page. The price, the three paint tiers, and the disclosure blocks were
 // read from the live vanderhallusa.com configurator on 2026-08-05 and approved by Owen in chat
@@ -161,10 +190,14 @@ const BRAWLEY_SPECS = [
     rows: [
       // SPLIT from the LIVE row "Lighting": "7 in high-performance LED halo headlights with
       // ultra-bright tail lights and a 32 in 5000 lumen LED lightbar".
-      { label: "Headlights", value: "7 in high-performance LED halo" },
-      { label: "Light bar", value: "32 in 5000 lumen LED" },
+      { label: "Headlights", value: "7 in high-performance LED halo", noteIds: EST },
+      { label: "Light bar", value: "32 in 5000 lumen LED", noteIds: EST },
       // SPLIT from "Protection": "Front and rear removable skid plates, full roll cage, 4-point
       // harness safety belts".
+      // Unmarked, and the rule behind that is worth stating once here rather than at every row: the
+      // estimate note is attached to measured engineering figures, not to equipment descriptions. A
+      // 4-point harness and a full roll cage are configurations. Marking every row would put an
+      // asterisk on 32 of them, which is a page of asterisks and no information.
       { label: "Skid plates", value: "Front and rear removable" },
       { label: "Roll cage", value: "Full" },
       { label: "Safety belts", value: "4-point harness" },
@@ -180,20 +213,29 @@ const BRAWLEY_SPECS = [
       // is visible, to the frame that shows both of them.
       { label: "Tail lights", value: "Ultra-bright" },
       { label: "Roof", value: "Full hard roof with fixed moonroof" }, // LIVE
-      { label: "Estimated dry weight", value: "3,700 lb" }, // LIVE
-      { label: "Length, width, height", value: "147.5 x 76 x 69.5 in" }, // LIVE
-      { label: "Storage capacity", value: "5.1 sq ft" }, // LIVE
-      { label: "Towing capacity", value: "1,500 lb, 300 lb tongue weight, front and rear 2 in receiver" }, // LIVE, extends the V1 row
+      { label: "Estimated dry weight", value: "3,700 lb", noteIds: EST }, // LIVE
+      { label: "Length, width, height", value: "147.5 x 76 x 69.5 in", noteIds: EST }, // LIVE
+      { label: "Storage capacity", value: "5.1 sq ft", noteIds: EST }, // LIVE
+      { label: "Towing capacity", value: "1,500 lb, 300 lb tongue weight, front and rear 2 in receiver", noteIds: EST }, // LIVE, extends the V1 row
     ],
   },
   {
     // The juniper photograph: the whole vehicle at rest, which is the page's signature frame and the
     // right place for the figures that describe what it is rather than what it is made of.
+    //
+    // V13-B. The Range row is gone, and it is gone from every surface rather than from this one: the
+    // GTS figure band, the GTS meta description, the Product JSON-LD that derives from the band, and the
+    // summary and intro sentences that the homepage and /vehicles/ inherit. Owen removed the claim, so
+    // the site must not state it anywhere, including in machine-readable output where no visitor would
+    // notice it surviving. Q-V13-11. Four rows here now, not five, and the page total is 32 rather than
+    // 33; no unrelated row was moved in to keep the old count.
     name: "Output and powertrain",
     rows: [
-      { label: "Range", value: "Up to 140 mi" },
-      { label: "Torque", value: "488 lb-ft" },
-      { label: "Power", value: "283 to 404 hp" },
+      // Torque and power carry the estimate note AND the legacy page's own trim-availability note. That
+      // second mark is not an editorial choice: vanderhallusa.com's Brawley features page prints
+      // "**Available only on Brawley GTS, Brawley GTS+" against both of these figures.
+      { label: "Torque", value: "488 lb-ft", noteIds: EST_GTS_ONLY },
+      { label: "Power", value: "283 to 404 hp", noteIds: EST_GTS_ONLY },
       { label: "Motors", value: "Quad-electric with integrated cooling system" }, // LIVE
       { label: "Battery", value: "Lithium-ion battery pack" }, // LIVE
     ],
@@ -219,11 +261,11 @@ const BRAWLEY_SPECS = [
       { label: "Front and rear suspension", value: "Stamped steel control arms" }, // LIVE
       // SPLIT from the LIVE row "Shocks": "21 in travel with cooling reservoir and gas bump stop".
       // The travel figure is also the one the GTS figure band publishes, word for word.
-      { label: "Suspension travel", value: "21 in" },
+      { label: "Suspension travel", value: "21 in", noteIds: EST },
       { label: "Shocks", value: "Cooling reservoir and gas bump stop" },
-      { label: "Ground clearance", value: "18 in" }, // LIVE
+      { label: "Ground clearance", value: "18 in", noteIds: EST }, // LIVE
       // The distance between the axles is a chassis figure and this is the frame that shows an axle.
-      { label: "Wheelbase", value: "112.5 in" }, // LIVE
+      { label: "Wheelbase", value: "112.5 in", noteIds: EST }, // LIVE
     ],
   },
   {
@@ -233,19 +275,27 @@ const BRAWLEY_SPECS = [
     name: "Wheels, tires, and drive",
     rows: [
       { label: "Drivetrain", value: "4-wheel drive with traction control" }, // LIVE
-      { label: "Drive modes", value: "4x2, 4x4, eCrawl, eCrab, eSteer" },
-      { label: "Tires", value: "Atlas Paraller M/T 35x12.50R18LT" }, // LIVE
-      { label: "Wheels", value: "18x8 in aluminum" }, // LIVE
-      { label: "Brakes", value: "Regenerative braking with 200 mm in-board discs and ceramic pads" }, // LIVE
+      // The legacy page marks eCrab and eSteer as GTS and GTS+ only. The mark goes on the row rather
+      // than on two words inside it, because the row is the smallest thing this renderer can qualify and
+      // splitting the value to mark half of it would mean authoring a value Vanderhall never published.
+      { label: "Drive modes", value: "4x2, 4x4, eCrawl, eCrab, eSteer", noteIds: GTS_ONLY },
+      { label: "Tires", value: "Atlas Paraller M/T 35x12.50R18LT", noteIds: EST }, // LIVE
+      { label: "Wheels", value: "18x8 in aluminum", noteIds: EST }, // LIVE
+      { label: "Brakes", value: "Regenerative braking with 200 mm in-board discs and ceramic pads", noteIds: EST }, // LIVE
     ],
   },
 ];
 
 // Santarosa. LIVE rows read from vanderhallusa.com/santarosa-features-3-wheel-ev-electric-autocycle/
 // on 2026-08-05. Two rows on that page are deliberately absent here: the wiper system and the
-// removable capshade both carry a triple-asterisk footnote whose meaning is not stated anywhere
-// readable, and a row whose qualifier is unknown could turn optional equipment into standard.
-// The optional range row is kept because its own label states the condition.
+// removable capshade.
+//
+// V13 corrects the research record about why, and then keeps the decision anyway. The older note here
+// said the triple-asterisk qualifier on those two rows was unreadable. It is readable: the live page
+// displayed "*** Available only on Santarosa GT, Santarosa GTS, Santarosa GTS+" during the 2026-08-06
+// audit. Knowing what the mark says does not approve the rows it marks. Their exact figures, the mark,
+// the applicable trims, and the wording all have to be approved together, deliberately, and none of that
+// has happened, so both rows stay out and no `***` note exists in the registry to reference them.
 //
 // V11-C rebalances the nine-row chassis group across the frames that show it and fixes one pairing
 // that was plainly wrong: the lighting row, which describes headlights, tail lights and a third
@@ -258,22 +308,29 @@ const SANTAROSA_SPECS = [
     // The street photograph, a full side view on cobblestones.
     name: "Chassis and lighting",
     rows: [
-      { label: "Drivetrain", value: "Front-wheel drive with traction control" }, // LIVE
+      // V13-B: the Drivetrain row moved OUT of here and into the powertrain group below. It is an
+      // already-published row being reassigned, not a new one: with range and horsepower removed, the
+      // powertrain group would have held three rows, below the four-row floor V11-C established, and the
+      // honest fix is to put the drive layout with the motors that drive it rather than to invent a
+      // replacement figure or to let one group fall to three.
       { label: "Front suspension", value: "Cast aluminum double wishbone" }, // LIVE
       { label: "Rear suspension", value: "Cast aluminum trailing arm" }, // LIVE
       { label: "Shocks", value: "Coil-over adjustable" }, // LIVE
       { label: "Parking brake", value: "Electric auto-setting" }, // LIVE
-      { label: "Lighting", value: "7 in high-performance LED halo headlights with ultra-bright tail lights and a third brake light" }, // LIVE
+      { label: "Lighting", value: "7 in high-performance LED halo headlights with ultra-bright tail lights and a third brake light", noteIds: EST }, // LIVE
     ],
   },
   {
     // The mountain turnout, the whole vehicle at rest.
-    name: "Output and range",
+    //
+    // V13-B. Renamed from "Output and range", because the group no longer publishes a range and a heading
+    // that names a figure the rows do not carry is worse than no heading. The 150-mile standard range, the
+    // 300-mile optional range, and the 180 hp output are removed here and on every other surface, per
+    // Q-V13-12. Torque stays: Owen removed the range and power claims, not the torque figure.
+    name: "Electric powertrain",
     rows: [
-      { label: "Standard range", value: "150 mi" },
-      { label: "Optional range", value: "300 mi" }, // LIVE
-      { label: "Torque", value: "216 lb-ft" },
-      { label: "Power", value: "180 hp" },
+      { label: "Drivetrain", value: "Front-wheel drive with traction control" }, // LIVE
+      { label: "Torque", value: "216 lb-ft", noteIds: EST },
       { label: "Motors", value: "Twin-electric with integrated cooling system" }, // LIVE
       { label: "Battery", value: "Lithium-ion battery pack" }, // LIVE
     ],
@@ -281,12 +338,12 @@ const SANTAROSA_SPECS = [
   {
     name: "Dimensions and weight",
     rows: [
-      { label: "Curb weight", value: "1,539 to 1,749 lb" }, // LIVE
+      { label: "Curb weight", value: "1,539 to 1,749 lb", noteIds: EST }, // LIVE
       { label: "Chassis", value: "Aluminum unibody" }, // LIVE
-      { label: "Length, width, height", value: "143 x 68.9 x 50.2 in" }, // LIVE
-      { label: "Wheelbase", value: "101.4 in" }, // LIVE
-      { label: "Ground clearance", value: "4.9 in" }, // LIVE
-      { label: "Storage capacity", value: "5.1 sq ft" }, // LIVE
+      { label: "Length, width, height", value: "143 x 68.9 x 50.2 in", noteIds: EST }, // LIVE
+      { label: "Wheelbase", value: "101.4 in", noteIds: EST }, // LIVE
+      { label: "Ground clearance", value: "4.9 in", noteIds: EST }, // LIVE
+      { label: "Storage capacity", value: "5.1 sq ft", noteIds: EST }, // LIVE
     ],
   },
   {
@@ -294,11 +351,11 @@ const SANTAROSA_SPECS = [
     // once, so it is the right home for the wheels, the tires and the brakes behind them.
     name: "Wheels, tires, and brakes",
     rows: [
-      { label: "Front tires", value: "Atlas Force UHP 225/35R19" }, // LIVE
-      { label: "Rear tires", value: "Atlas Force UHP 295/30R19" }, // LIVE
-      { label: "Front wheels", value: "19x8 in aluminum" }, // LIVE
-      { label: "Rear wheels", value: "19x11 in aluminum" }, // LIVE
-      { label: "Brakes", value: "Adaptive regenerative braking with 200 mm in-board high-temp stainless rotors and ceramic pads" }, // LIVE
+      { label: "Front tires", value: "Atlas Force UHP 225/35R19", noteIds: EST }, // LIVE
+      { label: "Rear tires", value: "Atlas Force UHP 295/30R19", noteIds: EST }, // LIVE
+      { label: "Front wheels", value: "19x8 in aluminum", noteIds: EST }, // LIVE
+      { label: "Rear wheels", value: "19x11 in aluminum", noteIds: EST }, // LIVE
+      { label: "Brakes", value: "Adaptive regenerative braking with 200 mm in-board high-temp stainless rotors and ceramic pads", noteIds: EST }, // LIVE
     ],
   },
   {
@@ -440,15 +497,20 @@ const brawleyGts = {
   tiers: ["standard", "specialty", "metallic"].map((key) => ({ key, ...PAINT_TIERS[key] })),
   paint,
   defaultPaint: "obsidian-black",
+  // V13-B. Three figures, not four. RANGE is gone, and this array is also where the Product JSON-LD's
+  // additionalProperty list comes from, so removing it here is what removes the claim from the machine-
+  // readable output as well. That is verified in the built HTML rather than assumed from this edit.
   figures: [
-    { label: "POWER", value: "283 to 404 hp" },
-    { label: "TORQUE", value: "488 lb-ft" },
-    { label: "RANGE", value: "Up to 140 mi" },
-    { label: "SUSPENSION TRAVEL", value: "21 in" },
+    { label: "POWER", value: "283 to 404 hp", noteIds: [SPEC_ESTIMATE] },
+    { label: "TORQUE", value: "488 lb-ft", noteIds: [SPEC_ESTIMATE] },
+    { label: "SUSPENSION TRAVEL", value: "21 in", noteIds: [SPEC_ESTIMATE] },
   ],
   scene: { name: "desert", label: "OPEN DESERT", alt: "Brawley on packed sand under a clear sky" },
   priceDisclaimer: "Manufacturer's Suggested Retail Price. Excludes options; taxes; title; registration; delivery, processing and handling fee; dealer charges.",
-  specDisclaimer: SPEC_DISCLAIMER,
+  // V13-F. The estimate sentence reaches this page as a footnote now, referenced by the figure band and
+  // by every marked row of the specification table, and printed once under DISCLOSURES where all of its
+  // references are contained. The sentence itself is unchanged.
+  specNoteIds: [SPEC_ESTIMATE],
   // Verbatim from the live vanderhallusa.com Brawley GTS page, read 2026-08-05. Safety and legal
   // language is never paraphrased, reordered, or condensed.
   //
@@ -459,9 +521,26 @@ const brawleyGts = {
   safety: [
     "The Brawley is an off-road, electric vehicle not intended for on-road use and can be hazardous to operate. Driver must be at least 18 years old with a valid driver's license to operate.",
     "Some states may require additional training and certification. Riders should always wear helmets, eye protection, and footwear. Ride within your limits and never do stunt driving.",
-    "Never ride under the influence of alcohol or drugs. All riders should take a safety training course. Vanderhall and Brawley are registered trademarks and the property of Vanderhall Motor Works, Inc. or its affiliates.",
+    // V13-A. This paragraph used to end with a trademark attribution naming the corporate entity. The
+    // clause is withheld from public output, and the reasoning matters because two rules collide here.
+    //
+    // Q-V13-25 bans the old public brand name from every delivered surface. Q-V13-27 says legal must
+    // supply approved replacement wording and that the old phrase gets no public exception. Neither
+    // permits this project to paraphrase a legal sentence on its own. So the only honest move is to
+    // publish neither version and to say so: see `trademarkClause` below.
+    //
+    // What is NOT withheld is a single word of safety instruction. The two safety sentences in this
+    // paragraph are Vanderhall's own, verbatim, unreordered, and they still ship. A trademark
+    // attribution is an ownership statement about marks, not a warning about operating a vehicle, and
+    // removing it takes no safety information off the page.
+    "Never ride under the influence of alcohol or drugs. All riders should take a safety training course.",
     "Refer to the relevant owner's manual and all safety warnings before driving or riding.",
   ],
+  // Null until legal supplies Vanderhall-only wording, which is a production blocker in
+  // src/data/prototype.mjs. The withheld source sentence is recorded in
+  // Research/V13-legal-pending.md rather than here, so that no delivered file carries the banned
+  // phrase and the record of what was removed still exists.
+  trademarkClause: null,
 };
 
 export const models = [
@@ -478,8 +557,14 @@ export const models = [
     // the estimate sentence, and no photograph shows a warranty. Read from the live feature page
     // 2026-08-05; the entity was verified in V1.
     warranty: "6-month Vanderhall limited warranty. 36-month battery pack warranty. Warranty entity: Vanderhall North America, LLC (Vanderhall NA).",
-    summary: "Quad-motor electric off-road UTV with seating for four, 488 lb-ft of torque, and up to 140 mi of range.",
-    intro: "Quad-motor electric off-road UTV with a seating capacity of four. Published output spans 283 to 404 hp with 488 lb-ft of torque, up to 140 mi of range, and 21 in of suspension travel.",
+    // V13-B, Q-V13-11. The range clause is out of both sentences. These two strings are why a template
+    // edit alone would have been incomplete: the homepage and /vehicles/ inherit them, so the claim
+    // reached four routes from here.
+    summary: "Quad-motor electric off-road UTV with seating for four and 488 lb-ft of torque.",
+    intro: "Quad-motor electric off-road UTV with a seating capacity of four. Published output spans 283 to 404 hp with 488 lb-ft of torque and 21 in of suspension travel.",
+    // Both sentences carry engineering figures, so wherever they are printed the estimate note has to be
+    // printed on the same surface. A note on the model page cannot qualify a figure on the homepage.
+    copyNoteIds: [SPEC_ESTIMATE],
     specGroups: BRAWLEY_SPECS,
     images: {
       focal: "50% 55%",
@@ -518,8 +603,10 @@ export const models = [
     powertrain: { fuel: "electric", layout: "3-wheel" },
     descriptor: "Three-wheel electric autocycle.",
     warranty: "1-year Vanderhall limited warranty. 36-month battery pack warranty.",
-    summary: "Three-wheel electric autocycle. Twin motors drive the front wheels, with 180 hp and a published standard range of 150 mi.",
-    intro: "Three-wheel electric autocycle. Twin motors drive the front wheels and produce 180 hp and 216 lb-ft, with a published standard range of 150 mi.",
+    // V13-B, Q-V13-12. Range and horsepower are out of both sentences; torque stays.
+    summary: "Three-wheel electric autocycle with twin motors driving the front wheels.",
+    intro: "Three-wheel electric autocycle. Twin motors drive the front wheels and produce 216 lb-ft of torque.",
+    copyNoteIds: [SPEC_ESTIMATE],
     specGroups: SANTAROSA_SPECS,
     images: {
       focal: "34% 49%",
@@ -535,7 +622,7 @@ export const models = [
       ],
       modules: modules(SANTAROSA_FEATURES, SANTAROSA_SPECS, [
         ["street", "COBBLESTONES", "Santarosa on a cobblestone street outside a coffee shop", "Chassis and lighting"],
-        ["sunset", "MOUNTAIN TURNOUT", "Santarosa at a mountain turnout with the sun low behind it", "Output and range"],
+        ["sunset", "MOUNTAIN TURNOUT", "Santarosa at a mountain turnout with the sun low behind it", "Electric powertrain"],
         ["city", "ROOFTOP AT DUSK", "Santarosa with a hard roof on a rooftop deck at dusk", "Dimensions and weight"],
         ["top-view", "FROM ABOVE", "Santarosa seen from above on a concrete floor", "Wheels, tires, and brakes"],
         ["dashboard", "THE FASCIA", "Santarosa fascia with chrome vents and script", "Cabin"],
@@ -548,12 +635,15 @@ export const models = [
     powertrain: { fuel: "gas", layout: "3-wheel" },
     descriptor: "Three-wheel gas roadster.",
     pastModel: true,
-    // Stated on the page because the figures describe one model year. Source documents and the
-    // reasoning are in the CARMEL_SPECS comment above.
-    specNote: "Specifications shown are for the 2019 Carmel.",
+    // V13-C. Carmel is an editorial gallery now, so it declares no specification groups and carries no
+    // model-year qualifier: there are no figures on the page for a qualifier to qualify. CARMEL_SPECS is
+    // retained in HISTORICAL_SPECS below with every source note intact. The research is not deleted to
+    // make a page look clean; it simply stops being published.
+    specGroups: [],
+    inventoryNote: "Carmel is a past Vanderhall model. Contact the Vanderhall dealer network to ask about remaining inventory. Availability is not guaranteed.",
+    cta: { label: "Find a dealer", href: "/dealers/" },
     summary: "Open two-seat gas roadster on three wheels, shown here in red with a tan interior.",
     intro: "Open two-seat gas roadster on three wheels. The photographs show red bodywork, a leather-wrapped three-spoke wheel, four analog gauges, and tan contrast-stitched seats.",
-    specGroups: CARMEL_SPECS,
     images: {
       focal: "52% 60%",
       hero: "/assets/images/v2/heroes/carmel/carmel-wide-1920.webp",
@@ -565,14 +655,14 @@ export const models = [
         { ...feature(CARMEL_FEATURES, "dashboard"), alt: "Carmel dashboard and analog gauges" },
         { ...feature(CARMEL_FEATURES, "lake-reflection"), alt: "Carmel side profile on a causeway between two sheets of water" },
       ],
-      // Three photographs carry figures and three carry their label alone. See the CARMEL_SPECS
-      // comment: 15 verified rows cannot fill six modules at four, and the alternative to a
-      // label-only frame is an invented one.
-      modules: modules(CARMEL_FEATURES, CARMEL_SPECS, [
-        ["beach-reflection", "ON THE SAND", "Carmel on damp sand with its reflection in a tidal pool", "Body, wheels, and tires"],
-        ["lake-reflection", "STILL WATER", "Carmel side profile on a causeway between two sheets of water", "Chassis and dimensions"],
+      // V13-C. The six delivered Carmel feature subjects, as a gallery. This is the whole delivered set
+      // for this model, so the conversion needs no new processing, no upscaling, and no third image
+      // system: the frames that used to sit beside specification groups now sit on their own.
+      gallery: galleryFrames(CARMEL_FEATURES, [
+        ["beach-reflection", "ON THE SAND", "Carmel on damp sand with its reflection in a tidal pool"],
+        ["lake-reflection", "STILL WATER", "Carmel side profile on a causeway between two sheets of water"],
         ["downtown", "AFTER DARK", "Carmel on wet paving at night"],
-        ["dashboard", "THE COCKPIT", "Carmel steering wheel, gauges, and toggle switches", "Powertrain and comfort"],
+        ["dashboard", "THE COCKPIT", "Carmel steering wheel, gauges, and toggle switches"],
         ["seats", "TAN LEATHER", "Carmel tan contrast-stitched seats from above"],
         ["shifter", "SHIFT BALL", "Carmel shift knob and drilled alloy pedal"],
       ]),
@@ -584,11 +674,14 @@ export const models = [
     powertrain: { fuel: "gas", layout: "3-wheel" },
     descriptor: "Three-wheel gas roadster.",
     pastModel: true,
-    specNote: "Specifications shown are for the 2020 Venice GT.",
+    // V13-C, as Carmel. VENICE_SPECS is retained in HISTORICAL_SPECS, including its two third-party rows
+    // and the reasons five other figures were never published.
+    specGroups: [],
+    inventoryNote: "Venice is a past Vanderhall model. Contact the Vanderhall dealer network to ask about remaining inventory. Availability is not guaranteed.",
+    cta: { label: "Find a dealer", href: "/dealers/" },
     // Homepage section: one line. Vehicles page: the same line plus one more.
     summary: "Open two-seat gas roadster on three wheels, shown here in silver over black.",
     intro: "Open two-seat gas roadster on three wheels. The photographs show polished silver bodywork over a black lower body, a wood-rimmed steering wheel, and tan leather seats.",
-    specGroups: VENICE_SPECS,
     images: {
       focal: "45% 55%",
       hero: "/assets/images/v2/heroes/venice/venice-wide-1920.webp",
@@ -602,13 +695,14 @@ export const models = [
         { ...feature(VENICE_FEATURES, "forest-road"), alt: "Venice on a forest road" },
         { ...feature(VENICE_FEATURES, "seats"), alt: "Venice seats in tan leather" },
       ],
-      // Two interior details stay label-only: Venice has four specification groups and six
-      // photographs, and a detail photograph carrying its label alone reads as deliberate.
-      modules: modules(VENICE_FEATURES, VENICE_SPECS, [
-        ["forest-road", "FOREST ROAD", "Venice on a forest road at sunrise", "Chassis and suspension"],
-        ["mountain-lake", "AT THE LAKE", "Venice parked beside an alpine lake", "Wheels, tires, and brakes"],
-        ["motion", "ON THE MOVE", "Venice photographed in motion under an underpass", "Powertrain and capacities"],
-        ["seats", "TWO SEATS", "Venice tan leather seats and wood-rimmed steering wheel", "Comfort and controls"],
+      // V13-C. Six of the seven delivered Venice feature subjects. `seaside` is deliberately not here:
+      // it is the lead frame above, which is what the compact Past Models card on /vehicles/ shows, so
+      // including it would open the gallery with the photograph the visitor just clicked.
+      gallery: galleryFrames(VENICE_FEATURES, [
+        ["forest-road", "FOREST ROAD", "Venice on a forest road at sunrise"],
+        ["mountain-lake", "AT THE LAKE", "Venice parked beside an alpine lake"],
+        ["motion", "ON THE MOVE", "Venice photographed in motion under an underpass"],
+        ["seats", "TWO SEATS", "Venice tan leather seats and wood-rimmed steering wheel"],
         ["speedometer", "ONE DIAL", "Venice analog speedometer set into tan leather"],
         ["steering-wheel", "WOOD AND ALUMINUM", "Venice four-spoke steering wheel with a wooden rim"],
       ]),
@@ -619,3 +713,21 @@ export const models = [
 models.forEach(assertPairings);
 
 export const modelBySlug = Object.fromEntries(models.map((model) => [model.slug, model]));
+
+// V13. Current and past, derived from the one flag rather than from a second hard-coded slug list in
+// page rendering. /vehicles/ splits on these, the homepage renders the current set, and a fifth model
+// arriving needs no edit anywhere but this file.
+export const currentModels = models.filter((model) => !model.pastModel);
+export const pastModels = models.filter((model) => model.pastModel);
+
+// V13-C. The researched specification arrays for the two past models, retained in full with every source
+// note, provenance comment, and deliberate omission intact, and reachable by nothing that renders a page.
+//
+// This export exists so the data is preserved rather than deleted, and it is deliberately NOT shaped like
+// `specGroups`: nothing in src/components.mjs or src/build.mjs imports it, and the gallery renderer takes
+// a frame list, so there is no parameter through which these could reach HTML. check-content asserts the
+// inverse rule directly, that no value in here appears in any built page.
+export const HISTORICAL_SPECS = Object.freeze({
+  carmel: { modelYear: "2019 Carmel", groups: CARMEL_SPECS },
+  venice: { modelYear: "2020 Venice GT", groups: VENICE_SPECS },
+});
