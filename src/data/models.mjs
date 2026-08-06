@@ -1,8 +1,13 @@
 // Four rungs, not three. The 640 to 960 jump made a mid-density phone fetch 960 for a slot that
 // needed roughly 700, so an 800 rung cuts the over-fetch without touching WebP q80.
-const feature = (root, name) => ({
-  src: `${root}/${name}-960.webp`,
-  srcset: [640, 800, 960, 1280].map((width) => `${root}/${name}-${width}.webp ${width}w`).join(", "),
+// The rung list is a parameter because one delivery cannot fill it. Every source here is wide enough
+// for 1280 except the Brawley chassis crop, which is a tight window on a 1640px frame, and this
+// project does not upscale. Declaring the shorter srcset here is what keeps the page from asking for
+// a rung the pipeline never wrote: check-links would fail the build if it did.
+const FEATURE_WIDTHS = [640, 800, 960, 1280];
+const feature = (root, name, widths = FEATURE_WIDTHS) => ({
+  src: `${root}/${name}-${widths.includes(960) ? 960 : widths.at(-1)}.webp`,
+  srcset: widths.map((width) => `${root}/${name}-${width}.webp ${width}w`).join(", "),
 });
 
 // V8: a photo module is one photograph, a label in the caps register, and the specification group
@@ -12,11 +17,11 @@ const feature = (root, name) => ({
 // at import time rather than letting a page ship with an orphaned group.
 const modules = (root, specGroups, entries) => {
   const byName = new Map(specGroups.map((group) => [group.name, group]));
-  return entries.map(([name, label, alt, groupName = null]) => {
-    if (groupName === null) return { ...feature(root, name), label, alt, specs: null };
+  return entries.map(([name, label, alt, groupName = null, widths = FEATURE_WIDTHS]) => {
+    if (groupName === null) return { ...feature(root, name, widths), label, alt, specs: null };
     const group = byName.get(groupName);
     if (!group) throw new Error(`${root}/${name}: no specification group named "${groupName}"`);
-    return { ...feature(root, name), label, alt, specs: group };
+    return { ...feature(root, name, widths), label, alt, specs: group };
   });
 };
 
@@ -494,9 +499,15 @@ export const models = [
           ["desert", "OPEN DESERT", "Brawley on packed sand under a clear sky", "Dimensions and capability"],
           ["juniper", "UNDER THE JUNIPER", "Brawley parked in dry grassland beneath a juniper", "Output and powertrain"],
           ["interior", "THE CABIN", "Brawley cabin with steering wheel, gauges, and embossed seat backs", "Cabin"],
+          // V11 amendment. This replaces the legacy control-arm close-up, which showed a used vehicle
+          // with dried mud packed into the arms. Owen, on the live page: "the stuff is dirty." The
+          // replacement is the same hardware clean, and it is a better pairing besides: the skid
+          // plate, both lower control arms, the coil-over shocks and the ride height are all in one
+          // frame, where the old photograph showed the arms alone. Three rungs, not four, because the
+          // source is 1640px wide and the window is tight; see FEATURE_WIDTHS above.
+          ["chassis", "OFF THE GROUND", "Brawley front skid plate, lower control arms, and coil-over shocks between deep-tread tires", "Chassis and suspension", [640, 800, 960]],
         ]),
         ...modules(BRAWLEY_FEATURES, BRAWLEY_SPECS, [
-          ["suspension", "CONTROL ARMS", "Brawley control arms and coil-over dampers", "Chassis and suspension"],
           ["wheel", "WHEEL AND TIRE", "Brawley satin black wheel and mud-terrain tire", "Wheels, tires, and drive"],
         ]),
       ],

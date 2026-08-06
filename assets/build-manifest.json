@@ -973,50 +973,6 @@
     "crop_window": "full frame"
   },
   {
-    "delivered_file": "assets/images/v2/features/brawley/suspension-640.webp",
-    "source_path": "Assets/Legacy Website Selection/Brawley/brawley-detail-suspension.jpg",
-    "transform": "640x427 cover crop",
-    "verified_clean": "yes",
-    "source_width": 2880,
-    "source_height": 1920,
-    "output_width": 640,
-    "output_height": 427,
-    "crop_window": "full frame"
-  },
-  {
-    "delivered_file": "assets/images/v2/features/brawley/suspension-800.webp",
-    "source_path": "Assets/Legacy Website Selection/Brawley/brawley-detail-suspension.jpg",
-    "transform": "800x533 cover crop",
-    "verified_clean": "yes",
-    "source_width": 2880,
-    "source_height": 1920,
-    "output_width": 800,
-    "output_height": 533,
-    "crop_window": "full frame"
-  },
-  {
-    "delivered_file": "assets/images/v2/features/brawley/suspension-960.webp",
-    "source_path": "Assets/Legacy Website Selection/Brawley/brawley-detail-suspension.jpg",
-    "transform": "960x640 cover crop",
-    "verified_clean": "yes",
-    "source_width": 2880,
-    "source_height": 1920,
-    "output_width": 960,
-    "output_height": 640,
-    "crop_window": "full frame"
-  },
-  {
-    "delivered_file": "assets/images/v2/features/brawley/suspension-1280.webp",
-    "source_path": "Assets/Legacy Website Selection/Brawley/brawley-detail-suspension.jpg",
-    "transform": "1280x853 cover crop",
-    "verified_clean": "yes",
-    "source_width": 2880,
-    "source_height": 1920,
-    "output_width": 1280,
-    "output_height": 853,
-    "crop_window": "full frame"
-  },
-  {
     "delivered_file": "assets/images/v2/features/brawley/wheel-640.webp",
     "source_path": "Assets/Legacy Website Selection/Brawley/brawley-detail-wheel.jpg",
     "transform": "640x427 cover crop",
@@ -2519,6 +2475,42 @@
     "output_width": 1280,
     "output_height": 853,
     "crop_window": "full frame"
+  },
+  {
+    "delivered_file": "assets/images/brawley/lifestyle/chassis-640.webp",
+    "source_path": "Assets/Brawley-GTS-off-road-EV-01.jpg",
+    "transform": "640w 3:2 lifestyle; front end at ride height; safety paragraph and shield watermark excluded",
+    "verified_clean": "yes",
+    "source_width": 1640,
+    "source_height": 993,
+    "output_width": 640,
+    "output_height": 427,
+    "crop_window": "x=350 y=220 width=1000 height=667",
+    "clean_basis": "baked text y=895..955; delivered y=220..886; excluded"
+  },
+  {
+    "delivered_file": "assets/images/brawley/lifestyle/chassis-800.webp",
+    "source_path": "Assets/Brawley-GTS-off-road-EV-01.jpg",
+    "transform": "800w 3:2 lifestyle; front end at ride height; safety paragraph and shield watermark excluded",
+    "verified_clean": "yes",
+    "source_width": 1640,
+    "source_height": 993,
+    "output_width": 800,
+    "output_height": 533,
+    "crop_window": "x=350 y=220 width=1000 height=667",
+    "clean_basis": "baked text y=895..955; delivered y=220..886; excluded"
+  },
+  {
+    "delivered_file": "assets/images/brawley/lifestyle/chassis-960.webp",
+    "source_path": "Assets/Brawley-GTS-off-road-EV-01.jpg",
+    "transform": "960w 3:2 lifestyle; front end at ride height; safety paragraph and shield watermark excluded",
+    "verified_clean": "yes",
+    "source_width": 1640,
+    "source_height": 993,
+    "output_width": 960,
+    "output_height": 640,
+    "crop_window": "x=350 y=220 width=1000 height=667",
+    "clean_basis": "baked text y=895..955; delivered y=220..886; excluded"
   },
   {
     "delivered_file": "assets/images/brawley/walkaround/atomic-green/front-960.webp",

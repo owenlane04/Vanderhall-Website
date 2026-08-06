@@ -55,6 +55,12 @@ const BAKED_TEXT_BANDS = {
   "brawley-hero-starry-night.jpg": { top: 2740, bottom: 2820 },
   "brawley-lifestyle-desert-camp.jpg": { top: 86, bottom: 137 },
   "santarosa-action-winding-road.jpg": { top: 2755, bottom: 2855 },
+  // V11 amendment. Owen, on the live /brawley/ page: "is there another cleaner image we can use
+  // instead of this one? the stuff is dirty." The legacy control-arm close-up is a used vehicle with
+  // dried mud packed into the arms, which is honest off-road photography and the wrong thing under a
+  // specification group. This source is the same hardware showroom clean. Measured off the delivered
+  // pixels: the safety paragraph and the shield watermark occupy y=895..955 of 993.
+  "Brawley-GTS-off-road-EV-01.jpg": { top: 895, bottom: 955 },
 };
 
 // The vertical span of the original that actually reaches the delivered file, accounting for
@@ -163,7 +169,9 @@ const featureSpecs = {
     ["santarosa-detail-dashboard", "dashboard"],
   ],
   brawley: [
-    ["brawley-detail-suspension", "suspension"], ["brawley-detail-wheel", "wheel"],
+    // brawley-detail-suspension is retired in the V11 amendment. It is a used vehicle with dried mud
+    // packed into the control arms, and the clean replacement is delivered as brawley/lifestyle/chassis.
+    ["brawley-detail-wheel", "wheel"],
   ],
 };
 for (const [slug, entries] of Object.entries(featureSpecs)) {
@@ -347,14 +355,22 @@ await rm(resolve(outputRoot, "brawley"), { recursive: true, force: true });
 // All four sources are natively 3:2 and are delivered at 3:2 so the photo modules share one
 // slot. Desert and mountain-road carry the safety paragraph along their top edge; the desert
 // window also drops a part-frame branded trailer at the left edge that no copy describes.
+// The fifth entry carries its own rung list. Every other source here is wide enough for the full
+// 640 to 1280 ladder; the chassis crop is a tight window on a 1640px source, so 1280 would mean
+// upscaling, which this project does not do. Its module declares the matching three-rung srcset in
+// models.mjs, so no page can ask for a rung that was never delivered.
 const legacyLifestyle = [
   ["Brawley-EV-desert-01-scaled.jpg", "desert", { left: 320, top: 160, width: 2560, height: 1707 }, "safety paragraph and part-frame trailer excluded"],
   ["Brawley-GTS-EV-interior-scaled.jpg", "interior"],
   ["Brawley-front-view-on-mountain-road-01-scaled.jpg", "mountain-road", { left: 0, top: 170, width: 2880, height: 1750 }, "safety paragraph excluded"],
   ["110A3943-HDR.jpg", "juniper"],
+  // V11 amendment: the clean replacement for the muddy control-arm close-up. The window is the front
+  // end at ride height, which puts the skid plate, both lower control arms, the coil-over shocks and
+  // the clearance in one frame, and stops well above the baked safety paragraph at y=895.
+  ["Brawley-GTS-off-road-EV-01.jpg", "chassis", { left: 350, top: 220, width: 1000, height: 667 }, "front end at ride height; safety paragraph and shield watermark excluded", [640, 800, 960]],
 ];
-for (const [filename, slug, extract, note] of legacyLifestyle) {
-  for (const width of [640, 800, 960, 1280]) {
+for (const [filename, slug, extract, note, widths = [640, 800, 960, 1280]] of legacyLifestyle) {
+  for (const width of widths) {
     await encode(resolve(assetsRoot, filename), resolve(outputRoot, `brawley/lifestyle/${slug}-${width}.webp`), {
       width,
       height: Math.round(width * 2 / 3),

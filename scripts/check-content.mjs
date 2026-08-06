@@ -641,6 +641,9 @@ const CORRECTED = [
   "assets/images/v2/features/santarosa/sunset-1280.webp",
   "assets/images/brawley/lifestyle/desert-1280.webp",
   "assets/images/brawley/lifestyle/mountain-road-1280.webp",
+  // V11 amendment. The clean chassis crop tops out at 960 because its source is 1640px wide and the
+  // window is tight, so the widest delivery is the one asserted here.
+  "assets/images/brawley/lifestyle/chassis-960.webp",
 ];
 for (const file of CORRECTED) {
   const entry = manifest.find((row) => row.delivered_file === file);
