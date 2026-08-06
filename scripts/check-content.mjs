@@ -70,9 +70,84 @@ const combinedHtml = builtPages.map((page) => page.text).join("\n");
 // V8 retires the unit toggle: every figure ships imperial, so a second value cannot go stale or
 // be derived here. concept-back and resource-row are retired by the site-wide back affordance and
 // the owners page cards that replaced them.
-for (const token of ["data-missing", "MISSING:", "data-vehicles-trigger", "data-mega-panel", "data-open-lead", "data-lead-sheet", "data-filter-pill", "class=\"chapter", "concepts-theme", "stat-band", "concept-feature", "concept-wide", "concept-tile", "card-grid--vehicles", "card-grid--related", "class=\"gallery", "chip--status", "faq-list", "concept-ring", "row-links", "unit-toggle", "data-unit", "data-spec-table", "unit-metric", "vhw.units", "spec-toolbar", "concept-back", "resource-row"]) {
+// V11 retires two more. The pathway card lost both its callers when V11-D cleared the foot of the
+// homepage and V11-H cleared the foot of the dealers page; the ambient figure lost both of its
+// callers when V11-A deleted the two below-fold loops. Neither component exists any more, and both
+// are banned here rather than merely unreferenced, so a future edit cannot reintroduce markup whose
+// styles have gone. class="pathway matches both the container and the card, which is deliberate.
+for (const token of ["data-missing", "MISSING:", "data-vehicles-trigger", "data-mega-panel", "data-open-lead", "data-lead-sheet", "data-filter-pill", "class=\"chapter", "concepts-theme", "stat-band", "concept-feature", "concept-wide", "concept-tile", "card-grid--vehicles", "card-grid--related", "class=\"gallery", "chip--status", "faq-list", "concept-ring", "row-links", "unit-toggle", "data-unit", "data-spec-table", "unit-metric", "vhw.units", "spec-toolbar", "concept-back", "resource-row", "pathway", "class=\"ambient", "ambient__", "footer-social"]) {
   if (combinedHtml.includes(token)) failures.push(`Retired markup remains: ${token}`);
 }
+// The stylesheet has to lose them too. A retired component whose CSS survives is dead weight that
+// reads as live code to the next person to open the file.
+const bundleCss = await readFile(resolve(root, "styles/bundle.css"), "utf8");
+// Comments are stripped first. Naming a retired component in a note that explains why it went is
+// exactly what this file is full of, and a check that forbids writing down the reason would push the
+// reason out of the code.
+const bundleRules = bundleCss.replace(/\/\*[\s\S]*?\*\//g, "");
+for (const token of [".pathway", ".ambient", ".footer-social"]) {
+  if (new RegExp(`\\${token}[\\s{,:_]`).test(bundleRules)) failures.push(`Retired component styles remain in the bundle: ${token}`);
+}
+// V11-B. The scroll reveal's start state must stay inside @supports (animation-timeline: view()), and
+// this is the one assertion protecting the visitor who has neither script nor view() timelines. Both
+// the animation and its from-state live in there together, so a browser that cannot run the timeline
+// renders the final state rather than hiding content it can never reveal. Verify-browser cannot test
+// that combination: faking the feature query needs JavaScript, and the case is JavaScript being
+// absent. So it is asserted structurally, on the source.
+//
+// The fallback's own start state is the opposite case and is safe by a different mechanism: it hangs
+// off [data-reveal], which only site.js sets, so no-JavaScript means no start state at all.
+// Written with real brace matching, and the first version of it is why. That one searched the bundle
+// for the guard with indexOf and checked everything before the match. Mutation testing said MISSED:
+// indexOf had found the string inside a COMMENT, hundreds of lines above the first real guard, so
+// "everything before it" was a region the reveal rules were never in. The check could not have fired
+// for any input. Comments are stripped first now, and membership is decided by whether an offset
+// falls inside a guard's braces rather than by whether it appears before one.
+const cssRules = bundleCss.replace(/\/\*[\s\S]*?\*\//g, " ");
+const guardRanges = [];
+for (const match of cssRules.matchAll(/@supports \(animation-timeline: view\(\)\)\s*\{/g)) {
+  let depth = 0;
+  let index = match.index + match[0].length - 1;
+  for (; index < cssRules.length; index += 1) {
+    if (cssRules[index] === "{") depth += 1;
+    else if (cssRules[index] === "}") { depth -= 1; if (depth === 0) break; }
+  }
+  guardRanges.push([match.index, index]);
+}
+const insideAGuard = (offset) => guardRanges.some(([start, end]) => offset > start && offset < end);
+if (!guardRanges.length) failures.push("The scroll reveals must stay inside an @supports (animation-timeline: view()) guard");
+else {
+  // The keyframe carries the start state. Outside the guard, a browser that cannot run the timeline
+  // would apply opacity: 0 and never advance past it, which is content hidden with no way to reveal
+  // it. verify-browser cannot test that combination, because faking the feature query needs
+  // JavaScript and the case is JavaScript being absent.
+  for (const match of cssRules.matchAll(/@keyframes\s+(rise-in|strip-dissolve)\b/g)) {
+    if (!insideAGuard(match.index)) failures.push(`The ${match[1]} keyframe escaped the @supports guard, so a browser without view() timelines would hide content it can never reveal`);
+  }
+  for (const match of cssRules.matchAll(/animation-timeline:\s*view\(\)/g)) {
+    if (!insideAGuard(match.index)) failures.push("A view() timeline is declared outside the @supports guard");
+  }
+  // And the guard must actually contain the reveal, or it is guarding nothing.
+  if (!guardRanges.some(([start, end]) => cssRules.slice(start, end).includes("animation: rise-in"))) {
+    failures.push("No @supports guard contains the rise-in reveal, so the guard and the animation have drifted apart");
+  }
+}
+// And the fallback's start state must be reachable ONLY through the attribute, which is what makes a
+// page with no JavaScript have no start state at all. The selector list is read out and required to
+// be exactly [data-reveal]: a rule that also names a class would hide that class unconditionally on
+// any browser without view() timelines, and no browser test available here can see that combination,
+// because faking the feature query needs JavaScript and the case is JavaScript being absent.
+// The opening delimiter includes { because this rule lives inside a media block, so the character
+// before its selector is that block's own brace rather than a semicolon or a closing brace.
+const fallbackRule = cssRules.match(/(^|[;{}])\s*([^{};@]*\[data-reveal\][^{};]*?)\s*\{([^}]*opacity:\s*0[^}]*)\}/);
+if (!fallbackRule) failures.push("The reveal fallback's start state must hang off [data-reveal], which only site.js sets");
+else {
+  const selectors = fallbackRule[2].split(",").map((entry) => entry.trim()).filter(Boolean);
+  if (selectors.length !== 1 || selectors[0] !== "[data-reveal]") {
+    failures.push(`The reveal fallback's start state must be keyed on [data-reveal] alone, found: ${selectors.join(", ")}`);
+  }
+}
+if (!/\[data-reveal="shown"\]/.test(cssRules)) failures.push("The reveal fallback has no revealed state to transition into");
 for (const route of ["/about/", "/faq/", "/contact/"]) {
   if (combinedHtml.includes(route)) failures.push(`A link to the removed ${route} route remains`);
 }
@@ -146,8 +221,27 @@ for (const page of builtPages) {
 // independent of the generator it is checking. models.mjs is imported too, but only to compare the
 // published strings against their source of truth; the counts below are the non-circular anchor.
 const MODULE_COUNTS = { venice: 6, carmel: 6, santarosa: 5, brawley: 6 };
-const SPEC_GROUP_COUNTS = { venice: 4, carmel: 6, santarosa: 5, brawley: 6 };
-const SPEC_ROW_COUNTS = { venice: 19, carmel: 15, santarosa: 28, brawley: 28 };
+const SPEC_GROUP_COUNTS = { venice: 4, carmel: 3, santarosa: 5, brawley: 6 };
+const SPEC_ROW_COUNTS = { venice: 20, carmel: 15, santarosa: 28, brawley: 33 };
+// V11-C. Owen asked for the figures evened out: "Some of them only have two, some of them have
+// eight, so how can we even them out? I'll have four to five." This is the result, per module, in
+// page order, and it is the single most important number in this file to state independently.
+//
+// It is written out rather than derived from models.mjs, and V10's mutation testing is the reason:
+// two checks there took their expected value from the data they were checking, so deleting a row
+// deleted the expectation with it and both still passed. If a rebalance ever drops a specification
+// group back to two rows or pushes one to nine, this list is what notices. A zero is a photograph
+// that carries its label alone, which is a deliberate pattern on Carmel and Venice and is checked
+// as a count rather than as an absence.
+const MODULE_ROW_COUNTS = {
+  brawley: [5, 6, 5, 6, 6, 5],
+  santarosa: [6, 6, 6, 5, 5],
+  carmel: [5, 5, 0, 5, 0, 0],
+  venice: [5, 6, 5, 4, 0, 0],
+};
+// The claim in one line: every module that carries figures carries between four and six of them.
+const MODULE_ROW_FLOOR = 4;
+const MODULE_ROW_CEILING = 6;
 for (const slug of MODEL_SLUGS) {
   const html = pageBySuffix(`/${slug}/index.html`);
   const model = modelBySlug[slug];
@@ -166,6 +260,20 @@ for (const slug of MODEL_SLUGS) {
   if (specBlocks !== model.specGroups.length) failures.push(`/${slug}/ pairs ${specBlocks} groups but the data declares ${model.specGroups.length}`);
   const rows = (html.match(/class="spec-row"/g) || []).length;
   if (rows !== SPEC_ROW_COUNTS[slug]) failures.push(`/${slug}/ must publish ${SPEC_ROW_COUNTS[slug]} specification rows, found ${rows}`);
+  // V11-C, per module rather than per page. A page can hold the right total and still be the
+  // 2-and-9 distribution Owen asked to fix, which is why the total above is not enough on its own.
+  // Sliced module by module: the last slice runs to the end of the document, and nothing after the
+  // photo scroll carries a spec-row, so the count stays honest.
+  const moduleChunks = html.split('<figure class="photo-module').slice(1);
+  const perModule = moduleChunks.map((chunk) => (chunk.match(/class="spec-row"/g) || []).length);
+  if (JSON.stringify(perModule) !== JSON.stringify(MODULE_ROW_COUNTS[slug])) {
+    failures.push(`/${slug}/ must publish ${JSON.stringify(MODULE_ROW_COUNTS[slug])} specification rows per photograph, found ${JSON.stringify(perModule)}`);
+  }
+  for (const count of perModule) {
+    if (count !== 0 && (count < MODULE_ROW_FLOOR || count > MODULE_ROW_CEILING)) {
+      failures.push(`/${slug}/ has a photograph carrying ${count} specification rows, outside the ${MODULE_ROW_FLOOR} to ${MODULE_ROW_CEILING} band V11-C established`);
+    }
+  }
   // Every declared row must actually reach the page. A group silently dropped from a pairing is
   // the failure this catches.
   for (const group of model.specGroups) {
@@ -288,11 +396,26 @@ for (const slug of ["santarosa", "carmel", "venice"]) {
   if (!pageBySuffix(`/${slug}/index.html`).includes(`href="/dealers/?model=${slug}"`)) failures.push(`/${slug}/ must still lead to the inquiry form`);
 }
 
-// Two pathway cards each, in place of the V5 row of bare headings under a hairline rule.
-for (const [route, html] of [["/", homeHtml], ["/dealers/", dealersHtml]]) {
-  const cards = (html.match(/class="pathway"/g) || []).length;
-  if (cards !== 2) failures.push(`${route}: expected two pathway cards, found ${cards}`);
+// V11-D, V11-H and V11-J. The pathway cards are gone from the foot of both pages that carried them,
+// and the component with them. The four destinations they held must still be reachable, so each one
+// is asserted positively on every page rather than assumed to be somewhere in the footer.
+for (const href of ["/owners/", "/dealers/", "/recommend-dealer/", "/dealer-inquiry/"]) {
+  for (const page of builtPages) {
+    if (!page.text.includes(`href="${href}"`)) failures.push(`${page.path.replace(root, "")}: ${href} became unreachable when the pathway cards were removed`);
+  }
 }
+// V11-H. The dealers page is an inquiry, not a locator. Owen, 2026-08-05: "It's just a normal
+// inquiry." The retired title is banned sitewide and the form's own heading is deliberately unchanged.
+if (combinedHtml.includes("Find your dealer")) failures.push("The retired Find your dealer title remains");
+if (!dealersHtml.includes("<h1>Talk with Vanderhall.</h1>")) failures.push("/dealers/ must carry the Talk with Vanderhall. title");
+if (!dealersHtml.includes('<meta name="description" content="Talk with Vanderhall')) failures.push("/dealers/ meta description must follow its title");
+// V11-D. The homepage ends on the concepts split, and that split puts its media first from 768px up.
+// DOM order is the assertion that matters: the flip is a grid-area swap, so the body must still come
+// first in the markup, or the reading order has silently changed along with the visual one.
+if (!homeHtml.includes('<section class="section split split--media-first">')) failures.push("The homepage concepts split must take the media-first modifier");
+const splitBodyAt = homeHtml.indexOf('class="split__body"');
+const splitMediaAt = homeHtml.indexOf('class="split__media"');
+if (splitBodyAt < 0 || splitMediaAt < 0 || splitBodyAt > splitMediaAt) failures.push("The homepage split must keep its body first in the DOM, so the visual flip cannot reorder the page for a screen reader");
 
 if (!pageBySuffix("/santarosa/index.html").includes("/assets/images/v3/heroes/santarosa/")) failures.push("Santarosa is not using the V3 hangar hero");
 if (!pageBySuffix("/brawley/index.html").includes("/assets/images/v3/heroes/brawley/")) failures.push("Brawley is not using the V3 desert hero");
@@ -392,9 +515,58 @@ else {
   if (band.includes("data-ready")) failures.push("data-ready must be set by the island, never shipped in the markup");
   const bandImages = (band.match(/<img /g) || []).length;
   if (bandImages !== 18) failures.push(`The concept band must carry one image per item, found ${bandImages}`);
+  // V11-F. Every tile is lazy now, where four used to be eager. The band is display: none below
+  // 768px, and a phone should spend nothing on decoration it will never see; above the breakpoint
+  // the band is in the first viewport, where lazy defers nothing.
   const eager = (band.match(/loading="eager"/g) || []).length;
-  if (eager !== 4) failures.push(`The concept band must fetch four items eagerly, found ${eager}`);
+  if (eager !== 0) failures.push(`The concept band must fetch no tile eagerly, found ${eager}`);
+  if ((band.match(/loading="lazy"/g) || []).length !== 18) failures.push("Every concept band image must be lazy");
   if ((band.match(/alt=""/g) || []).length !== 18) failures.push("Every concept band image must carry an empty alt");
+}
+// V11-F. The band sits in the same grid row as the page header, behind the title, and the header
+// must still come FIRST in the markup: the band carries a pause button, and a visitor tabbing into
+// the page should reach the page's own title before a control for the decoration behind it.
+const conceptsHeaderAt = conceptsHubHtml.indexOf('<header class="page-header');
+const conceptsBandAt = conceptsHubHtml.indexOf('<div class="concept-marquee');
+if (conceptsHeaderAt < 0 || conceptsBandAt < 0 || conceptsHeaderAt > conceptsBandAt) {
+  failures.push("The concepts header must precede the band in the DOM, so the title is reached before the band's pause control");
+}
+if (!conceptsHubHtml.includes('<div class="page page--concepts">')) failures.push("The concepts hub must carry the class that overlaps its header and its band");
+
+// V11-E, D-V11-1. The white studio field is on the ten concept routes and on no others. A page
+// whose imagery is still keyed onto black must never receive it, and the concept imagery is no
+// longer keyed at all, so it must never lose it either. Stated as an exact route list rather than a
+// count, which is what makes a wrong page fail by name.
+const STUDIO_ROUTES = ["/concepts/index.html", ...["indio", "coachella", "brawley-r", "santarosa-r", "speedster", "yuma", "yuma-defense", "laduna", "balboa"].map((slug) => `/concepts/${slug}/index.html`)];
+if (STUDIO_ROUTES.length !== 10) failures.push(`The studio route list must name all ten concept routes, found ${STUDIO_ROUTES.length}`);
+for (const page of builtPages) {
+  const relative = page.path.replace(root, "");
+  const expected = STUDIO_ROUTES.includes(relative);
+  const found = page.text.includes('<main id="main" class="page--studio">');
+  if (expected && !found) failures.push(`${relative}: must render on the white studio field`);
+  if (!expected && found) failures.push(`${relative}: must not render on the white studio field`);
+  // The scope goes on main so the header and the footer, which sit outside it, stay dark.
+  if (found && !/<main id="main" class="page--studio">[\s\S]*<\/main>\s*<footer/.test(page.text)) failures.push(`${relative}: the studio scope must close before the footer, which stays dark`);
+}
+// The wordmark inversion existed only because V9 put a dark page behind dark artwork. On the studio
+// field the artwork renders as authored, and the override must be present or every concept title
+// renders as a white mark on white.
+if (!bundleCss.includes(".page--studio .concept-title img { filter: none; }")) failures.push("The concept wordmark must lose its inversion inside the studio scope");
+// V11-E is not light mode returning. The bans that removed it in V9 are asserted above across the
+// whole source tree; this is the positive half, that the studio scope is a fixed set of values on
+// one class with no branch, no control, and nothing stored.
+const tokensCss = await readFile(resolve(root, "src/styles/tokens.css"), "utf8");
+const studioScope = (tokensCss.match(/\.page--studio \{([\s\S]*?)\n\}/) || [])[1] || "";
+if (!studioScope) failures.push("The studio scope must be declared in tokens.css, which is the one file allowed raw values");
+else {
+  for (const property of ["--paper", "--ink", "--accent", "--focus-color", "--text-primary", "--text-secondary", "--text-tertiary", "--line", "--surface-1"]) {
+    if (!studioScope.includes(`${property}:`)) failures.push(`The studio scope must restate ${property}: a custom property resolves its var() where it is declared, so an inherited ramp would still mix the dark value`);
+  }
+  // The ramp is restated in full for the same reason, and every rung has to be there.
+  for (const rung of ["--ink-70", "--ink-60", "--ink-50", "--ink-24", "--ink-12", "--ink-06", "--ink-03"]) {
+    if (!studioScope.includes(`${rung}:`)) failures.push(`The studio scope is missing the ${rung} rung of the ink ramp`);
+  }
+  if (studioScope.includes("var(--accent)") && !studioScope.includes("--accent: #")) failures.push("The studio accent must be a derived value, not a reference to the dark-page accent");
 }
 const marqueeCount = (combinedHtml.match(/data-marquee(?=[\s>])/g) || []).length;
 if (marqueeCount !== 1) failures.push(`The concept band must appear on the hub alone, found ${marqueeCount}`);
@@ -485,7 +657,21 @@ for (const filename of excludedSources) if (manifest.some((entry) => entry.sourc
 // encodeLadder calls that produced them are gone, so a future image run cannot quietly bring back
 // eight deliveries no page references.
 for (const fragment of ["easter-sunset", "assets/images/v2/concepts", "assets/images/v3/vehicles", "assets/images/v3/heroes/home"]) if (files.some((path) => path.includes(fragment))) failures.push(`Retired delivery remains: ${fragment}`);
-if (/heroes\/home/.test(await readFile(resolve(root, "scripts/process-images.mjs"), "utf8").then((text) => text.replace(/\/\/[^\n]*/g, "")))) failures.push("The retired home hero ladder is still encoded by the image pipeline");
+// Comments are stripped first, so a line that only describes a retired step cannot fail the check
+// that the step is gone. Both of these are pipeline assertions rather than output assertions: the
+// delivered files could be right today and wrong on the next `npm run images`.
+const pipelineSource = (await readFile(resolve(root, "scripts/process-images.mjs"), "utf8")).replace(/\/\/[^\n]*/g, "");
+if (/heroes\/home/.test(pipelineSource)) failures.push("The retired home hero ladder is still encoded by the image pipeline");
+// V11-E. The concept slides and hub cards are delivered as authored, on the white canvas they were
+// drawn on. No threshold key removes a soft studio floor cleanly, and what survived V9's attempt is
+// the grey ghosting Owen reported. The pipeline must not key them again.
+for (const token of ["keyCanvas", "keyWhiteCanvas"]) {
+  if (pipelineSource.includes(token)) failures.push(`The image pipeline still keys the concept canvas: ${token}`);
+}
+if (/hubCards[\s\S]{0,1200}keyStudioFrame/.test(pipelineSource)) failures.push("The concept hub cards must not be keyed: they are extended onto the white they were shot on");
+if (!pipelineSource.includes('const STUDIO_PAPER = "#FFFFFF"') || !pipelineSource.includes("background: STUDIO_PAPER")) failures.push("The concept hub cards must be extended onto the studio white");
+// The dark paper survives for the Brawley GTS walkaround, which is on a dark page and keys cleanly.
+if (!pipelineSource.includes("keyStudioFrame")) failures.push("The walkaround keying must survive: those frames are still on a dark page");
 // The studio walkaround returns in V6: eight angles for each of the eight complete colours, plus
 // one still for Jean Grey, at two rungs each. Concrete Grey is not offered and is not delivered.
 const walkaroundRows = manifest.filter((entry) => entry.delivered_file.includes("brawley/walkaround"));
@@ -547,6 +733,8 @@ const EXPECTED_FOOTER_LINKS = [
 ];
 const EXPECTED_SOCIAL = 6;
 const EXPECTED_LEGAL = 3;
+// Vehicles, Owners, Connect, Follow. V11-I adds the fourth.
+const EXPECTED_FOOTER_COLUMNS = 4;
 // The generator must agree with the record, in both directions, so neither can drift alone.
 if (JSON.stringify([...SOCIAL_LINKS, ...APP_LINKS, ...LEGAL_LINKS]) !== JSON.stringify(EXPECTED_FOOTER_LINKS)) {
   failures.push("The footer's link data no longer matches this script's independent record of Owen's destinations");
@@ -559,8 +747,20 @@ for (const page of builtPages) {
   for (const [label, href] of FOOTER_LINKS) {
     if (!footer.includes(`href="${href}"`)) failures.push(`${relative}: the footer is missing the ${label} destination ${href}`);
   }
-  const socialItems = (footer.match(/<li><a href="[^"]+" aria-label="Vanderhall on /g) || []).length;
+  // V11-I. The six destinations are a fourth column of .footer-links now, not a horizontal caps row
+  // above the legal band, so they are matched in the column's own shape.
+  const socialItems = (footer.match(/<a href="[^"]+" aria-label="Vanderhall on /g) || []).length;
   if (socialItems !== EXPECTED_SOCIAL) failures.push(`${relative}: expected ${EXPECTED_SOCIAL} social links, found ${socialItems}`);
+  const columns = (footer.match(/<div class="footer-links">([\s\S]*?)<\/div>\s*<div class="footer-legal">/) || [])[1];
+  const columnCount = columns ? (columns.match(/<h2>/g) || []).length : 0;
+  if (columnCount !== EXPECTED_FOOTER_COLUMNS) failures.push(`${relative}: expected ${EXPECTED_FOOTER_COLUMNS} footer columns, found ${columnCount}`);
+  if (!footer.includes('<div class="footer-follow"><h2>Follow</h2>')) failures.push(`${relative}: the social destinations must head their own Follow column`);
+  // The two app links stay in the Owners column and out of the Follow one. sameAs is the
+  // organization's own profiles, and an app listing is a product page.
+  const followColumn = (footer.match(/<div class="footer-follow">([\s\S]*?)<\/div>/) || [])[1] || "";
+  for (const [label, href] of EXPECTED_FOOTER_LINKS.slice(EXPECTED_SOCIAL, EXPECTED_SOCIAL + 2)) {
+    if (followColumn.includes(href)) failures.push(`${relative}: the ${label} link belongs in the Owners column, not in Follow`);
+  }
   const legalItems = ((footer.match(/<ul class="footer-legal__links">([\s\S]*?)<\/ul>/) || [])[1] || "").match(/<li>/g) || [];
   if (legalItems.length !== EXPECTED_LEGAL) failures.push(`${relative}: expected ${EXPECTED_LEGAL} legal links, found ${legalItems.length}`);
   // The visible word must be inside the longer accessible name, or the label the visitor reads is not
@@ -568,6 +768,15 @@ for (const page of builtPages) {
   for (const [label] of EXPECTED_FOOTER_LINKS.slice(0, EXPECTED_SOCIAL)) {
     if (!footer.includes(`aria-label="Vanderhall on ${label}">${label}</a>`)) failures.push(`${relative}: ${label}'s accessible name must contain its visible text`);
   }
+  // V11-I shipped text, not glyphs, and this is the check that keeps that decision from being
+  // reversed by accident. LinkedIn's mark was removed from Simple Icons at v14.0.0 after Microsoft's
+  // legal notice and LinkedIn's own brand guidelines do not permit third-party use; Twitter's left
+  // with the X rebrand, so the collection's glyph is X while the destination and the label are
+  // Twitter. Four marks and two bare words would read as unfinished, and reinstating LinkedIn's from
+  // an older release would mean publishing artwork its owner asked to have withdrawn. Owen chose all
+  // six as text on 2026-08-05. An inline SVG appearing in this column means somebody has re-opened a
+  // rights question, and it should fail until they have answered it.
+  if (/<div class="footer-follow">[\s\S]*?<svg/.test(footer)) failures.push(`${relative}: a glyph appeared in the Follow column; the platform artwork rights behind it are not cleared`);
 }
 // Owen pasted these URLs with his own session's analytics identifiers attached. Publishing one would
 // hand every visitor a copy of them, so the ban is on the whole built tree and on the source that
@@ -649,11 +858,14 @@ for (const [route, text] of [["/brawley/gts/index.html", "ELECTRIC OFF-ROAD UTV"
   if (!pageBySuffix(route).includes(`<p class="eyebrow">${text}</p>`)) failures.push(`${route}: the informational ${text} eyebrow must stay`);
 }
 
-// V10-E. Three ambient blocks, on three routes, and nowhere else. Each one has to be complete in the
-// markup, because the markup is the whole no-JavaScript and reduced-motion experience.
-const AMBIENT_ROUTES = { "index.html": "hero", "/brawley/index.html": "figure", "/brawley/gts/index.html": "figure" };
+// V11-A. ONE ambient block, on the homepage, and nowhere else. D-V11-2 and D-V11-3: the montage
+// becomes the hero loop and the other two are deleted. The block has to be complete in the markup,
+// because the markup is the whole no-JavaScript, reduced-motion and below-768px experience.
+const AMBIENT_ROUTES = { "index.html": "hero" };
 const ambientCount = (combinedHtml.match(/data-ambient(?=[\s>])/g) || []).length;
-if (ambientCount !== 3) failures.push(`Expected three ambient video blocks sitewide, found ${ambientCount}`);
+if (ambientCount !== 1) failures.push(`Expected one ambient video block sitewide, found ${ambientCount}`);
+const videoTags = (combinedHtml.match(/<video(?=[\s>])/g) || []).length;
+if (videoTags !== 1) failures.push(`Expected one video element sitewide, found ${videoTags}`);
 for (const page of builtPages) {
   const relative = page.path.replace(root, "");
   const key = page.path === resolve(root, "index.html") ? "index.html" : relative;
@@ -661,6 +873,13 @@ for (const page of builtPages) {
   const found = (page.text.match(/data-ambient(?=[\s>])/g) || []).length;
   if (found !== expected) failures.push(`${relative}: expected ${expected} ambient video blocks, found ${found}`);
   if (!expected && page.text.includes("/assets/video/")) failures.push(`${relative}: references video on a route with no approved placement`);
+}
+// Stated as routes rather than as an absence, so a loop reappearing on either Brawley page is named
+// by the check that owns it rather than by whichever count happens to move.
+for (const route of ["/brawley/index.html", "/brawley/gts/index.html"]) {
+  const html = pageBySuffix(route);
+  if (html.includes("<video")) failures.push(`${route}: V11-A ships no motion footage on the Brawley pages`);
+  if (html.includes("/assets/video/")) failures.push(`${route}: still references a video asset`);
 }
 for (const [key, kind] of Object.entries(AMBIENT_ROUTES)) {
   const html = key === "index.html" ? homeHtml : pageBySuffix(key);
@@ -706,12 +925,21 @@ const deliveredVideoFiles = files.filter((path) => /\/assets\/video\/.+\.(?:webm
 for (const url of deliveredVideoFiles) {
   if (!videoUrls.has(url)) failures.push(`Delivered video that no page references: ${url}`);
 }
-if (deliveredVideoFiles.length !== 6) failures.push(`Expected six delivered video files, found ${deliveredVideoFiles.length}`);
+if (deliveredVideoFiles.length !== 2) failures.push(`Expected two delivered video files, found ${deliveredVideoFiles.length}`);
 const deliveredPosters = files.filter((path) => /\/assets\/video\/.+\.webp$/.test(path)).map((path) => path.replace(root, ""));
 for (const url of deliveredPosters) {
   if (!referenced.has(url)) failures.push(`Delivered poster that no page references: ${url}`);
 }
-if (deliveredPosters.length !== 9) failures.push(`Expected nine delivered posters, found ${deliveredPosters.length}`);
+if (deliveredPosters.length !== 3) failures.push(`Expected three delivered posters, found ${deliveredPosters.length}`);
+// V11-A. The ten retired files are deleted, not merely unreferenced, and they are named here so the
+// deletion cannot be quietly undone by a copy from the source package. The package itself is
+// untouched in Assets/Video Image Plan/, so restoring either loop is a copy rather than a re-encode;
+// what this forbids is a restore that nobody decided on. The orphan check above would catch the two
+// video files, but not the six poster rungs, which is why every basename is listed.
+for (const stem of ["brawley-canyon-hero-36-46", "brawley-canyon-action-13-23", "brawley-canyon-hero-poster", "brawley-canyon-action-13-23-poster"]) {
+  const survivors = files.filter((path) => path.includes("/assets/video/") && path.includes(stem)).map((path) => path.replace(root, ""));
+  if (survivors.length) failures.push(`Retired V11-A video delivery remains: ${survivors.join(", ")}`);
+}
 
 if (failures.length) {
   console.error(`Content checks failed (${failures.length}):\n${failures.join("\n")}`);

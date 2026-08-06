@@ -51,6 +51,15 @@ export const pageHeader = (title, intro, className = "", back = null) => `<heade
 // models carry no tag, because current is the default a visitor already assumes.
 export const pastModelTag = () => `<p class="model-tag">Past model</p>`;
 
+// V11 amendment, Owen on 2026-08-05: the tag goes beside the name rather than under it, "so there's
+// less text, less lengthy text". It is a qualifier on the name, not a line of its own, and a pill on
+// its own row read as a second heading. The wrapper exists because the tag has to stay the heading's
+// immediate next sibling: that adjacency is what check-content asserts, and it is what keeps the tag
+// from drifting away from the word it qualifies. It wraps to its own line on a narrow screen rather
+// than squeezing the name.
+export const modelHeadline = (name, { level = 3, pastModel = false } = {}) =>
+  `<div class="model-headline"><h${level}>${escapeHtml(name)}</h${level}>${pastModel ? pastModelTag() : ""}</div>`;
+
 // A null eyebrow takes the marked treatment instead, for the one section whose category word and
 // title were the same word. Everywhere else the eyebrow says something the title does not, which is
 // why V10 kept them: IN DETAIL, PAINT, SPECIFICATIONS and ORDER are categories, not repetitions.
@@ -79,20 +88,32 @@ export const conceptCard = (concept, { eager = false, level = 2 } = {}) => {
 // attribute and site.js reveals it in the same block that sets data-ready, which is what starts the
 // animation: motion can therefore never exist without its off switch, the walkaround's pattern.
 export const conceptMarquee = (items) => {
-  const item = (concept, index) => {
+  const item = (concept) => {
     const { width, height } = sizeOf(concept.card.src);
-    // The first four are eager. Three of them are already eager for the grid below, so the net new
-    // cost above the fold is about one 656w file.
-    const eager = index < 4;
+    // V11-F: every tile is lazy now, where four used to be eager. The band is display: none below
+    // 768px, and an eager fetch there would pull four files to the front of the queue for something
+    // the visitor will never see. Above the breakpoint this costs nothing, because the band sits in
+    // the first viewport and lazy defers only what is off-screen.
+    //
+    // Worth knowing before optimising this further: these eighteen tiles are nine URLs, and they are
+    // the same nine files the card grid below is built from. A phone that fetches them has fetched
+    // nothing it did not already need, which verify-browser asserts by comparing the two URL sets
+    // rather than by counting requests. The three eager fetches on this route stay where they were,
+    // on the first three real cards in the index.
     return `<div class="concept-marquee__item">
-        <img src="${concept.card.src}" width="${width}" height="${height}" sizes="${Math.round(656 / 2)}px" alt="" loading="${eager ? "eager" : "lazy"}" decoding="async">
+        <img src="${concept.card.src}" width="${width}" height="${height}" sizes="${Math.round(656 / 2)}px" alt="" loading="lazy" decoding="async">
         <span class="concept-marquee__name">${escapeHtml(concept.name)}</span>
       </div>`;
   };
-  const half = (offset) => items.map((concept, index) => item(concept, offset + index)).join("");
+  const half = () => items.map(item).join("");
+  // V11-F: the dissolve and the left mask are applied to the viewport, never to the bar. That is V10
+  // amendment 1 as a standing rule rather than a one-off fix: the media fades, its controls do not,
+  // because a control that is operable while it is hard to read is the defect. The bar therefore sits
+  // outside everything that changes opacity, and the pause button stays at full contrast whether the
+  // filmstrip behind the title is at the start of its dissolve or the end of it.
   return `<div class="concept-marquee bleed" data-marquee>
     <div class="concept-marquee__viewport" aria-hidden="true">
-      <div class="concept-marquee__track">${half(0)}${half(items.length)}</div>
+      <div class="concept-marquee__track">${half()}${half()}</div>
     </div>
     <div class="concept-marquee__bar">
       <button class="concept-marquee__toggle" type="button" aria-pressed="false" data-marquee-toggle hidden>Pause</button>
@@ -129,8 +150,7 @@ export const vehicleSection = (model, { index, copy, eager = false, level = 3, w
       ${support ? `<div class="vehicle-section__row">${support}</div>` : ""}
     </div>
     <div class="vehicle-section__body">
-      <h${level}>${model.name}</h${level}>
-      ${model.pastModel ? pastModelTag() : ""}
+      ${modelHeadline(model.name, { level, pastModel: model.pastModel })}
       <p>${escapeHtml(copy)}</p>
       ${textLink(`Explore ${model.name}`, `/${model.slug}/`)}
     </div>
@@ -183,14 +203,11 @@ export const modelBar = (model, { name = model.name, label, href, back } = {}) =
   </div>`;
 };
 
-// One bordered card per destination, replacing the V5 row of bare headings under a hairline.
-// The same component carried four destinations of different weight and read as crammed, which is
-// the complaint. The whole card is the target and the heading stays its accessible name.
-export const pathways = (items) => `<div class="pathways">${items.map(({ title, body, label, href }) => `<div class="pathway">
-      <h2 class="pathway__title"><a class="pathway__link" href="${href}">${escapeHtml(title)}</a></h2>
-      <p>${escapeHtml(body)}</p>
-      <span class="pathway__cue">${escapeHtml(label)}<span aria-hidden="true"> →</span></span>
-    </div>`).join("")}</div>`;
+// V11-J: pathways() is retired. V11-D removed its homepage pair and V11-H removed its dealers pair,
+// which were its last two callers, and a component with no callers is a thing that will be brought
+// back by accident. Its four destinations all live in the primary navigation and the footer, on
+// every page. The class joins the retired-components list in check-content.mjs, the treatment the
+// card wall, the unit toggle and the ambient block have each had.
 
 // The price is HTML text, never an image and never fetched, and the disclaimer is always visible
 // rather than hidden behind a tooltip or a modal.
@@ -265,22 +282,14 @@ export const hero = ({ src, srcset, tallSrcset, alt, focal, align = "", content,
     ${video ? `<div class="hero__bar">${videoToggle("hero__toggle")}</div>` : ""}
   </section>`;
 
-// The two below-fold ambient blocks. The homepage hero takes its video through hero() instead,
-// because there the moving image sits behind page content rather than in a figure of its own.
+// V11-A: ambientVideo() is retired with the two below-fold loops it rendered, on /brawley/ and
+// /brawley/gts/. The homepage hero is the site's one moving image and it takes its video through
+// hero() above, because there the film sits behind page content rather than in a figure of its own.
+// The .ambient class family joins the retired-components list in check-content.mjs.
 //
-// The poster is never removed and never covered by anything but the decoded video, which is what
-// keeps the switch invisible: same box, same crop, same focal point, so there is no frame in which
-// the layout has moved or the panel has gone black. The video fades in on its first presented frame.
-export const ambientVideo = ({ label, poster, webm, mp4, focal, sizes = "(min-width: 1280px) 1200px, 92vw" }) => `<figure class="ambient" data-ambient style="--ambient-focal:${focal}">
-    <div class="ambient__frame">
-      <img class="ambient__poster" src="${poster.src}" srcset="${poster.srcset}" sizes="${sizes}" width="${poster.width}" height="${poster.height}" alt="${escapeHtml(poster.alt)}" loading="lazy" decoding="async">
-      <video class="ambient__video" muted loop playsinline preload="none" tabindex="-1" aria-hidden="true" data-ambient-video>${videoSources({ webm, mp4 })}</video>
-    </div>
-    <figcaption class="ambient__bar">
-      <p class="eyebrow">${escapeHtml(label)}</p>
-      ${videoToggle("ambient__toggle")}
-    </figcaption>
-  </figure>`;
+// What the block taught is kept in hero(): the poster is never removed and never covered by anything
+// but the decoded video, so the switch is a cross-fade rather than a flash of black, and both are
+// declared at the same 1900 by 900 box so it cannot move a pixel.
 
 // The purchase page's reference block, and the only spec table left on the site. Model pages pair
 // their groups with photographs instead. Imperial only since V8: the manufacturer's own pages
@@ -453,17 +462,28 @@ export const LEGAL_LINKS = [
   ["Privacy policy", "/privacy/"],
 ];
 
+// V11-I. The six destinations become a fourth column rather than a horizontal caps row above the
+// legal band, so they read as a section of the footer instead of a strip appended to it, and the
+// sr-only heading becomes a visible "Follow" that matches the other three columns.
+//
+// Text, not glyphs, and this is a change from the V11 plan rather than a shortcut. The plan's own
+// constraint was inline SVG "under a stated license", and it named Simple Icons because that
+// collection is CC0. Two of the six are not in it: LinkedIn was removed at v14.0.0 following
+// Microsoft's legal notice, and LinkedIn's brand guidelines say third parties generally may not use
+// its logo; Twitter left with the X rebrand, so the collection's glyph is X while Owen's destination
+// and label are Twitter. Shipping four marks and two bare words would read as unfinished, and
+// reinstating LinkedIn's mark from an older release would mean publishing artwork its owner asked to
+// have withdrawn. Owen chose all six as text on 2026-08-05. It is the same rule that keeps the two
+// app store links as text: this project publishes a brand's artwork only under terms it can state.
+//
+// The visible word is the first half of the accessible name, so the longer label is additive and
+// Label in Name (WCAG 2.5.3) holds.
 export const footer = () => `<footer class="site-footer">
   <div class="footer-links">
     <div><h2>Vehicles</h2>${models.map((model) => `<a href="/${model.slug}/">${model.name}</a>`).join("")}<a href="/concepts/">Concepts</a></div>
     <div><h2>Owners</h2><a href="/owners/">Owner resources</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a>${APP_LINKS.map(([label, href]) => `<a href="${href}">${escapeHtml(label)}</a>`).join("")}</div>
     <div><h2>Connect</h2><a href="/dealers/">Dealers</a><a href="/recommend-dealer/">Recommend a dealer</a><a href="/dealer-inquiry/">Become a dealer</a></div>
-  </div>
-  ${/* Caps register rather than glyph artwork. The visible word is the whole accessible name's first
-        half, so the longer label is additive and Label in Name holds. */""}
-  <div class="footer-social">
-    <h2 class="sr-only">Vanderhall on social media</h2>
-    <ul>${SOCIAL_LINKS.map(([label, href]) => `<li><a href="${href}" aria-label="Vanderhall on ${escapeHtml(label)}">${escapeHtml(label)}</a></li>`).join("")}</ul>
+    <div class="footer-follow"><h2>Follow</h2>${SOCIAL_LINKS.map(([label, href]) => `<a href="${href}" aria-label="Vanderhall on ${escapeHtml(label)}">${escapeHtml(label)}</a>`).join("")}</div>
   </div>
   <div class="footer-legal">
     <img class="footer-lockup" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" width="231" height="24" loading="lazy" decoding="async" alt="Vanderhall Motor Works">
@@ -542,7 +562,11 @@ export const productSchema = (model) => {
   });
 };
 
-export const shell = ({ title, description, path, body, schema = "" }) => `<!doctype html>
+// mainClass carries the V11-E studio scope, and it goes on <main> rather than on .page for one
+// mechanical reason: .page is capped at --w-page and centred, so a white field declared there would
+// leave dark bands down both sides of a 1600px viewport. main is full width. The header and the
+// footer sit outside it and stay dark, which is what D-V11-1 asked for.
+export const shell = ({ title, description, path, body, schema = "", mainClass = "" }) => `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -560,7 +584,7 @@ export const shell = ({ title, description, path, body, schema = "" }) => `<!doc
 </head>
 <body>
   ${header(path)}
-  <main id="main">${body}</main>
+  <main id="main"${mainClass ? ` class="${mainClass}"` : ""}>${body}</main>
   ${footer()}
   <script>addEventListener('load',()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{const s=document.createElement('script');s.src='/scripts/site.js';document.body.append(s)})),{once:true})</script>
 </body>

@@ -4,7 +4,7 @@ import { basename, dirname, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
-import { keyStudioFrame, keyWhiteCanvas, keyingNote, KEYING } from "./lib/key-studio-frame.mjs";
+import { keyStudioFrame, keyingNote, KEYING } from "./lib/key-studio-frame.mjs";
 
 const run = promisify(execFile);
 const websiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -17,13 +17,13 @@ const outputRoot = resolve(websiteRoot, "assets/images");
 const brandRoot = resolve(websiteRoot, "assets/brand");
 const manifest = [];
 
-// V9 is a single dark page, so anything that used to be baked onto a white canvas is baked onto the
-// page paper instead. One value, used by the concept hub cards and by the studio keying.
+// V9 baked anything that used to sit on a white canvas onto the dark page paper instead. V11-E takes
+// the concepts back to a white studio field, so this value now has one consumer left: the Brawley GTS
+// walkaround frames, which are on a dark page and key cleanly.
 const DARK_PAPER = "#0E0E10";
-// How much of each concept slide the canvas key claimed, reported at the end so a render that was
-// never meant to be keyed cannot lose its sky quietly.
-const conceptKeying = [];
-const hubCardKeying = [];
+// V11-E. The concept hub cards are extended onto white again, which is the canvas their sources were
+// authored on, so the extension is invisible by construction rather than by a threshold.
+const STUDIO_PAPER = "#FFFFFF";
 
 await rm(resolve(outputRoot, "v2"), { recursive: true, force: true });
 await rm(resolve(outputRoot, "v3"), { recursive: true, force: true });
@@ -89,16 +89,10 @@ const encode = async (input, output, options = {}) => {
   // Legacy concept slides sit on padded canvases. Trimming the uniform border removes the
   // empty white or black margin so the delivered crop is only the composition itself.
   if (options.trim) pipeline = pipeline.trim({ threshold: options.trim });
-  // V9: the sheet-style concept slides carry their own white canvas, which reads as a plate on a dark
-  // page. The canvas is keyed onto the paper here, after any trim so the geometry is settled, and
-  // before the resize so the ladder rungs all come from one keyed image. The pipeline is materialised
-  // to raw and rebuilt, which is the only way to reach the pixels mid-chain.
-  if (options.keyCanvas) {
-    const raw = await pipeline.removeAlpha().raw().toBuffer({ resolveWithObject: true });
-    const keyed = keyWhiteCanvas({ data: raw.data, width: raw.info.width, height: raw.info.height, channels: raw.info.channels });
-    conceptKeying.push({ output: relative(websiteRoot, output), claimedFraction: keyed.claimedFraction });
-    pipeline = sharp(keyed.data, { raw: { width: keyed.width, height: keyed.height, channels: 3 } });
-  }
+  // V9 keyed the sheet-style concept slides' white canvas onto the dark paper here. V11-E removes
+  // that step with the dark concept pages: the slides are delivered as authored, on their own white
+  // canvas, and the page is white behind them. No threshold key removes a soft studio floor cleanly,
+  // which is exactly what the grey marks in the delivered files were.
   if (options.width && options.height) {
     pipeline = pipeline.resize({
       width: options.width,
@@ -187,10 +181,10 @@ for (const [slug, entries] of Object.entries(featureSpecs)) {
   }
 }
 
-const encodeLadder = async (input, directory, base, widths, { extract, trim, keyCanvas, transform = "native ratio" } = {}) => {
+const encodeLadder = async (input, directory, base, widths, { extract, trim, transform = "native ratio" } = {}) => {
   for (const width of widths) {
     const output = resolve(outputRoot, `v3/${directory}/${base}-${width}.webp`);
-    await encode(input, output, { width, ...(extract ? { extract } : {}), ...(trim ? { trim } : {}), ...(keyCanvas ? { keyCanvas } : {}), transform: `${transform}; ${width}w; WebP q80; verified clean${keyCanvas ? "; white canvas keyed to the dark paper" : ""}` });
+    await encode(input, output, { width, ...(extract ? { extract } : {}), ...(trim ? { trim } : {}), transform: `${transform}; ${width}w; WebP q80; verified clean` });
   }
 };
 
@@ -236,19 +230,19 @@ const conceptLadders = [
   ["Balboa", "vanderhall-balboa-ev-concept.png", "balboa", "hero"],
   ["Balboa", "balboa-slide-1-2-scaled.jpg", "balboa", "gallery-1"],
 ];
-// Every concept slide gets the canvas key. The sheet-style slides lose their white plate; the
-// full-bleed renders are unaffected, because a border-seeded fill on a dark render reaches nothing.
-// The claimed fraction of each is reported below rather than assumed.
+// V11-E: delivered as authored. The padded canvas is still trimmed, which is a geometry change and
+// removes only a uniform border, but nothing is keyed: the sheet-style slides keep the white studio
+// canvas they were drawn on, and the page under them is white again.
 for (const [folder, filename, slug, base] of conceptLadders) {
   const metadata = await sharp(conceptFile(folder, filename)).metadata();
   const widths = [960, 1280, 1920].filter((width) => width <= metadata.width);
-  await encodeLadder(conceptFile(folder, filename), `concepts/${slug}`, base, widths, { trim: 12, keyCanvas: true, transform: `${filename}; padded canvas trimmed; no line art, callouts, disclaimer, or legacy UI` });
+  await encodeLadder(conceptFile(folder, filename), `concepts/${slug}`, base, widths, { trim: 12, transform: `${filename}; padded canvas trimmed; no line art, callouts, disclaimer, or legacy UI` });
 }
 
-await encodeLadder(conceptFile("Indio", "indio-beach-slide-scaled.jpg"), "concepts/indio", "hero", [960, 1440, 2560], { trim: 12, keyCanvas: true, transform: "Indio hero; padded canvas trimmed" });
+await encodeLadder(conceptFile("Indio", "indio-beach-slide-scaled.jpg"), "concepts/indio", "hero", [960, 1440, 2560], { trim: 12, transform: "Indio hero; padded canvas trimmed" });
 // Explicit crop only: this source carries an alpha channel, and trimming a transparent
 // edge collapses the extract area.
-await encodeLadder(conceptFile("Yuma Defense", "vanderhall-yuma-defense-concept-vehicle.png"), "concepts/yuma-defense", "gallery-2", [960, 1280], { extract: { left: 0, top: 0, width: 1400, height: 650 }, keyCanvas: true, transform: "clean left vehicle band; More Concepts furniture excluded" });
+await encodeLadder(conceptFile("Yuma Defense", "vanderhall-yuma-defense-concept-vehicle.png"), "concepts/yuma-defense", "gallery-2", [960, 1280], { extract: { left: 0, top: 0, width: 1400, height: 650 }, transform: "clean left vehicle band; More Concepts furniture excluded" });
 const conceptMobiles = [
   ["Indio", "indio-slide-2-mobile.jpg", "indio"],
   ["Coachella", "coachella-slide-03-mobile-size.jpg", "coachella"],
@@ -256,7 +250,7 @@ const conceptMobiles = [
   ["Santarosa R", "vanderhall-santarosa-r-slide-mobile.jpg", "santarosa-r"],
   ["Yuma", "yuma-slide-1-3-mobile-2.jpg", "yuma"],
 ];
-for (const [folder, filename, slug] of conceptMobiles) await encode(conceptFile(folder, filename), resolve(outputRoot, `v3/concepts/${slug}/mobile-704.webp`), { width: 704, trim: 12, keyCanvas: true, transform: `mobile source ${filename}; padded canvas trimmed; verified clean; white canvas keyed to the dark paper` });
+for (const [folder, filename, slug] of conceptMobiles) await encode(conceptFile(folder, filename), resolve(outputRoot, `v3/concepts/${slug}/mobile-704.webp`), { width: 704, trim: 12, transform: `mobile source ${filename}; padded canvas trimmed; verified clean` });
 
 // Hub cards. Each 656x445 source draws the vehicle in one band of non-white rows and the
 // concept wordmark in a separate lower band, with a white gap between them. Taking the upper
@@ -306,37 +300,36 @@ for (const [slug, input] of hubCards) {
   if (box.width > CARD_WIDTH || box.height > CARD_HEIGHT) throw new Error(`${slug}: vehicle band ${box.width}x${box.height} does not fit the ${CARD_WIDTH}x${CARD_HEIGHT} card`);
   const left = Math.floor((CARD_WIDTH - box.width) / 2);
   const top = Math.floor((CARD_HEIGHT - box.height) / 2);
-  // V9 extends onto the page paper rather than white, and keys the band's own backdrop with the full
-  // studio treatment rather than the border flood alone. These sources are exactly what that keying
-  // was built for: a vehicle cutout on a white studio backdrop with a contact shadow beneath it. The
-  // border flood alone left that shadow as a white ellipse on the dark card, because the shadow's own
-  // gradient seals it off from the frame edge, and an ellipse of studio floor under each vehicle is
-  // the same white-plate problem in a softer shape.
+  // V11-E. No keying at all, and the extension is white.
   //
-  // bandTop is 0.62 here rather than the 0.78 the full frames use, because this extract is already
-  // cropped to the vehicle band: there is no empty backdrop above and below to spend the band on. QA
-  // per card, printed below: zero punctures on all nine, and 78 to 801 light pixels left under the
-  // midline, which is the shadow reading as a shadow.
+  // V9 extended these onto the dark paper and keyed the band's own backdrop with the full studio
+  // treatment. It was the best available answer to a vehicle cutout on a white studio backdrop with
+  // a contact shadow beneath it, and it still was not clean: a shadow is a gradient, no threshold
+  // removes a gradient, and what survived is the grey ghosting Owen saw under each vehicle.
+  //
+  // These sources are a vehicle photographed on white. The card is white now. So the delivered file
+  // is the source band, centred, on the same white it was shot on, and there is nothing to key and
+  // nothing that can leave a mark. The QA gate that guarded the keying went with it, because there is
+  // no longer a mask that could drift; what replaces it is that the extension colour and the source
+  // backdrop are the same value by construction.
   const output = resolve(outputRoot, `v3/concepts/hub/${slug}-656.webp`);
-  const raw = await sharp(input).extract(box).removeAlpha().raw().toBuffer({ resolveWithObject: true });
-  const keyed = keyStudioFrame({ data: raw.data, width: raw.info.width, height: raw.info.height, channels: raw.info.channels }, { bandTop: 0.62 });
-  if (keyed.metrics.holesInBody > 0) throw new Error(`${slug}: keying punctured the vehicle in ${keyed.metrics.holesInBody} places`);
-  hubCardKeying.push({ slug, lightBelowMid: keyed.metrics.lightBelowMid, holesInBody: keyed.metrics.holesInBody });
   await mkdir(dirname(output), { recursive: true });
-  const info = await sharp(keyed.data, { raw: { width: keyed.width, height: keyed.height, channels: 3 } })
-    .extend({ left, right: CARD_WIDTH - box.width - left, top, bottom: CARD_HEIGHT - box.height - top, background: DARK_PAPER })
+  const metadata = await sharp(input).metadata();
+  const info = await sharp(input)
+    .extract(box)
+    .extend({ left, right: CARD_WIDTH - box.width - left, top, bottom: CARD_HEIGHT - box.height - top, background: STUDIO_PAPER })
     .webp({ quality: 80, effort: 6, smartSubsample: true })
     .toFile(output);
-  record(output, input, `vehicle band x=${box.left}..${box.left + box.width} y=${box.top}..${box.top + box.height} centred on a ${CARD_WIDTH}x${CARD_HEIGHT} ${DARK_PAPER} canvas; baked wordmark excluded; ${keyingNote({ bandTop: 0.62 })}`, {
-    source_width: (await sharp(input).metadata()).width,
-    source_height: (await sharp(input).metadata()).height,
+  record(output, input, `vehicle band x=${box.left}..${box.left + box.width} y=${box.top}..${box.top + box.height} centred on a ${CARD_WIDTH}x${CARD_HEIGHT} ${STUDIO_PAPER} canvas; baked wordmark excluded; no keying`, {
+    source_width: metadata.width,
+    source_height: metadata.height,
     output_width: info.width,
     output_height: info.height,
     crop_window: `x=${box.left} y=${box.top} width=${box.width} height=${box.height}`,
     verified_clean: "yes",
   });
 }
-console.log(`Hub cards keyed onto ${DARK_PAPER}: ${hubCardKeying.map((entry) => `${entry.slug} ${entry.lightBelowMid}`).join(", ")} light pixels left below the midline, zero punctures.`);
+console.log(`Hub cards extended onto ${STUDIO_PAPER}, unkeyed: ${hubCards.length} delivered.`);
 
 for (const [folder, filename, slug] of [
   ["Indio", "indio-logo-2.png", "indio"],
@@ -623,12 +616,7 @@ await cp(canonicalBrawleyManual, resolve(manualsOutput, "2026-brawley-owners-man
 record(resolve(manualsOutput, "2026-brawley-owners-manual.pdf"), canonicalBrawleyManual, "existing canonical 2026 owner manual");
 await writeFile(resolve(websiteRoot, "assets/build-manifest.json"), JSON.stringify(manifest, null, 2));
 
-// The canvas key selects itself, so what it claimed is the evidence that it selected correctly: a
-// sheet gives up most of its area, a full-bleed render gives up almost none, and anything in between
-// is worth a look at the visual pass.
-const keyedSheets = conceptKeying.filter((entry) => entry.claimedFraction >= 0.05);
-const keyedRenders = conceptKeying.filter((entry) => entry.claimedFraction < 0.05);
-console.log(`Canvas key: ${keyedSheets.length} sheet deliveries gave up 5 percent or more of their area, ${keyedRenders.length} full-bleed deliveries gave up less.`);
-console.log(`  sheets: ${[...new Set(keyedSheets.map((entry) => entry.output.replace(/-\d+\.webp$/, "").replace("assets/images/v3/concepts/", "")))].join(", ")}`);
-console.log(`  largest claim among the full-bleed set: ${Math.max(0, ...keyedRenders.map((entry) => entry.claimedFraction))}`);
+// V11-E retires the canvas-key report with the key itself. Nothing in the concept set is keyed any
+// more, so there is no claimed fraction to audit; the studio walkaround's own QA report above is the
+// only keying evidence this pipeline still produces, and it still gates what ships.
 console.log(`Encoded ${manifest.length} traced assets.`);

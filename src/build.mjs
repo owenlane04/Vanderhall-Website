@@ -4,9 +4,8 @@ import { fileURLToPath } from "node:url";
 import { concepts } from "./data/concepts.mjs";
 import { modelBySlug, models } from "./data/models.mjs";
 import { privacySections, PRIVACY_SOURCE_LINE } from "./data/privacy.mjs";
-import { brawleyMontage, gtsAction, heroLoop } from "./data/video.mjs";
+import { heroLoop } from "./data/video.mjs";
 import {
-  ambientVideo,
   backLink,
   buttonLink,
   conceptCard,
@@ -18,10 +17,9 @@ import {
   internationalDealerForm,
   leadForm,
   modelBar,
+  modelHeadline,
   pageHeader,
   organizationSchema,
-  pastModelTag,
-  pathways,
   photoScroll,
   price,
   productSchema,
@@ -58,11 +56,10 @@ const PARENTS = {
   privacy: { label: "Home", href: "/" },
 };
 
-const modelPage = (model, { ambient = null } = {}) => {
+const modelPage = (model) => {
   const cta = model.cta || { label: "Contact", href: `/dealers/?model=${model.slug}` };
   const heroContent = `${eyebrow(`${model.powertrain.fuel} · ${model.powertrain.layout}`)}
-      <h1>${model.name}</h1>
-      ${model.pastModel ? pastModelTag() : ""}
+      ${modelHeadline(model.name, { level: 1, pastModel: model.pastModel })}
       <p class="hero__descriptor">${model.descriptor}</p>
       <div class="hero__actions">${buttonLink(cta.label, cta.href, "inverse")}</div>`;
   const body = `<div class="page">
@@ -71,11 +68,9 @@ const modelPage = (model, { ambient = null } = {}) => {
           not offer, so it earns its space on all four rather than on Brawley alone. */
       modelBar(model, { back: PARENTS[model.slug] })}
     <section class="section--tight narrow"><p class="lede">${model.overview}</p></section>
-    ${/* Brawley alone, and only because Brawley is the only vehicle with clean footage. The block
-          sits between the overview and the detail scroll, where it reads as the page drawing breath
-          rather than as an interruption of the paired photographs and figures below. It carries no
-          copy of its own beyond a neutral label: nothing about the vehicle is claimed from film. */
-      ambient ? `<section class="section--tight">${ambientVideo(ambient)}</section>` : ""}
+    ${/* V11-A: the ambient block that sat here between the overview and the detail scroll is gone
+          with the other two loops. The overview now runs straight into "A closer look", which is
+          the shape all four model pages shared before V10 and share again. */""}
     <section class="section">
       ${sectionHeading("IN DETAIL", `A closer look at ${model.name}.`)}
       ${/* Each photograph carries the figures it shows. The specification table that used to sit
@@ -116,10 +111,9 @@ const brawleyGtsPage = (model) => {
     <section class="section--tight">${walkaround(gts)}</section>
     <section class="section--tight">${figureBand(gts.figures)}<p class="gts-note">${gts.specDisclaimer}</p></section>
     <section class="section--tight"><figure class="gts-scene"><img src="${scene.src}" srcset="${scene.srcset}" sizes="(min-width: 1280px) 1200px, 92vw" width="${sizeOf(scene.src).width}" height="${sizeOf(scene.src).height}" alt="${gts.scene.alt}" loading="lazy" decoding="async"><figcaption>${gts.scene.label}</figcaption></figure></section>
-    ${/* The last motion beat before the figures. The video plan puts this after the figure band and
-          ahead of the specification block, which is what keeps it near the purchase decision without
-          cutting into the studio walkaround above. It replaces nothing and claims nothing. */
-      `<section class="section--tight">${ambientVideo(gtsAction)}</section>`}
+    ${/* V11-A: the action loop that sat between the lifestyle photograph and the figures is gone.
+          The purchase page is now entirely still: the studio walkaround, the paint tiers, the price,
+          and the specification block. */""}
     <section class="section narrow centered" id="specifications">${sectionHeading("SPECIFICATIONS", "Published figures")}${specTable(model)}</section>
     <section class="section--tight narrow centered">
       ${sectionHeading("ORDER", `Reserve your ${gts.name}.`, "Order through the Vanderhall reservation system, or ask Vanderhall to connect you with a dealer.")}
@@ -158,13 +152,14 @@ const homePage = () => {
       <p class="hero__descriptor">Vanderhall builds electric UTVs, side-by-sides, and three-wheeled autocycles. Experience performance, comfort, and style.</p>
       <div class="hero__actions">${buttonLink("Explore vehicles", "/vehicles/", "inverse")}</div>`;
   const body = `<div class="page">
-    ${/* V10: the front of the page moves. The still is the approach loop's own frame at 00:41 rather
-          than a separate photograph, which is what makes the switch to video invisible: same subject,
-          same crop, same focal point, so nothing jumps when the loop fades in over it. It also
-          retires the V5 lakeside ladder, whose wide and tall crops this replaces; those files are
-          deleted rather than left unreferenced, and check-content asserts they stay gone.
+    ${/* V10 moved the front of the page from a photograph to a video poster; V11-A changes which
+          loop it is. The still is the montage's own frame at 00:02.5 rather than a separate
+          photograph, which is what makes the switch to video invisible: same subject, same crop,
+          same focal point, so nothing jumps when the loop fades in over it.
           The poster remains the eagerly fetched, high-priority LCP element. The video carries no
-          autoplay and no src until site.js supplies one after the load event. */
+          autoplay and no src until site.js supplies one, after the load event and only above the
+          768px gate Owen set on 2026-08-05: this clip is 2.83 MB against the 292 KB one it replaces,
+          and a phone gets the poster instead. */
       hero({
         src: heroLoop.poster.src,
         srcset: heroLoop.poster.srcset,
@@ -183,16 +178,17 @@ const homePage = () => {
            bandwidth. The hero is the only eagerly fetched image on this page. -->
       <div class="vehicle-scroll">${models.map((model, index) => vehicleSection(model, { index, copy: model.summary })).join("")}</div>
     </section>
-    <section class="section split">
-      ${/* One title, matching the page it leads to. The eyebrow here read CONCEPTS above a heading
-            reading "Design studies", which is the pair of near-identical titles V10 removed. */""}
+    ${/* V11-D: media on the left from 768px up. The DOM keeps the body first, so reading order and
+          tab order are unchanged and the swap is a grid-area assignment in site.css, the same move
+          .vehicle-section--reverse already makes. The two pathway cards that used to close the page
+          are gone: Owen, on 2026-08-05, "that's just crowding it at the bottom". Both destinations
+          stay in the primary navigation and in the footer on every page, so nothing is unreachable.
+          One title, matching the page it leads to. The eyebrow here read CONCEPTS above a heading
+          reading "Design studies", which is the pair of near-identical titles V10 removed. */""}
+    <section class="section split split--media-first">
       <div class="split__body">${sectionHeading(null, "Concepts")}<p>Nine Vanderhall concept vehicles. They are not offered for sale.</p><div class="cluster">${buttonLink("View concepts", "/concepts/", "secondary")}</div></div>
       <a class="split__media" href="/concepts/"><img src="${indio.hero.src}" srcset="${indio.hero.srcset}" width="${sizeOf(indio.hero.src).width}" height="${sizeOf(indio.hero.src).height}" sizes="(min-width: 768px) 45vw, 92vw" alt="${indio.hero.alt}" loading="lazy" decoding="async"></a>
     </section>
-    <section class="section">${pathways([
-      { title: "Owner resources", body: "Vanderhall owner's manuals by model and year.", label: "View owner resources", href: "/owners/" },
-      { title: "Talk with Vanderhall", body: "Tell Vanderhall where you are and which vehicle interests you.", label: "Contact", href: "/dealers/" },
-    ])}</section>
   </div>`;
   // The description is the descriptor's own words. It used to be the h1, which worked while the h1 was
   // a full sentence; a three-word title is not a description, and the line beneath it now is.
@@ -211,15 +207,29 @@ const vehiclesPage = () => {
   return shell({ title: "Vehicles", description: "The Vanderhall vehicle lineup: Venice, Carmel, Santarosa, and Brawley.", path: "/vehicles", body });
 };
 
+// V11-E, D-V11-1. The ten concept routes and no others. Declared once here so that the hub and the
+// nine detail pages cannot drift apart, and so that check-content can assert the exact route set: a
+// white field appearing on an eleventh page would be a page whose imagery is still keyed onto black.
+const STUDIO = "page--studio";
+
 const conceptsPage = () => {
-  const body = `<div class="page">
-    ${pageHeader("Concepts", "These nine vehicles are Vanderhall concepts. They are not offered for sale, and no pricing or specifications are published for them.", "", PARENTS.concepts)}
-    ${/* Decorative, between the header and the index it introduces. A direct child of .page so the
-          bleed class can take the full grid column. */
-      conceptMarquee(concepts)}
+  const body = `<div class="page page--concepts">
+    ${/* V11-F. The header and the band are both direct children of .page and both are assigned the
+          same grid row in site.css, so they occupy one another's space: the band takes the full
+          bleed column behind the title, masked away from the left so it emerges on the right rather
+          than starting abruptly, and dissolves as the visitor scrolls toward the cards. Owen, on
+          2026-08-05: "I wanted the things to come in on the right by concepts and slowly scroll
+          over. As he gets closer and closer to the concepts in the paragraph, it fades away and
+          blurs out so that it is seamless in the background. Not right below it."
+
+          The header stays FIRST in the DOM, which is the whole reason this is a grid overlap rather
+          than a reorder: the band carries a pause button, and a visitor tabbing into the page should
+          reach the page's title before reaching a control for the decoration behind it. */
+      pageHeader("Concepts", "These nine vehicles are Vanderhall concepts. They are not offered for sale, and no pricing or specifications are published for them.", "", PARENTS.concepts)}
+    ${conceptMarquee(concepts)}
     <section class="section--tight"><div class="card-grid card-grid--concepts">${concepts.map((concept, index) => conceptCard(concept, { eager: index < 3 })).join("")}</div></section>
   </div>`;
-  return shell({ title: "Concepts", description: "Vanderhall concept vehicles and design studies, not offered for sale.", path: "/concepts", body });
+  return shell({ title: "Concepts", description: "Vanderhall concept vehicles and design studies, not offered for sale.", path: "/concepts", body, mainClass: STUDIO });
 };
 
 const conceptImage = (item, { eager = false } = {}) => {
@@ -246,22 +256,26 @@ const conceptPage = (concept) => {
     <section class="section--tight narrow"><p class="lede">${concept.intro}</p></section>
     ${concept.gallery.length ? `<section class="section--tight concept-gallery">${concept.gallery.map((item) => `<div class="concept-figure">${conceptImage(item)}</div>`).join("")}</section>` : ""}
   </div>`;
-  return shell({ title: `${concept.name} concept`, description: `${concept.name}, a Vanderhall ${concept.category.toLowerCase()} that is not offered for sale.`, path: `/concepts/${concept.slug}`, body });
+  return shell({ title: `${concept.name} concept`, description: `${concept.name}, a Vanderhall ${concept.category.toLowerCase()} that is not offered for sale.`, path: `/concepts/${concept.slug}`, body, mainClass: STUDIO });
 };
 
+// V11-H. The title was "Find your dealer.", which promised a locator this page does not have. Owen,
+// on 2026-08-05: "It's just a normal inquiry." The form heading stays "Contact Vanderhall", and no
+// href, data-form-id, #request-info anchor or endpoint key moves with the label: those are the
+// form's identity, and the endpoint map is keyed on the first.
+//
+// The two pathway cards are gone with the homepage's. Owen: "there is no need to do a dealer selling
+// Vanderhall on the dealers page, because that's at the bottom." The footer's Connect column carries
+// "Recommend a dealer" and "Become a dealer" on every page, so both routes stay live and reachable.
 const dealersPage = () => {
   const body = `<div class="page">
-    ${pageHeader("Find your dealer.", "Vanderhall vehicles are sold through a dealer network. Tell Vanderhall where you are and which vehicle interests you, and someone will connect you with a dealer.", "form-shell", PARENTS.dealers)}
+    ${pageHeader("Talk with Vanderhall.", "Vanderhall vehicles are sold through a dealer network. Tell Vanderhall where you are and which vehicle interests you, and someone will connect you with a dealer.", "form-shell", PARENTS.dealers)}
     <section class="section--tight form-shell" id="request-info">
       <h2 class="form-heading">Contact Vanderhall</h2>
       ${leadForm()}
     </section>
-    <section class="section--tight">${pathways([
-      { title: "Know a dealer", body: "Recommend a dealer in your area for the Vanderhall network.", label: "Recommend a dealer", href: "/recommend-dealer/" },
-      { title: "Selling Vanderhall", body: "Inquire about becoming an international Vanderhall dealer.", label: "Become a dealer", href: "/dealer-inquiry/" },
-    ])}</section>
   </div>`;
-  return shell({ title: "Dealers", description: "Contact Vanderhall, recommend a dealer, or apply to become one.", path: "/dealers", body });
+  return shell({ title: "Dealers", description: "Talk with Vanderhall about a vehicle, recommend a dealer, or apply to become one.", path: "/dealers", body });
 };
 
 const recommendDealerPage = () => {
@@ -389,7 +403,7 @@ const pages = new Map([
   ["privacy/index.html", privacyPage()],
   ["404/index.html", notFoundPage()],
   ["404.html", notFoundPage()],
-  ...models.map((model) => [`${model.slug}/index.html`, modelPage(model, model.slug === "brawley" ? { ambient: brawleyMontage } : {})]),
+  ...models.map((model) => [`${model.slug}/index.html`, modelPage(model)]),
   ["brawley/gts/index.html", brawleyGtsPage(modelBySlug.brawley)],
 ]);
 

@@ -88,7 +88,9 @@ await probeContext.close();
 // /carmel/ joins the list in V8: it had never been audited, and it now publishes figures and a tag.
 // /privacy/ joins the list in V10: it is the site's only page of running legal copy, its own list
 // markup, and a long wrapping link, so it is the page most likely to fail on contrast or reflow.
-for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/santarosa/", "/venice/", "/carmel/", "/recommend-dealer/", "/dealer-inquiry/", "/concepts/", "/concepts/indio/", "/owners/", "/dealers/", "/privacy/", "/404/"]) {
+// V11-E puts the concepts hub and all nine detail pages on a white field, which changes every
+// contrast pair on ten routes at once, so all ten are audited rather than the hub and one sample.
+for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/santarosa/", "/venice/", "/carmel/", "/recommend-dealer/", "/dealer-inquiry/", "/concepts/", ...conceptRoutes, "/owners/", "/dealers/", "/privacy/", "/404/"]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   await page.addScriptTag({ content: axe.source });
   const result = await page.evaluate(async () => axe.run(document, { resultTypes: ["violations"] }));
@@ -171,7 +173,7 @@ report.interactions.photoScroll = {};
 for (const [route, expected, pairedGroups, tags, barAction] of [
   ["/brawley/", 6, 6, 0, "/brawley/gts/"],
   ["/santarosa/", 5, 5, 0, null],
-  ["/carmel/", 6, 6, 1, null],
+  ["/carmel/", 6, 3, 1, null],
   ["/venice/", 6, 4, 1, null],
 ]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
@@ -535,11 +537,19 @@ await page.goto(`${base}/`, { waitUntil: "networkidle" });
 report.reducedMotion = await page.evaluate(() => ({
   duration1: getComputedStyle(document.documentElement).getPropertyValue("--dur-1").trim(),
   scrollBehavior: getComputedStyle(document.documentElement).scrollBehavior,
-  revealAnimation: getComputedStyle(document.querySelector(".vehicle-section")).animationName,
+  // V11-B moved the reveal off .vehicle-section and onto its two halves, so that they can stagger
+  // against each other without compounding two opacity animations on the same pixels.
+  revealAnimation: getComputedStyle(document.querySelector(".vehicle-section__media")).animationName,
+  bodyAnimation: getComputedStyle(document.querySelector(".vehicle-section__body")).animationName,
+  parentAnimation: getComputedStyle(document.querySelector(".vehicle-section")).animationName,
   heroTimeline: getComputedStyle(document.querySelector(".hero__image")).animationName,
+  // The V11-B fallback must be inert here too, and the way it is inert is that site.js never marks
+  // anything under reduced motion, so there is no start state to be stuck in.
+  markedForFallback: document.querySelectorAll("[data-reveal]").length,
 }));
 if (report.reducedMotion.duration1 !== "1ms" || report.reducedMotion.scrollBehavior !== "auto") failures.push("Reduced motion override failed");
 if (report.reducedMotion.revealAnimation !== "none" || report.reducedMotion.heroTimeline !== "none") failures.push(`Reduced motion must remove the scroll-driven animations, got ${report.reducedMotion.revealAnimation} and ${report.reducedMotion.heroTimeline}`);
+if (report.reducedMotion.markedForFallback !== 0) failures.push(`Reduced motion left ${report.reducedMotion.markedForFallback} elements marked for the observer fallback, which is a start state nothing will clear`);
 
 // Under reduced motion the word cascade must not exist at all, rather than existing and being stilled.
 // site.js carries its own guard for exactly this: a split element whose animation has been cleared is
@@ -573,7 +583,9 @@ const motionContext = await browser.newContext({ viewport: { width: 1440, height
 const motionPage = await motionContext.newPage();
 await motionPage.goto(`${base}/`, { waitUntil: "networkidle" });
 report.motion = await motionPage.evaluate(async () => {
-  const section = document.querySelectorAll(".vehicle-section")[2];
+  // V11-B moved the reveal off .vehicle-section onto its two halves, so they can stagger against
+  // each other. Reading the parent here would report "none" and be right about the wrong element.
+  const section = document.querySelectorAll(".vehicle-section__media")[2];
   const style = getComputedStyle(section);
   const attached = { animationName: style.animationName, timeline: style.animationTimeline, range: style.animationRange };
   const heroStyle = getComputedStyle(document.querySelector(".hero__image"));
@@ -602,23 +614,43 @@ const trackState = () => motionPage.locator(".concept-marquee__track").evaluate(
 });
 report.motion.marquee = { running: await trackState() };
 report.motion.marquee.ready = await motionPage.locator("[data-marquee]").evaluate((band) => band.hasAttribute("data-ready"));
-report.motion.marquee.toggleVisible = await motionPage.locator("[data-marquee-toggle]").isVisible();
+// V11 amendment. Owen asked for the PAUSE labels off the page, so the control is no longer painted
+// until it is focused. What must still hold is that it exists, that the island un-hid it, and that a
+// keyboard can reach it: the band drifts continuously and the requirement to be able to stop it does
+// not go away because the label did. Both halves are asserted, because "not visible" and "not there"
+// are the two different things this change sits between.
+report.motion.marquee.toggle = await motionPage.locator("[data-marquee-toggle]").evaluate((node) => ({
+  inDocument: true,
+  hiddenAttribute: node.hidden,
+  paintedArea: Math.round(node.getBoundingClientRect().width * node.getBoundingClientRect().height),
+  focusable: node.tabIndex >= 0,
+  accessibleName: node.textContent.trim(),
+}));
 const running = report.motion.marquee.running;
 if (running.animationName !== "concept-drift" || running.playState !== "running") failures.push(`The concept band is not drifting: ${JSON.stringify(running)}`);
 if (running.duration !== "55s" || running.iterations !== "infinite") failures.push(`The concept band's drift is not the continuous one: ${JSON.stringify(running)}`);
-if (!report.motion.marquee.ready || !report.motion.marquee.toggleVisible) failures.push("The island must set data-ready and reveal the pause button together");
+if (!report.motion.marquee.ready || report.motion.marquee.toggle.hiddenAttribute) failures.push("The island must set data-ready and un-hide the pause control together");
+if (report.motion.marquee.toggle.paintedArea > 4) failures.push(`The concept band's pause control must not be painted until focused, found ${report.motion.marquee.toggle.paintedArea}px2`);
+if (!report.motion.marquee.toggle.focusable || report.motion.marquee.toggle.accessibleName !== "Pause") failures.push(`The concept band's pause control must stay reachable and named: ${JSON.stringify(report.motion.marquee.toggle)}`);
+// Focused, it paints. This is the mechanism that keeps the control available rather than deleted.
+await motionPage.locator("[data-marquee-toggle]").focus();
+report.motion.marquee.toggleOnFocus = await motionPage.locator("[data-marquee-toggle]").evaluate((node) => Math.round(node.getBoundingClientRect().width * node.getBoundingClientRect().height));
+if (report.motion.marquee.toggleOnFocus < 200) failures.push(`The concept band's pause control must become visible on focus, painted ${report.motion.marquee.toggleOnFocus}px2`);
+await motionPage.locator("[data-marquee-toggle]").evaluate((node) => node.blur());
 // Hover pauses without touching state, so the band resumes on its own when the pointer leaves.
-await motionPage.locator(".concept-marquee__viewport").hover();
+// V11-F moved the hover target: the band sits behind the page header now and the header's box covers
+// it across the whole content column, so the header is what a pointer over the tiles actually hits.
+await motionPage.locator(".page--concepts > .page-header").hover();
 report.motion.marquee.hovered = await trackState();
 if (report.motion.marquee.hovered.playState !== "paused") failures.push("Hovering the concept band must pause it");
 await motionPage.mouse.move(0, 0);
 report.motion.marquee.unhovered = await trackState();
 if (report.motion.marquee.unhovered.playState !== "running") failures.push("Leaving the concept band must resume it");
 // The button, which does hold state.
-await motionPage.locator("[data-marquee-toggle]").click();
+await motionPage.locator("[data-marquee-toggle]").press("Enter");
 report.motion.marquee.afterPress = { ...await trackState(), pressed: await motionPage.locator("[data-marquee-toggle]").getAttribute("aria-pressed") };
 if (report.motion.marquee.afterPress.playState !== "paused" || report.motion.marquee.afterPress.pressed !== "true") failures.push(`The pause button did not pause the band: ${JSON.stringify(report.motion.marquee.afterPress)}`);
-await motionPage.locator("[data-marquee-toggle]").click();
+await motionPage.locator("[data-marquee-toggle]").press("Enter");
 // Both the focus and the pointer have to leave before the resume can be read. Hover and focus-within
 // each pause the band by design, and clicking leaves the pointer on the button and the focus in it, so
 // reading play-state here without releasing both would report a pause the button did not cause.
@@ -710,7 +742,10 @@ await motionContext.close();
 // requested before the load event, which is when site.js runs.
 report.ambient = { routes: {} };
 const videoContext = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: "no-preference" });
-const AMBIENT_PLACEMENTS = [["/", ".hero", ".hero__image"], ["/brawley/", ".ambient", ".ambient__poster"], ["/brawley/gts/", ".ambient", ".ambient__poster"]];
+// V11-A: one placement. The two below-fold blocks are asserted absent further down rather than
+// dropped silently from this list, because "no longer in the list" and "proved not to load" are
+// different claims and only the second one is worth anything.
+const AMBIENT_PLACEMENTS = [["/", ".hero", ".hero__image"]];
 for (const [route, blockSelector, posterSelector] of AMBIENT_PLACEMENTS) {
   const videoPage = await videoContext.newPage();
   // Posters and videos are both served out of /assets/video/, so they are recorded as one ordered
@@ -734,38 +769,6 @@ for (const [route, blockSelector, posterSelector] of AMBIENT_PLACEMENTS) {
   // The state at the load event, before site.js has had a chance to run. No video may exist yet.
   const atLoad = videoSourcesOf(requests).length;
   const block = videoPage.locator(blockSelector).first();
-
-  // Measured at scroll zero, before anything is scrolled into view, and only on the two routes that
-  // have a control bar of their own. The block's media is allowed to be part-way through its scroll
-  // reveal here; its label and its pause button are not. An element inside an opacity reveal is
-  // genuinely low contrast while it is there, and a control that is operable while it is hard to read
-  // is the bug: on /brawley/ the caps label and the button computed to 2.59 against the paper and cost
-  // the route four Lighthouse accessibility points. Effective opacity has to be walked up the
-  // ancestors, because the button's own opacity is 1 no matter what its parent is doing.
-  if (blockSelector === ".ambient") {
-    const bar = await block.evaluate((node) => {
-      const effectiveOpacity = (start) => {
-        let value = 1;
-        for (let element = start; element && element !== document.body; element = element.parentElement) {
-          value *= Number(getComputedStyle(element).opacity);
-        }
-        return value;
-      };
-      const toggle = node.querySelector("[data-ambient-toggle]");
-      const eyebrow = node.querySelector(".eyebrow");
-      return {
-        barAnimation: getComputedStyle(node.querySelector(".ambient__bar")).animationName,
-        toggleOpacity: Number(effectiveOpacity(toggle).toFixed(3)),
-        labelOpacity: Number(effectiveOpacity(eyebrow).toFixed(3)),
-        frameAnimation: getComputedStyle(node.querySelector(".ambient__frame")).animationName,
-      };
-    });
-    report.ambient.routes[route] = { bar };
-    if (bar.toggleOpacity < 1 || bar.labelOpacity < 1) failures.push(`${route}: the ambient control and label must be at full opacity before any scroll, found ${JSON.stringify(bar)}`);
-    if (bar.barAnimation !== "none") failures.push(`${route}: the ambient control bar must not animate, found ${bar.barAnimation}`);
-    // The reveal is still expected, just moved onto the media alone rather than removed.
-    if (bar.frameAnimation !== "rise-in") failures.push(`${route}: the ambient media lost its scroll reveal, found ${bar.frameAnimation}`);
-  }
 
   if (route !== "/") await block.scrollIntoViewIfNeeded();
   // Waiting for the fade to finish, not merely for it to start. data-painted is set on the first
@@ -826,23 +829,87 @@ for (const [route, blockSelector, posterSelector] of AMBIENT_PLACEMENTS) {
 // The homepage's LCP must stay the poster image. A decoded video frame becoming the LCP element would
 // mean the largest paint had moved behind the load event and the video gate.
 const homeLcp = report.ambient.routes["/"].lcp;
-if (!homeLcp?.url?.includes("/assets/video/brawley/brawley-canyon-hero-poster-")) failures.push(`The homepage LCP element must be the hero poster, got ${JSON.stringify(homeLcp)}`);
+if (!homeLcp?.url?.includes("/assets/video/brawley/brawley-canyon-montage-00-12-poster-")) failures.push(`The homepage LCP element must be the hero poster, got ${JSON.stringify(homeLcp)}`);
+
+// V11-A. The two retired loops, proved gone rather than assumed gone: no video element, no request
+// for a video byte, and no reference to the asset directory at all. This is the assertion that would
+// catch a loop reappearing on either Brawley page, which the shortened placement list above cannot.
+report.ambient.brawleyRoutesSilent = {};
+for (const route of ["/brawley/", "/brawley/gts/"]) {
+  const silentPage = await videoContext.newPage();
+  const silentRequests = [];
+  silentPage.on("request", (request) => { if (/\/assets\/video\//.test(request.url())) silentRequests.push(new URL(request.url()).pathname); });
+  await silentPage.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  await silentPage.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+  await silentPage.waitForTimeout(800);
+  const shape = await silentPage.evaluate(() => ({
+    videos: document.querySelectorAll("video").length,
+    ambientBlocks: document.querySelectorAll("[data-ambient]").length,
+    ambientMarkup: document.querySelectorAll(".ambient, .ambient__frame, .ambient__poster").length,
+  }));
+  report.ambient.brawleyRoutesSilent[route] = { requests: silentRequests, ...shape };
+  if (silentRequests.length) failures.push(`${route}: V11-A ships no footage here, but ${silentRequests.length} video assets were requested`);
+  if (shape.videos || shape.ambientBlocks || shape.ambientMarkup) failures.push(`${route}: ambient video markup survives: ${JSON.stringify(shape)}`);
+  await silentPage.close();
+}
+
+// Q-V11-1. Below 768px the loop is not loaded at all: the visitor gets the poster, which is the
+// loop's own first frame, and no control. The clip is 2.83 MB of WebM and the site's one video now
+// sits on the homepage, so this is the assertion that keeps that cost off a phone. readyState 0 is
+// the proof that nothing loaded rather than that nothing played.
+report.ambient.mobileGate = {};
+for (const width of [390, 767, 768]) {
+  const gateContext = await browser.newContext({ viewport: { width, height: 844 }, reducedMotion: "no-preference" });
+  const gatePage = await gateContext.newPage();
+  const gateRequests = [];
+  gatePage.on("request", (request) => { if (/\/assets\/video\/.+\.(?:webm|mp4)$/.test(request.url())) gateRequests.push(new URL(request.url()).pathname); });
+  await gatePage.goto(`${base}/`, { waitUntil: "networkidle" });
+  await gatePage.waitForTimeout(1200);
+  const shape = await gatePage.evaluate(() => ({
+    readyState: document.querySelector("[data-ambient-video]").readyState,
+    toggleHidden: document.querySelector("[data-ambient-toggle]").hidden,
+    painted: document.querySelector(".hero").hasAttribute("data-painted"),
+    posterVisible: Boolean(document.querySelector(".hero__image").naturalWidth) && Boolean(document.querySelector(".hero__image").getClientRects().length),
+  }));
+  report.ambient.mobileGate[width] = { requests: gateRequests, ...shape };
+  const gated = width < 768;
+  if (gated && gateRequests.length) failures.push(`${width}px: the homepage loop is gated below 768px but requested ${gateRequests.length} video sources`);
+  if (gated && (shape.readyState !== 0 || shape.painted || !shape.toggleHidden)) failures.push(`${width}px: the gate must leave the video unloaded and its control hidden: ${JSON.stringify(shape)}`);
+  if (!gated && !gateRequests.length) failures.push(`${width}px: at the gate's own breakpoint the loop must load, and nothing was requested`);
+  // The poster is the layout at every width, gate or no gate.
+  if (!shape.posterVisible) failures.push(`${width}px: the homepage poster must render whether or not the loop is eligible`);
+  await gateContext.close();
+}
 
 // The control, exercised. Pressing it must stop the film and say so; pressing it again must start it.
 const togglePage = await videoContext.newPage();
 await togglePage.goto(`${base}/`, { waitUntil: "networkidle" });
 await togglePage.waitForFunction(() => document.querySelector(".hero")?.hasAttribute("data-painted"), null, { timeout: 15000 });
 const heroVideoState = () => togglePage.locator(".hero__video").evaluate((video) => ({ paused: video.paused, time: video.currentTime }));
-await togglePage.locator("[data-ambient-toggle]").click();
+// Driven by the keyboard, because that is the only way in since the V11 amendment took the visible
+// PAUSE label off the page. The control paints on focus and works from there; the same three
+// exercises below are otherwise unchanged.
+report.ambient.heroToggle = await togglePage.locator("[data-ambient-toggle]").evaluate((node) => ({
+  hiddenAttribute: node.hidden,
+  paintedArea: Math.round(node.getBoundingClientRect().width * node.getBoundingClientRect().height),
+  focusable: node.tabIndex >= 0,
+}));
+if (report.ambient.heroToggle.hiddenAttribute) failures.push("The hero control must be un-hidden by the island once playback is attempted");
+if (report.ambient.heroToggle.paintedArea > 4) failures.push(`The hero control must not be painted until focused, found ${report.ambient.heroToggle.paintedArea}px2`);
+if (!report.ambient.heroToggle.focusable) failures.push("The hero control must stay reachable by keyboard");
+await togglePage.locator("[data-ambient-toggle]").focus();
+report.ambient.heroToggleOnFocus = await togglePage.locator("[data-ambient-toggle]").evaluate((node) => Math.round(node.getBoundingClientRect().width * node.getBoundingClientRect().height));
+if (report.ambient.heroToggleOnFocus < 200) failures.push(`The hero control must become visible on focus, painted ${report.ambient.heroToggleOnFocus}px2`);
+await togglePage.locator("[data-ambient-toggle]").press("Enter");
 report.ambient.afterPause = { ...await heroVideoState(), label: await togglePage.locator("[data-ambient-toggle]").textContent() };
 if (!report.ambient.afterPause.paused || report.ambient.afterPause.label !== "Play") failures.push(`The hero control did not pause the loop: ${JSON.stringify(report.ambient.afterPause)}`);
-await togglePage.locator("[data-ambient-toggle]").click();
+await togglePage.locator("[data-ambient-toggle]").press("Enter");
 report.ambient.afterResume = { ...await heroVideoState(), label: await togglePage.locator("[data-ambient-toggle]").textContent() };
 if (report.ambient.afterResume.paused || report.ambient.afterResume.label !== "Pause") failures.push(`The hero control did not resume the loop: ${JSON.stringify(report.ambient.afterResume)}`);
 
 // A choice to pause has to survive scrolling away and coming back, which is what separates the
 // visitor's intent from the viewport's housekeeping.
-await togglePage.locator("[data-ambient-toggle]").click();
+await togglePage.locator("[data-ambient-toggle]").press("Enter");
 await togglePage.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
 await togglePage.waitForTimeout(300);
 await togglePage.evaluate(() => scrollTo(0, 0));
@@ -852,22 +919,18 @@ if (!report.ambient.choiceSurvivesScroll.paused) failures.push("A manually pause
 await togglePage.close();
 
 // Offscreen and hidden. Neither is a state the visitor chose, so both stop the film and both release
-// it again. Verified on /brawley/, where the block genuinely leaves the viewport.
+// it again. Verified on the homepage now, which is where the site's one loop lives: the hero is at
+// the top of a long page, so scrolling to the foot genuinely takes it out of view even allowing for
+// the observer's 200px rootMargin.
 const offscreenPage = await videoContext.newPage();
-await offscreenPage.goto(`${base}/brawley/`, { waitUntil: "networkidle" });
-await offscreenPage.locator(".ambient").scrollIntoViewIfNeeded();
-await offscreenPage.waitForFunction(() => document.querySelector(".ambient")?.hasAttribute("data-painted"), null, { timeout: 15000 });
-const ambientPaused = () => offscreenPage.locator(".ambient__video").evaluate((video) => video.paused);
+await offscreenPage.goto(`${base}/`, { waitUntil: "networkidle" });
+await offscreenPage.waitForFunction(() => document.querySelector(".hero")?.hasAttribute("data-painted"), null, { timeout: 15000 });
+const ambientPaused = () => offscreenPage.locator(".hero__video").evaluate((video) => video.paused);
 report.ambient.offscreen = { playingInView: !await ambientPaused() };
-// To the foot of the page, not to the top. The observer carries a 200px rootMargin so a block that is
-// merely below the first viewport is still counted as in view, deliberately: it gives a block a moment
-// to start moving before it is looked at. Scrolling to the top therefore does not take the /brawley/
-// block out of view at a 1000px viewport, which is what made the first run of this check report a
-// working pause as a failure.
 await offscreenPage.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
 await offscreenPage.waitForTimeout(600);
 report.ambient.offscreen.pausedOffscreen = await ambientPaused();
-await offscreenPage.locator(".ambient").scrollIntoViewIfNeeded();
+await offscreenPage.evaluate(() => scrollTo(0, 0));
 await offscreenPage.waitForTimeout(600);
 report.ambient.offscreen.resumedOnReturn = !await ambientPaused();
 if (!report.ambient.offscreen.playingInView || !report.ambient.offscreen.pausedOffscreen || !report.ambient.offscreen.resumedOnReturn) {
@@ -974,9 +1037,9 @@ for (const route of ["/", "/brawley/gts/", "/privacy/", "/concepts/indio/"]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   report.interactions.footer[route] = await page.evaluate(() => {
     const hrefs = (selector) => [...document.querySelectorAll(selector)].map((anchor) => anchor.getAttribute("href"));
-    const social = [...document.querySelectorAll(".footer-social a")];
+    const social = [...document.querySelectorAll(".footer-follow a")];
     return {
-      social: hrefs(".footer-social a"),
+      social: hrefs(".footer-follow a"),
       socialNames: social.map((anchor) => ({ visible: anchor.textContent, accessible: anchor.getAttribute("aria-label") })),
       legal: hrefs(".footer-legal__links a"),
       app: hrefs(".footer-links a").filter((href) => href.includes("apps.apple.com") || href.includes("play.google.com")),
@@ -1026,7 +1089,10 @@ for (const route of ["/vehicles/", "/concepts/", "/dealers/", "/recommend-dealer
       markWidth: Math.round(parseFloat(mark.width)),
       markHeight: Math.round(parseFloat(mark.height)),
       markIsAccent: mark.backgroundColor,
-      accentToken: accent,
+      // Read from the header's own scope rather than from :root. V11-E gives the ten concept routes
+      // a derived accent, because the dark-page value measures 2.65:1 on white and --focus-color is
+      // the accent; comparing every route to one hardcoded orange would fail a page that is correct.
+      accentToken: getComputedStyle(header).getPropertyValue("--accent").trim() || accent,
       // The title's left edge has to stay on the page's content edge. An inline mark would indent it,
       // which is why the mark sits above the title rather than beside it.
       markDisplay: mark.display,
@@ -1050,7 +1116,10 @@ for (const route of ["/vehicles/", "/concepts/", "/dealers/", "/recommend-dealer
   const header = report.interactions.pageHeaders[route];
   if (header.titles !== 1) failures.push(`${route}: the page header carries ${header.titles} titles, expected one`);
   if (header.markWidth < 8 || header.markHeight < 1) failures.push(`${route}: the title's accent mark did not render: ${JSON.stringify(header)}`);
-  if (header.markIsAccent !== "rgb(224, 138, 85)") failures.push(`${route}: the title mark is ${header.markIsAccent}, not the accent token ${header.accentToken}`);
+  // Compared against the token in force on that page, converted to the same space, so the assertion
+  // is "the mark is painted the accent" rather than "the mark is painted this one orange".
+  const tokenAsRgb = `rgb(${[1, 3, 5].map((index) => parseInt(header.accentToken.slice(index, index + 2), 16)).join(", ")})`;
+  if (header.markIsAccent !== tokenAsRgb) failures.push(`${route}: the title mark is ${header.markIsAccent}, not the accent token ${header.accentToken} (${tokenAsRgb})`);
   // The outcome, then the mechanism. The first is what a visitor sees; the second names the cause when
   // it breaks, because an indented title is almost always a mark that has gone inline.
   if (header.titleLeft === null || Math.abs(header.titleLeft - header.bodyLeft) > 1) failures.push(`${route}: the title's text starts ${header.titleLeft - header.bodyLeft}px off the content edge`);
@@ -1097,7 +1166,7 @@ const noJsBodyText = await noJsPage.locator("body").innerText();
 report.noJs = {
   status: noJsResponse?.status(),
   bodyLength: noJsBodyText.trim().length,
-  // The figures are plain markup, so all 28 of Brawley's rows render with no script at all. The
+  // The figures are plain markup, so all 33 of Brawley's V11-C rows render with no script at all. The
   // metric assertion is negative on purpose: it proves metric was removed rather than hidden by a
   // stylesheet the way the old toggle hid it.
   visibleSpecRows: await noJsPage.locator(".photo-module__specs .spec-row:visible").count(),
@@ -1108,7 +1177,7 @@ report.noJs = {
   forms: {},
 };
 if (report.noJs.status !== 200 || report.noJs.bodyLength < 500 || report.noJs.navLinks === 0) failures.push("No-JS verification failed");
-if (report.noJs.visibleSpecRows !== 28) failures.push(`No-JS /brawley/ must render all 28 specification rows, found ${report.noJs.visibleSpecRows}`);
+if (report.noJs.visibleSpecRows !== 33) failures.push(`No-JS /brawley/ must render all 33 specification rows, found ${report.noJs.visibleSpecRows}`);
 if (!report.noJs.showsImperial) failures.push("No-JS /brawley/ is missing its imperial torque figure");
 if (report.noJs.showsMetric) failures.push("No-JS /brawley/ still carries a metric value");
 if (report.noJs.backLinks !== 1) failures.push(`No-JS /brawley/ must offer one way back, found ${report.noJs.backLinks}`);
@@ -1176,7 +1245,7 @@ if (!noJsCascade.ledeVisible || (noJsCascade.lede ?? "").length < 80) failures.p
 // the sources carry data-src rather than src, so there is nothing in the markup for the parser to
 // fetch. What the visitor gets is the poster, which is a real photograph, and no control.
 report.noJs.ambient = {};
-for (const [route, blockSelector, posterSelector] of [["/", ".hero", ".hero__image"], ["/brawley/", ".ambient", ".ambient__poster"], ["/brawley/gts/", ".ambient", ".ambient__poster"]]) {
+for (const [route, blockSelector, posterSelector] of AMBIENT_PLACEMENTS) {
   const noJsVideoRequests = [];
   const listener = (request) => { if (/\/assets\/video\/.+\.(?:webm|mp4)$/.test(request.url())) noJsVideoRequests.push(request.url()); };
   noJsPage.on("request", listener);
@@ -1202,6 +1271,82 @@ for (const [route, blockSelector, posterSelector] of [["/", ".hero", ".hero__ima
   if (!shape.toggleHidden || shape.toggleVisible || shape.painted) failures.push(`No-JS ${route} shows a video control it cannot drive`);
 }
 
+// V11-B. With JavaScript disabled, nothing may be left in a reveal's start state on either path, and
+// the two paths fail differently so both are measured. The CSS path's start state sits inside
+// @supports, so a browser without view() timelines renders the final state rather than hiding content
+// it can never reveal. The fallback's start state lives on an attribute that only site.js sets, so a
+// page where this file never arrives has no start state at all. Both reduce to one measurement: no
+// element carries the attribute, and nothing that would have been revealed is under full opacity or
+// displaced. This is the single most important no-JS assertion in the suite, because the failure it
+// guards against is a page of invisible content that still returns 200.
+// The claim is precise, and getting it wrong the first time is worth recording. Measuring opacity at
+// scroll zero fails a correct page: with view() timelines supported, a below-fold block sits at
+// opacity 0 because its own timeline has not advanced, and that is true with or without JavaScript,
+// because the CSS path needs no script at all. Hidden-until-scrolled is the feature. What must never
+// happen is hidden-after-scrolling, or a start state that nothing will ever clear.
+//
+// So this scrolls the page first, then measures only the blocks that have definitively finished
+// entering, which is the ones now above the viewport. Anything still faded up there is content the
+// visitor has scrolled past and cannot see.
+// The scroll loop runs here rather than inside the page, and that is not a style preference. A
+// context with javaScriptEnabled: false has no working timers, so an in-page `await setTimeout` never
+// resolves and Playwright eventually reports the promise as garbage collected. Every evaluate below
+// is synchronous; the waiting happens on this side.
+const REVEAL_SELECTOR = [
+  ".vehicle-section__media", ".vehicle-section__body", ".photo-module__media", ".photo-module__body",
+  ".card-grid--concepts .card", ".concept-figure", ".split__media", ".split__body",
+  ".section-heading", ".spec-table", ".gts-figures", ".gts-scene", ".disclosures", ".resource-group",
+  ".photo-module__specs .spec-row", ".vehicle-section__row .vehicle-section__support",
+].join(", ");
+for (const route of ["/", "/vehicles/", "/brawley/", "/concepts/", "/owners/"]) {
+  await noJsPage.goto(`${base}${route}`, { waitUntil: "load" });
+  const before = await noJsPage.evaluate((selector) => {
+    document.documentElement.style.scrollBehavior = "auto";
+    return {
+      candidates: document.querySelectorAll(selector).length,
+      markedBeforeScroll: document.querySelectorAll("[data-reveal]").length,
+      height: document.documentElement.scrollHeight,
+      viewport: innerHeight,
+    };
+  }, REVEAL_SELECTOR);
+  for (let position = 0; position < before.height; position += before.viewport * 0.6) {
+    await noJsPage.evaluate((y) => scrollTo(0, y), position);
+    await noJsPage.waitForTimeout(40);
+  }
+  await noJsPage.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+  await noJsPage.waitForTimeout(250);
+  const measured = await noJsPage.evaluate((selector) => {
+    const scrolledPast = [...document.querySelectorAll(selector)].filter((element) => element.getBoundingClientRect().bottom < 0);
+    return {
+      scrolledPast: scrolledPast.length,
+      markedAfterScroll: document.querySelectorAll("[data-reveal]").length,
+      stillFaded: scrolledPast.filter((element) => Number(getComputedStyle(element).opacity) < 0.99)
+        .map((element) => `${element.className}@${Number(getComputedStyle(element).opacity).toFixed(2)}`),
+      // Displacement in pixels, not the string "none". A finished animation whose last keyframe is
+      // transform: none still computes to an identity matrix rather than to the keyword, so comparing
+      // against "none" reports every correctly resolved reveal on the page as broken. What matters is
+      // whether the block is still shifted from where it belongs, so the translation is read out of
+      // the matrix and measured.
+      stillDisplaced: scrolledPast.filter((element) => {
+        const transform = getComputedStyle(element).transform;
+        if (transform === "none") return false;
+        const parts = (transform.match(/matrix\(([^)]+)\)/) || [])[1];
+        if (!parts) return true;
+        const [, , , , x, y] = parts.split(",").map((value) => Math.abs(parseFloat(value)));
+        return x > 0.5 || y > 0.5;
+      }).map((element) => `${element.className}@${getComputedStyle(element).transform}`),
+    };
+  }, REVEAL_SELECTOR);
+  const shape = { ...before, ...measured };
+  report.noJs[`reveals${route}`] = shape;
+  if (shape.candidates === 0) failures.push(`No-JS ${route}: found no revealable blocks to check, so this assertion proves nothing`);
+  if (shape.scrolledPast === 0) failures.push(`No-JS ${route}: nothing was scrolled past, so nothing was actually measured`);
+  // The fallback's start state can only be set by site.js, so it must be absent at both ends.
+  if (shape.markedBeforeScroll !== 0 || shape.markedAfterScroll !== 0) failures.push(`No-JS ${route}: ${shape.markedAfterScroll} elements carry the fallback's start state, which nothing will ever clear`);
+  if (shape.stillFaded.length) failures.push(`No-JS ${route}: ${shape.stillFaded.length} scrolled-past blocks are still hidden without script: ${shape.stillFaded.slice(0, 4).join(", ")}`);
+  if (shape.stillDisplaced.length) failures.push(`No-JS ${route}: ${shape.stillDisplaced.length} scrolled-past blocks never returned to their final position: ${shape.stillDisplaced.slice(0, 3).join(", ")}`);
+}
+
 // The policy page has to be complete without script, because it is a legal document.
 await noJsPage.goto(`${base}/privacy/`, { waitUntil: "load" });
 report.noJs.privacy = await noJsPage.evaluate(() => ({
@@ -1220,7 +1365,7 @@ if (noJsPrivacy.words !== 0 || noJsPrivacy.textLength < 9500) failures.push(`No-
 
 // Every footer destination must be a plain link with no script anywhere near it.
 report.noJs.footer = await noJsPage.evaluate(() => ({
-  social: document.querySelectorAll(".footer-social a[href]").length,
+  social: document.querySelectorAll(".footer-follow a[href]").length,
   legal: document.querySelectorAll(".footer-legal__links a[href]").length,
   privacyHref: [...document.querySelectorAll(".footer-legal__links a")].map((anchor) => anchor.getAttribute("href")).includes("/privacy/"),
 }));
@@ -1274,6 +1419,333 @@ for (const route of ["/dealers/", "/recommend-dealer/", "/dealer-inquiry/"]) {
   report.forms[route] = { summaryFocused, anchorFocused, keyboardCompletion: notConnected, controls: await form.locator("input, select, textarea").count(), fieldsets: await form.locator("fieldset").count() };
   if (!summaryFocused || !anchorFocused || !notConnected) failures.push(`Form keyboard or error-summary flow failed for ${route}`);
 }
+
+// ---------------------------------------------------------------------------------------------
+// V11. The white studio field, the filmstrip dissolve, the reveal fallback, and the evened-out
+// specification groups.
+// ---------------------------------------------------------------------------------------------
+
+// V11-E. The studio scope is measured rather than asserted by class name: what matters is that the
+// ramp actually recomputed, that the header and the footer did not, and that the focus indicator
+// clears 3:1 on the paper it now sits on.
+const relativeLuminance = (rgb) => {
+  const channel = (value) => (value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4);
+  return 0.2126 * channel(rgb[0] / 255) + 0.7152 * channel(rgb[1] / 255) + 0.0722 * channel(rgb[2] / 255);
+};
+const parseRgb = (value) => (value.match(/\d+(?:\.\d+)?/g) || []).slice(0, 3).map(Number);
+const contrastRatio = (a, b) => {
+  const [high, low] = [relativeLuminance(parseRgb(a)), relativeLuminance(parseRgb(b))].sort((x, y) => y - x);
+  return (high + 0.05) / (low + 0.05);
+};
+
+report.studio = { routes: {} };
+for (const route of ["/concepts/", "/concepts/indio/", "/concepts/yuma/", "/concepts/balboa/"]) {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  const shape = await page.evaluate(() => {
+    const main = document.querySelector("main");
+    const style = getComputedStyle(main);
+    const title = document.querySelector(".page-header h1, .concept-title");
+    const wordmark = document.querySelector(".concept-title img");
+    return {
+      scoped: main.classList.contains("page--studio"),
+      paper: style.getPropertyValue("--paper").trim(),
+      ink: style.getPropertyValue("--ink").trim(),
+      accent: style.getPropertyValue("--accent").trim(),
+      focusColor: style.getPropertyValue("--focus-color").trim(),
+      mainBackground: style.backgroundColor,
+      // The ramp has to have recomputed against the studio ink, which is the whole reason it is
+      // restated in tokens.css rather than inherited. If a custom property resolved its var() where
+      // it was declared instead, --text-secondary here would still be a light grey.
+      textSecondary: style.getPropertyValue("--text-secondary").trim(),
+      titleColor: title ? getComputedStyle(title).color : null,
+      wordmarkFilter: wordmark ? getComputedStyle(wordmark).filter : null,
+      // Outside main, and therefore still dark.
+      headerBackground: getComputedStyle(document.querySelector(".site-header")).backgroundColor,
+      footerColor: getComputedStyle(document.querySelector(".site-footer")).color,
+      bodyBackground: getComputedStyle(document.body).backgroundColor,
+    };
+  });
+  const focusContrast = Number(contrastRatio(shape.focusColor.startsWith("#")
+    ? `rgb(${[1, 3, 5].map((index) => parseInt(shape.focusColor.slice(index, index + 2), 16)).join(",")})`
+    : shape.focusColor, "rgb(255,255,255)").toFixed(2));
+  report.studio.routes[route] = { ...shape, focusContrast };
+  if (!shape.scoped) failures.push(`${route}: must carry the studio scope on main`);
+  if (shape.paper !== "#FFFFFF") failures.push(`${route}: the studio paper is ${shape.paper}`);
+  if (shape.mainBackground !== "rgb(255, 255, 255)") failures.push(`${route}: main is painted ${shape.mainBackground}, not the studio white`);
+  // Dark ink on white, measured rather than named.
+  const inkContrast = Number(contrastRatio(shape.titleColor, "rgb(255,255,255)").toFixed(2));
+  report.studio.routes[route].inkContrast = inkContrast;
+  if (inkContrast < 7) failures.push(`${route}: the title measures ${inkContrast}:1 on the studio paper`);
+  // 3:1 is the floor for a focus indicator. The derived value targets 3.5:1, so anything at or below
+  // 3 means the accent was left as the dark-page value or the derivation was undone.
+  if (focusContrast < 3) failures.push(`${route}: the focus indicator measures ${focusContrast}:1 against the studio paper, below the 3:1 floor`);
+  if (shape.accent === "#E08A55") failures.push(`${route}: the studio scope is still using the dark-page accent, which measures 2.65:1 on white`);
+  // The wordmark's inversion existed only because V9 put a dark page behind dark artwork.
+  if (shape.wordmarkFilter && shape.wordmarkFilter !== "none") failures.push(`${route}: the concept wordmark is still inverted (${shape.wordmarkFilter}), so it is white artwork on a white page`);
+  // The header and the footer are outside main and must not have followed it.
+  if (shape.headerBackground.includes("255, 255, 255")) failures.push(`${route}: the site header followed the studio scope onto white`);
+  if (shape.bodyBackground !== "rgb(14, 14, 16)") failures.push(`${route}: the studio scope escaped main and repainted the document`);
+}
+// And no other route took it.
+await page.goto(`${base}/`, { waitUntil: "networkidle" });
+report.studio.homeScoped = await page.evaluate(() => document.querySelector("main").classList.contains("page--studio"));
+if (report.studio.homeScoped) failures.push("The studio scope reached the homepage, whose imagery is not authored on white");
+
+// V11-F. The filmstrip fade, measured at three scroll positions rather than asserted by presence.
+// Owen: "I want it to go through the middle of that and fade out a lot sooner than that." The claim
+// is that it is quiet at rest, dissolving through the intro paragraph, and gone before the cards.
+const stripContext = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: "no-preference" });
+const stripPage = await stripContext.newPage();
+await stripPage.goto(`${base}/concepts/`, { waitUntil: "networkidle" });
+await stripPage.evaluate(() => { document.documentElement.style.scrollBehavior = "auto"; });
+const stripGeometry = await stripPage.evaluate(() => {
+  const box = (selector) => {
+    const rect = document.querySelector(selector).getBoundingClientRect();
+    return { top: Math.round(rect.top + scrollY), height: Math.round(rect.height) };
+  };
+  return { band: box(".concept-marquee"), intro: box(".page-header > p"), grid: box(".card-grid--concepts") };
+});
+const stripAt = async (y) => {
+  await stripPage.evaluate((position) => scrollTo(0, position), y);
+  await stripPage.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+  return stripPage.evaluate(() => {
+    const viewport = document.querySelector(".concept-marquee__viewport");
+    const style = getComputedStyle(viewport);
+    return {
+      scrollY: Math.round(scrollY),
+      opacity: Number(Number(style.opacity).toFixed(3)),
+      blur: Number((style.filter.match(/blur\(([\d.]+)px\)/) || [0, 0])[1]),
+    };
+  });
+};
+report.strip = {
+  geometry: stripGeometry,
+  atRest: await stripAt(0),
+  midIntro: await stripAt(Math.round(stripGeometry.intro.top / 2)),
+  atCards: await stripAt(stripGeometry.grid.top),
+};
+// Quiet at rest. It is decoration behind a title, not a second index.
+if (report.strip.atRest.opacity > 0.6 || report.strip.atRest.opacity < 0.2) failures.push(`The filmstrip must sit well below full strength at rest, measured ${report.strip.atRest.opacity}`);
+if (report.strip.atRest.blur > 0.5) failures.push(`The filmstrip must be sharp before any scroll, measured blur ${report.strip.atRest.blur}px`);
+// Dissolving by the middle of the intro paragraph, which is the pacing Owen asked for.
+if (report.strip.midIntro.opacity >= report.strip.atRest.opacity) failures.push(`The filmstrip had not begun to dissolve by the intro paragraph: ${JSON.stringify(report.strip)}`);
+if (report.strip.midIntro.blur <= 0) failures.push("The filmstrip must blur as it dissolves, not only fade");
+// Gone before the cards. This is the invariant the whole treatment rests on.
+if (report.strip.atCards.opacity > 0.01) failures.push(`The filmstrip must be fully gone by the card grid, measured ${report.strip.atCards.opacity}`);
+if (stripGeometry.grid.top <= stripGeometry.band.top) failures.push("The card grid must follow the band, or this measurement means nothing");
+// The control does not fade with the film it controls. V10 amendment 1, as a standing rule.
+report.strip.toggleOpacityAtRest = await stripPage.evaluate(() => {
+  const toggle = document.querySelector("[data-marquee-toggle]");
+  let value = 1;
+  for (let element = toggle; element && element !== document.body; element = element.parentElement) value *= Number(getComputedStyle(element).opacity);
+  return Number(value.toFixed(3));
+});
+if (report.strip.toggleOpacityAtRest < 1) failures.push(`The filmstrip's pause control must not inherit the dissolve, measured ${report.strip.toggleOpacityAtRest}`);
+// Below the breakpoint the band is not rendered at all, so a phone spends nothing on it.
+await stripPage.setViewportSize({ width: 390, height: 844 });
+await stripPage.goto(`${base}/concepts/`, { waitUntil: "networkidle" });
+report.strip.mobile = await stripPage.evaluate(() => {
+  const url = (image) => new URL(image.currentSrc || image.src, location.origin).pathname;
+  const bandUrls = new Set([...document.querySelectorAll(".concept-marquee__item img")].map(url));
+  const cardUrls = new Set([...document.querySelectorAll(".card__media img")].map(url));
+  return {
+    bandDisplay: getComputedStyle(document.querySelector(".concept-marquee")).display,
+    tilesPainted: [...document.querySelectorAll(".concept-marquee__item img")].filter((image) => image.getClientRects().length).length,
+    // The cost question, asked correctly. The band renders eighteen tiles over nine URLs, and those
+    // are the same nine files the card grid below is built from, so a phone that fetches them has
+    // fetched nothing it did not already need. What would be wasteful is a URL unique to the band.
+    bandOnlyUrls: [...bandUrls].filter((path) => !cardUrls.has(path)),
+    cards: document.querySelectorAll(".card .card__link").length,
+    noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1,
+  };
+});
+if (report.strip.mobile.bandDisplay !== "none") failures.push(`The band must not render below 768px, found display ${report.strip.mobile.bandDisplay}`);
+if (report.strip.mobile.tilesPainted !== 0) failures.push(`${report.strip.mobile.tilesPainted} band tiles are painted below the breakpoint`);
+if (report.strip.mobile.bandOnlyUrls.length) failures.push(`A phone fetched ${report.strip.mobile.bandOnlyUrls.length} images that exist only for a band it will never see: ${report.strip.mobile.bandOnlyUrls.join(", ")}`);
+if (report.strip.mobile.cards !== 9) failures.push(`The concepts index must still be nine cards on a phone, found ${report.strip.mobile.cards}`);
+if (!report.strip.mobile.noHorizontalScroll) failures.push("The concepts hub widened the document at 390px");
+await stripContext.close();
+
+// V11-B. The reveal fallback, exercised by pretending view() timelines do not exist. This is the
+// path Safari and Firefox take, and until V11 they saw a site with no scroll motion at all. Faking
+// the feature query is the only way to reach it from Chrome; what is being tested is site.js's
+// branch and the transition it drives, both of which are engine-independent.
+const fallbackContext = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: "no-preference" });
+await fallbackContext.addInitScript(() => {
+  const supports = CSS.supports.bind(CSS);
+  CSS.supports = (...args) => (String(args[0]).includes("animation-timeline") ? false : supports(...args));
+  // Overriding CSS.supports changes what site.js believes; it does not change what the stylesheet's
+  // own @supports block evaluates to, so Chrome still runs the view() animation on these elements.
+  // An animation overrides normal declarations, so without this the measurements below would be of
+  // the CSS path with the fallback merely present alongside it, which is not what they claim to be
+  // measuring. Neutralising the animation on marked elements only is what leaves the fallback's own
+  // start state and transition as the thing under test, and it is scoped to [data-reveal] so the
+  // concept band and the hero drift are untouched.
+  addEventListener("DOMContentLoaded", () => {
+    const style = document.createElement("style");
+    style.textContent = "[data-reveal] { animation-name: none !important; }";
+    document.head.append(style);
+  });
+});
+const fallbackPage = await fallbackContext.newPage();
+await fallbackPage.goto(`${base}/vehicles/`, { waitUntil: "networkidle" });
+await fallbackPage.waitForTimeout(400);
+report.motion.fallback = await fallbackPage.evaluate(() => {
+  const marked = [...document.querySelectorAll("[data-reveal]")];
+  return {
+    marked: marked.length,
+    // Nothing already on screen may be marked: this file runs after the load event, so hiding
+    // something the visitor is reading would visibly re-hide it. The first viewport stays still.
+    markedAboveFold: marked.filter((element) => element.getBoundingClientRect().top < innerHeight && !element.dataset.reveal).length,
+    hiddenNow: marked.filter((element) => Number(getComputedStyle(element).opacity) < 0.99).length,
+    transitions: marked.slice(0, 1).map((element) => getComputedStyle(element).transitionProperty),
+    staggered: marked.filter((element) => element.style.getPropertyValue("--reveal-delay")).length,
+  };
+});
+const fallback = report.motion.fallback;
+if (fallback.marked === 0) failures.push("The reveal fallback marked nothing on /vehicles/, so browsers without view() timelines still see no scroll motion");
+if (fallback.markedAboveFold !== 0) failures.push(`${fallback.markedAboveFold} already-visible blocks were marked for reveal, which re-hides content the visitor is reading`);
+if (fallback.hiddenNow === 0) failures.push("The reveal fallback marked elements but none is in its start state, so nothing will animate");
+if (!fallback.transitions[0]?.includes("opacity")) failures.push(`The reveal fallback must transition opacity, found ${fallback.transitions[0]}`);
+if (fallback.staggered === 0) failures.push("The reveal fallback must stagger the groups the CSS path staggers");
+// Scrolled to, it resolves to fully visible. A fallback that leaves content at opacity 0 is worse
+// than no fallback, which is why the CSS start state lives on an attribute only site.js sets.
+//
+// Null-guarded, and that guard is not defensive padding. Mutation testing found this: with the
+// fallback disabled entirely there is no marked element, the raw querySelector returned null, and the
+// suite died on a TypeError before it could write its report. It still exited non-zero, so the
+// release gate held, but what a reader got was a stack trace instead of the named failure two lines
+// above it. A check that crashes where it should report is a check that will waste somebody's
+// afternoon.
+report.motion.fallbackResolved = await fallbackPage.evaluate(async () => {
+  const target = document.querySelector("[data-reveal]");
+  if (!target) return { missing: true };
+  target.scrollIntoView({ block: "center", behavior: "instant" });
+  await new Promise((done) => setTimeout(done, 1400));
+  return { opacity: Number(getComputedStyle(target).opacity), state: target.dataset.reveal };
+});
+if (report.motion.fallbackResolved.missing) {
+  failures.push("No element was marked for the fallback, so there was nothing to scroll into view; see the preceding failure for the cause");
+} else if (report.motion.fallbackResolved.opacity < 0.99 || report.motion.fallbackResolved.state !== "shown") {
+  failures.push(`A scrolled-into-view fallback reveal did not resolve: ${JSON.stringify(report.motion.fallbackResolved)}`);
+}
+// And the two paths never both run. Chrome supports view(), so nothing may be marked there.
+await page.goto(`${base}/vehicles/`, { waitUntil: "networkidle" });
+await page.waitForTimeout(400);
+report.motion.noDoubleDrive = await page.evaluate(() => document.querySelectorAll("[data-reveal]").length);
+if (report.motion.noDoubleDrive !== 0) failures.push(`${report.motion.noDoubleDrive} elements were marked for the observer fallback on a browser that supports view() timelines`);
+await fallbackContext.close();
+
+// V11-C. The specification groups, per photograph. The row totals are asserted in check-content;
+// what is asserted here is the thing a visitor actually experiences, that no photograph carries one
+// figure or nine, and that the premium treatment is really the stacked one and not the table.
+report.interactions.specDistribution = {};
+for (const [route, expected] of [
+  ["/brawley/", [5, 6, 5, 6, 6, 5]],
+  ["/santarosa/", [6, 6, 6, 5, 5]],
+  ["/carmel/", [5, 5, 0, 5, 0, 0]],
+  ["/venice/", [5, 6, 5, 4, 0, 0]],
+]) {
+  await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  const shape = await page.evaluate(() => {
+    const modules = [...document.querySelectorAll(".photo-module")];
+    const first = document.querySelector(".photo-module__specs .spec-row");
+    const label = first?.querySelector("span");
+    const value = first?.querySelector("strong");
+    return {
+      perModule: modules.map((node) => node.querySelectorAll(".photo-module__specs .spec-row").length),
+      // Stacked, not tabular: the label sits above the value, so their boxes do not overlap
+      // vertically and the label is in the caps register.
+      rowDisplay: first ? getComputedStyle(first).display : null,
+      labelTransform: label ? getComputedStyle(label).textTransform : null,
+      labelBottom: label ? Math.round(label.getBoundingClientRect().bottom) : null,
+      valueTop: value ? Math.round(value.getBoundingClientRect().top) : null,
+      valueSize: value ? Math.round(parseFloat(getComputedStyle(value).fontSize)) : null,
+      labelSize: label ? Math.round(parseFloat(getComputedStyle(label).fontSize)) : null,
+      // The GTS table is the one place that stays a table, and it is a different page.
+      tables: document.querySelectorAll(".spec-table").length,
+    };
+  });
+  report.interactions.specDistribution[route] = shape;
+  if (JSON.stringify(shape.perModule) !== JSON.stringify(expected)) failures.push(`${route}: expected ${JSON.stringify(expected)} figures per photograph, found ${JSON.stringify(shape.perModule)}`);
+  for (const count of shape.perModule) {
+    if (count !== 0 && (count < 4 || count > 6)) failures.push(`${route}: a photograph carries ${count} figures, outside the four-to-six band`);
+  }
+  if (shape.rowDisplay !== "block") failures.push(`${route}: the paired specification rows are still laid out as a table (${shape.rowDisplay})`);
+  if (shape.labelTransform !== "uppercase") failures.push(`${route}: the specification label is not in the caps register`);
+  if (shape.labelBottom === null || shape.valueTop === null || shape.labelBottom > shape.valueTop) failures.push(`${route}: the specification label must sit above its value, not beside it`);
+  if (!(shape.valueSize > shape.labelSize)) failures.push(`${route}: the value must take a larger step than its label, found ${shape.valueSize} against ${shape.labelSize}`);
+  if (shape.tables !== 0) failures.push(`${route}: the reference table belongs on the purchase page alone`);
+}
+// The purchase page keeps the table treatment, which is the other half of the same claim.
+await page.goto(`${base}/brawley/gts/`, { waitUntil: "networkidle" });
+report.interactions.gtsRowsStayTabular = await page.evaluate(() => getComputedStyle(document.querySelector(".spec-table .spec-row")).display);
+if (report.interactions.gtsRowsStayTabular !== "grid") failures.push(`The purchase page's reference table must stay a table, found ${report.interactions.gtsRowsStayTabular}`);
+
+// V11-G. The owner group photographs are centred against their manual lists.
+await page.setViewportSize({ width: 1280, height: 900 });
+await page.goto(`${base}/owners/`, { waitUntil: "networkidle" });
+report.interactions.ownerAlignment = await page.evaluate(() => {
+  const group = document.querySelector(".resource-group--media");
+  const media = group.querySelector(".resource-group__media");
+  const body = group.querySelector(".resource-group__body");
+  const centre = (element) => { const rect = element.getBoundingClientRect(); return Math.round(rect.top + rect.height / 2); };
+  return {
+    alignItems: getComputedStyle(group).alignItems,
+    mediaCentre: centre(media),
+    bodyCentre: centre(body),
+    drift: Math.abs(centre(media) - centre(body)),
+  };
+});
+if (report.interactions.ownerAlignment.alignItems !== "center") failures.push(`/owners/ groups must centre their photograph, found ${report.interactions.ownerAlignment.alignItems}`);
+if (report.interactions.ownerAlignment.drift > 2) failures.push(`/owners/ photograph is ${report.interactions.ownerAlignment.drift}px off the centre of its manual list`);
+
+// V11-J. The pathway component is gone from the rendered page as well as from the markup.
+report.interactions.pathwaysRetired = {};
+for (const route of ["/", "/dealers/"]) {
+  await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  report.interactions.pathwaysRetired[route] = await page.evaluate(() => ({
+    pathways: document.querySelectorAll(".pathways, .pathway").length,
+    // Every destination those cards carried must still be one click away from here.
+    reachable: ["/owners/", "/dealers/", "/recommend-dealer/", "/dealer-inquiry/"].filter((href) => document.querySelector(`a[href="${href}"]`)).length,
+  }));
+  const retired = report.interactions.pathwaysRetired[route];
+  if (retired.pathways !== 0) failures.push(`${route}: ${retired.pathways} pathway cards survive`);
+  if (retired.reachable !== 4) failures.push(`${route}: only ${retired.reachable} of the four pathway destinations are still reachable`);
+}
+// V11-H. The dealers title.
+await page.goto(`${base}/dealers/`, { waitUntil: "networkidle" });
+report.interactions.dealersTitle = await page.locator("h1").innerText();
+if (report.interactions.dealersTitle !== "Talk with Vanderhall.") failures.push(`The dealers title is ${report.interactions.dealersTitle}`);
+
+// V11 amendment. The past-model tag sits beside the name rather than under it, on all four surfaces
+// that carry one. Measured as boxes rather than read from the markup: what Owen asked for is that it
+// stops taking a row of its own.
+report.interactions.pastModelTag = {};
+for (const route of ["/", "/vehicles/", "/carmel/", "/venice/"]) {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  report.interactions.pastModelTag[route] = await page.evaluate(() => {
+    const headline = [...document.querySelectorAll(".model-headline")].find((node) => node.querySelector(".model-tag"));
+    if (!headline) return { found: false };
+    const heading = headline.querySelector("h1, h2, h3");
+    const tag = headline.querySelector(".model-tag");
+    const headingRect = heading.getBoundingClientRect();
+    const tagRect = tag.getBoundingClientRect();
+    return {
+      found: true,
+      // Beside: the tag starts to the right of where the heading's text ends, and their boxes
+      // overlap vertically rather than stacking.
+      besideNotUnder: tagRect.left > headingRect.left && tagRect.top < headingRect.bottom,
+      sharesRow: tagRect.top < headingRect.bottom && tagRect.bottom > headingRect.top,
+    };
+  });
+  const tag = report.interactions.pastModelTag[route];
+  if (!tag.found) failures.push(`${route}: no past-model tag was found to check`);
+  else if (!tag.besideNotUnder || !tag.sharesRow) failures.push(`${route}: the past-model tag must sit beside the name, not under it: ${JSON.stringify(tag)}`);
+}
+await page.setViewportSize({ width: 1440, height: 1000 });
 
 report.consoleErrors = [...new Set(report.consoleErrors)];
 if (report.consoleErrors.length) failures.push(`Console errors: ${report.consoleErrors.join(" | ")}`);

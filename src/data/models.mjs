@@ -114,6 +114,32 @@ const paint = PAINT.map(([name, slug, hex, tier, stillAngle = null]) => ({
 // invented figure this project refuses to publish.
 //
 // Every row carries its source. Where a row is not from Vanderhall, the comment says so.
+//
+// V11-C rewrites the shape of these groups without touching a single figure. Owen, on 2026-08-05,
+// looking at the Brawley page: "Some of them only have two, some of them have eight, so how can we
+// even them out? I'll have four to five." Two mechanisms answer that, and both are constrained:
+//
+// 1. COMPOUND VALUES ARE SPLIT INTO LABELLED ROWS. Owen approved this on 2026-08-05 (Q-V11-2). The
+//    values stay verbatim fragments of already-approved copy and only the first letter of a fragment
+//    is capitalised; the labels are ours. Nothing is invented, converted, or re-derived. Brawley's
+//    "Lighting" was one row carrying three facts and is now three rows; the same is true of its
+//    "Protection" and its shock row, and of Venice's climate row. Rows marked SPLIT below name the
+//    approved row they came out of, so the original is always recoverable from this file.
+//    A short label over a short value reads as a specification. A short label over a 20-word
+//    sentence reads as a paragraph with a heading, which is what the premium treatment in site.css
+//    would otherwise have made worse rather than better.
+//
+// 2. ROWS MOVED TO THE PHOTOGRAPH THAT SHOWS THEM. The V8 rule is unchanged and assertPairings still
+//    enforces it: one group per photograph, no orphans, no double claims. What moved, moved because
+//    the frame was checked. The clearest case: Brawley's tail lights sat in a group paired with the
+//    head-on photograph, where no tail light is visible. The desert frame is a rear three-quarter and
+//    shows both of them, so that is where the row went. Several others followed the same check.
+//
+// Result: every module that carries figures carries 4 to 6 of them instead of 1 to 9. The two
+// deliberate deviations from four-to-five are stated in the V11 plan, section 4.2: Santarosa
+// publishes 28 verified rows across five photographs and no other page publishes them, so the
+// choice is five or six per module or deleting verified figures; and Carmel has 15 rows for six
+// photographs, so three go label-only rather than being padded with content that does not exist.
 // ---------------------------------------------------------------------------------------------
 
 // Brawley. Rows without a source note were verified in V1 and are unchanged. Rows marked LIVE
@@ -122,50 +148,49 @@ const paint = PAINT.map(([name, slug, hex, tier, stillAngle = null]) => ({
 // symbols are dropped, matching the house style applied to the approved V1 copy.
 const BRAWLEY_SPECS = [
   {
+    // Paired with the head-on photograph on the two-track, which shows the halo headlights, the
+    // roof-mounted light bar, the front skid plate and the roll cage through the windscreen. The
+    // tail lights that used to sit in this group are not visible from the front and have moved to
+    // the rear three-quarter frame below.
+    name: "Lighting and protection",
+    rows: [
+      // SPLIT from the LIVE row "Lighting": "7 in high-performance LED halo headlights with
+      // ultra-bright tail lights and a 32 in 5000 lumen LED lightbar".
+      { label: "Headlights", value: "7 in high-performance LED halo" },
+      { label: "Light bar", value: "32 in 5000 lumen LED" },
+      // SPLIT from "Protection": "Front and rear removable skid plates, full roll cage, 4-point
+      // harness safety belts".
+      { label: "Skid plates", value: "Front and rear removable" },
+      { label: "Roll cage", value: "Full" },
+      { label: "Safety belts", value: "4-point harness" },
+    ],
+  },
+  {
+    // Paired with the desert photograph, a rear three-quarter: the tail lights, the white hard roof,
+    // the rear skid plate and the receiver are all in this frame, and it is the one shot that gives
+    // the whole vehicle's proportions.
+    name: "Dimensions and capability",
+    rows: [
+      // SPLIT from the LIVE "Lighting" row. Moved here from the head-on frame, where no tail light
+      // is visible, to the frame that shows both of them.
+      { label: "Tail lights", value: "Ultra-bright" },
+      { label: "Roof", value: "Full hard roof with fixed moonroof" }, // LIVE
+      { label: "Estimated dry weight", value: "3,700 lb" }, // LIVE
+      { label: "Length, width, height", value: "147.5 x 76 x 69.5 in" }, // LIVE
+      { label: "Storage capacity", value: "5.1 sq ft" }, // LIVE
+      { label: "Towing capacity", value: "1,500 lb, 300 lb tongue weight, front and rear 2 in receiver" }, // LIVE, extends the V1 row
+    ],
+  },
+  {
+    // The juniper photograph: the whole vehicle at rest, which is the page's signature frame and the
+    // right place for the figures that describe what it is rather than what it is made of.
     name: "Output and powertrain",
     rows: [
       { label: "Range", value: "Up to 140 mi" },
       { label: "Torque", value: "488 lb-ft" },
       { label: "Power", value: "283 to 404 hp" },
       { label: "Motors", value: "Quad-electric with integrated cooling system" }, // LIVE
-      { label: "Drivetrain", value: "4-wheel drive with traction control" }, // LIVE
-      { label: "Drive modes", value: "4x2, 4x4, eCrawl, eCrab, eSteer" },
       { label: "Battery", value: "Lithium-ion battery pack" }, // LIVE
-    ],
-  },
-  {
-    name: "Lighting and protection",
-    rows: [
-      // LIVE. The head-on photograph this group is paired with is the one that shows the lightbar.
-      { label: "Lighting", value: "7 in high-performance LED halo headlights with ultra-bright tail lights and a 32 in 5000 lumen LED lightbar" },
-      { label: "Protection", value: "Front and rear removable skid plates, full roll cage, 4-point harness safety belts" },
-    ],
-  },
-  {
-    name: "Suspension",
-    rows: [
-      { label: "Front and rear suspension", value: "Stamped steel control arms" }, // LIVE
-      { label: "Shocks", value: "21 in travel with cooling reservoir and gas bump stop" }, // LIVE
-    ],
-  },
-  {
-    name: "Tires, wheels, and brakes",
-    rows: [
-      { label: "Tires", value: "Atlas Paraller M/T 35x12.50R18LT" }, // LIVE
-      { label: "Wheels", value: "18x8 in aluminum" }, // LIVE
-      { label: "Brakes", value: "Regenerative braking with 200 mm in-board discs and ceramic pads" }, // LIVE
-    ],
-  },
-  {
-    name: "Dimensions and capability",
-    rows: [
-      { label: "Estimated dry weight", value: "3,700 lb" }, // LIVE
-      { label: "Chassis", value: "Aluminum unibody construction" }, // LIVE
-      { label: "Length, width, height", value: "147.5 x 76 x 69.5 in" }, // LIVE
-      { label: "Wheelbase", value: "112.5 in" }, // LIVE
-      { label: "Ground clearance", value: "18 in" }, // LIVE
-      { label: "Storage capacity", value: "5.1 sq ft" }, // LIVE
-      { label: "Towing capacity", value: "1,500 lb, 300 lb tongue weight, front and rear 2 in receiver" }, // LIVE, extends the V1 row
     ],
   },
   {
@@ -177,7 +202,36 @@ const BRAWLEY_SPECS = [
       { label: "Climate control", value: "Heating, cooling, ventilation speed, circulation, and defrost" }, // LIVE
       { label: "Seats", value: "Heated with integrated 4-point harness" }, // LIVE
       { label: "Sound system", value: "Multi-channel amp Bluetooth" }, // LIVE
-      { label: "Roof", value: "Full hard roof with fixed moonroof" }, // LIVE
+    ],
+  },
+  {
+    // The control-arm close-up. It shows the arms, the coil-overs and the reservoir directly, and it
+    // is the frame that shows how far the body sits off the ground, so the chassis construction and
+    // the clearance figure moved here from the whole-vehicle group.
+    name: "Chassis and suspension",
+    rows: [
+      { label: "Chassis", value: "Aluminum unibody construction" }, // LIVE
+      { label: "Front and rear suspension", value: "Stamped steel control arms" }, // LIVE
+      // SPLIT from the LIVE row "Shocks": "21 in travel with cooling reservoir and gas bump stop".
+      // The travel figure is also the one the GTS figure band publishes, word for word.
+      { label: "Suspension travel", value: "21 in" },
+      { label: "Shocks", value: "Cooling reservoir and gas bump stop" },
+      { label: "Ground clearance", value: "18 in" }, // LIVE
+      // The distance between the axles is a chassis figure and this is the frame that shows an axle.
+      { label: "Wheelbase", value: "112.5 in" }, // LIVE
+    ],
+  },
+  {
+    // The wheel and tire close-up. Drivetrain and drive modes moved here from the powertrain group:
+    // this is the frame about how the vehicle puts power down, and every one of these rows is about
+    // the corner in the photograph.
+    name: "Wheels, tires, and drive",
+    rows: [
+      { label: "Drivetrain", value: "4-wheel drive with traction control" }, // LIVE
+      { label: "Drive modes", value: "4x2, 4x4, eCrawl, eCrab, eSteer" },
+      { label: "Tires", value: "Atlas Paraller M/T 35x12.50R18LT" }, // LIVE
+      { label: "Wheels", value: "18x8 in aluminum" }, // LIVE
+      { label: "Brakes", value: "Regenerative braking with 200 mm in-board discs and ceramic pads" }, // LIVE
     ],
   },
 ];
@@ -187,36 +241,36 @@ const BRAWLEY_SPECS = [
 // removable capshade both carry a triple-asterisk footnote whose meaning is not stated anywhere
 // readable, and a row whose qualifier is unknown could turn optional equipment into standard.
 // The optional range row is kept because its own label states the condition.
+//
+// V11-C rebalances the nine-row chassis group across the frames that show it and fixes one pairing
+// that was plainly wrong: the lighting row, which describes headlights, tail lights and a third
+// brake light, sat in the cabin group paired with the dashboard close-up. It now sits with the
+// street photograph, where the vehicle's lights are in frame. No value is split here. The one
+// compound row that invites it, the lighting row, cannot be split cleanly: "and a third brake light"
+// has no value of its own to carry, and inventing one is exactly what this file refuses to do.
 const SANTAROSA_SPECS = [
   {
+    // The street photograph, a full side view on cobblestones.
+    name: "Chassis and lighting",
+    rows: [
+      { label: "Drivetrain", value: "Front-wheel drive with traction control" }, // LIVE
+      { label: "Front suspension", value: "Cast aluminum double wishbone" }, // LIVE
+      { label: "Rear suspension", value: "Cast aluminum trailing arm" }, // LIVE
+      { label: "Shocks", value: "Coil-over adjustable" }, // LIVE
+      { label: "Parking brake", value: "Electric auto-setting" }, // LIVE
+      { label: "Lighting", value: "7 in high-performance LED halo headlights with ultra-bright tail lights and a third brake light" }, // LIVE
+    ],
+  },
+  {
+    // The mountain turnout, the whole vehicle at rest.
     name: "Output and range",
     rows: [
       { label: "Standard range", value: "150 mi" },
       { label: "Optional range", value: "300 mi" }, // LIVE
       { label: "Torque", value: "216 lb-ft" },
       { label: "Power", value: "180 hp" },
-    ],
-  },
-  {
-    name: "Powertrain",
-    rows: [
       { label: "Motors", value: "Twin-electric with integrated cooling system" }, // LIVE
-      { label: "Drivetrain", value: "Front-wheel drive with traction control" }, // LIVE
       { label: "Battery", value: "Lithium-ion battery pack" }, // LIVE
-    ],
-  },
-  {
-    name: "Chassis, wheels, and brakes",
-    rows: [
-      { label: "Front suspension", value: "Cast aluminum double wishbone" }, // LIVE
-      { label: "Rear suspension", value: "Cast aluminum trailing arm" }, // LIVE
-      { label: "Shocks", value: "Coil-over adjustable" }, // LIVE
-      { label: "Front tires", value: "Atlas Force UHP 225/35R19" }, // LIVE
-      { label: "Rear tires", value: "Atlas Force UHP 295/30R19" }, // LIVE
-      { label: "Front wheels", value: "19x8 in aluminum" }, // LIVE
-      { label: "Rear wheels", value: "19x11 in aluminum" }, // LIVE
-      { label: "Brakes", value: "Adaptive regenerative braking with 200 mm in-board high-temp stainless rotors and ceramic pads" }, // LIVE
-      { label: "Parking brake", value: "Electric auto-setting" }, // LIVE
     ],
   },
   {
@@ -231,11 +285,22 @@ const SANTAROSA_SPECS = [
     ],
   },
   {
+    // The overhead frame, which is the one photograph on the site that shows all three wheels at
+    // once, so it is the right home for the wheels, the tires and the brakes behind them.
+    name: "Wheels, tires, and brakes",
+    rows: [
+      { label: "Front tires", value: "Atlas Force UHP 225/35R19" }, // LIVE
+      { label: "Rear tires", value: "Atlas Force UHP 295/30R19" }, // LIVE
+      { label: "Front wheels", value: "19x8 in aluminum" }, // LIVE
+      { label: "Rear wheels", value: "19x11 in aluminum" }, // LIVE
+      { label: "Brakes", value: "Adaptive regenerative braking with 200 mm in-board high-temp stainless rotors and ceramic pads" }, // LIVE
+    ],
+  },
+  {
     name: "Cabin",
     rows: [
       { label: "Gauges", value: "Twin-gauge display with digital inset screen" }, // LIVE
       { label: "Instrumentation", value: "USB A charging ports" }, // LIVE
-      { label: "Lighting", value: "7 in high-performance LED halo headlights with ultra-bright tail lights and a third brake light" }, // LIVE
       { label: "Seats", value: "Heated manual reclining" }, // LIVE
       { label: "Seat belts", value: "Driver and passenger 3-point" }, // LIVE
       { label: "Sound system", value: "Multi-channel amp Bluetooth" }, // LIVE
@@ -255,27 +320,17 @@ const SANTAROSA_SPECS = [
 // model's old price would mislead), the fuel capacity (the source row is mislabeled "DISPLACEMENT
 // 10 Gallons" and cannot be published either way), and the performance claims, which the source
 // footnotes with "Verification of these results should not be attempted".
+//
+// V11-C: 15 verified rows will not fill six photographs at four rows each, and padding them would
+// mean inventing content. So Carmel publishes three groups of five and three photographs carry their
+// label alone, which is the pattern Venice has used since V8 and which V8's own comment calls
+// deliberate rather than unfinished. The six one-row and two-row groups are gone; nothing else is.
 const CARMEL_SPECS = [
   {
-    name: "Powertrain",
+    // The beach photograph, a three-quarter view: both doors and all three wheels are in frame.
+    name: "Body, wheels, and tires",
     rows: [
-      { label: "Engine", value: "1.5 L 4-cylinder turbo" },
-      { label: "Power", value: "200 hp" },
-      { label: "Torque", value: "203 lb-ft" },
-      { label: "Transmission", value: "6-speed" },
-    ],
-  },
-  {
-    name: "Chassis and steering",
-    rows: [
-      { label: "Front suspension", value: "Pushrod front coil over" },
-      { label: "Rear suspension", value: "Rear single-sided swing arm coil over" },
-      { label: "Steering", value: "Electric power steering" },
-    ],
-  },
-  {
-    name: "Wheels and tires",
-    rows: [
+      { label: "Doors", value: "Dual front entry doors with expanded interior width" },
       { label: "Front tires", value: "235/35 ZR19" },
       { label: "Rear tire", value: "275/35 ZR19" },
       { label: "Front wheels", value: "19x8.5 aluminum" },
@@ -283,18 +338,26 @@ const CARMEL_SPECS = [
     ],
   },
   {
-    name: "Comfort",
-    rows: [{ label: "Climate control", value: "Heating control module, heated seats" }],
-  },
-  {
-    name: "Special features",
-    rows: [{ label: "Doors", value: "Dual front entry doors with expanded interior width" }],
-  },
-  {
-    name: "Dimensions and weight",
+    // The causeway side profile, which is the frame that shows the vehicle's length and stance.
+    name: "Chassis and dimensions",
     rows: [
+      { label: "Front suspension", value: "Pushrod front coil over" },
+      { label: "Rear suspension", value: "Rear single-sided swing arm coil over" },
+      { label: "Steering", value: "Electric power steering" },
       { label: "Length, width, height", value: "147 x 70 x 45 in" }, // specs-menu-carmel.pdf
       { label: "Curb weight", value: "1,595 lb" },
+    ],
+  },
+  {
+    // The cockpit: the gauges that read the engine's output and the toggle switches that are the
+    // climate controls are both in this one frame, which is what makes it the honest home for both.
+    name: "Powertrain and comfort",
+    rows: [
+      { label: "Engine", value: "1.5 L 4-cylinder turbo" },
+      { label: "Power", value: "200 hp" },
+      { label: "Torque", value: "203 lb-ft" },
+      { label: "Transmission", value: "6-speed" },
+      { label: "Climate control", value: "Heating control module, heated seats" },
     ],
   },
 ];
@@ -333,7 +396,6 @@ const VENICE_SPECS = [
       { label: "Body", value: "Composite" },
       { label: "Front suspension", value: "Pushrod, coil-over hydraulic shocks" },
       { label: "Rear suspension", value: "Single-sided swingarm, coil-over hydraulic shock" },
-      { label: "Steering", value: "Rack-and-pinion, electronic assist" },
       { label: "Wheelbase", value: "100.2 in" }, // CRUISER, third-party
     ],
   },
@@ -349,10 +411,16 @@ const VENICE_SPECS = [
     ],
   },
   {
-    name: "Comfort",
+    // Paired with the seats photograph, which carries the wood-rimmed steering wheel as well as the
+    // upholstery. That is why the steering row moved here from the chassis group: this is the frame
+    // that shows it. Two rows became four without a new fact between them.
+    name: "Comfort and controls",
     rows: [
-      { label: "Climate control", value: "Heat, heated seats" },
+      // SPLIT from the approved row "Climate control": "Heat, heated seats".
+      { label: "Climate control", value: "Heat" },
+      { label: "Seats", value: "Heated" },
       { label: "Sound system", value: "Bluetooth" },
+      { label: "Steering", value: "Rack-and-pinion, electronic assist" },
     ],
   },
 ];
@@ -428,8 +496,8 @@ export const models = [
           ["interior", "THE CABIN", "Brawley cabin with steering wheel, gauges, and embossed seat backs", "Cabin"],
         ]),
         ...modules(BRAWLEY_FEATURES, BRAWLEY_SPECS, [
-          ["suspension", "CONTROL ARMS", "Brawley control arms and coil-over dampers", "Suspension"],
-          ["wheel", "WHEEL AND TIRE", "Brawley satin black wheel and mud-terrain tire", "Tires, wheels, and brakes"],
+          ["suspension", "CONTROL ARMS", "Brawley control arms and coil-over dampers", "Chassis and suspension"],
+          ["wheel", "WHEEL AND TIRE", "Brawley satin black wheel and mud-terrain tire", "Wheels, tires, and drive"],
         ]),
       ],
     },
@@ -457,10 +525,10 @@ export const models = [
         { ...feature(SANTAROSA_FEATURES, "top-view"), alt: "Santarosa seen from above" },
       ],
       modules: modules(SANTAROSA_FEATURES, SANTAROSA_SPECS, [
-        ["street", "COBBLESTONES", "Santarosa on a cobblestone street outside a coffee shop", "Powertrain"],
+        ["street", "COBBLESTONES", "Santarosa on a cobblestone street outside a coffee shop", "Chassis and lighting"],
         ["sunset", "MOUNTAIN TURNOUT", "Santarosa at a mountain turnout with the sun low behind it", "Output and range"],
         ["city", "ROOFTOP AT DUSK", "Santarosa with a hard roof on a rooftop deck at dusk", "Dimensions and weight"],
-        ["top-view", "FROM ABOVE", "Santarosa seen from above on a concrete floor", "Chassis, wheels, and brakes"],
+        ["top-view", "FROM ABOVE", "Santarosa seen from above on a concrete floor", "Wheels, tires, and brakes"],
         ["dashboard", "THE FASCIA", "Santarosa fascia with chrome vents and script", "Cabin"],
       ]),
     },
@@ -489,13 +557,16 @@ export const models = [
         { ...feature(CARMEL_FEATURES, "dashboard"), alt: "Carmel dashboard and analog gauges" },
         { ...feature(CARMEL_FEATURES, "lake-reflection"), alt: "Carmel side profile on a causeway between two sheets of water" },
       ],
+      // Three photographs carry figures and three carry their label alone. See the CARMEL_SPECS
+      // comment: 15 verified rows cannot fill six modules at four, and the alternative to a
+      // label-only frame is an invented one.
       modules: modules(CARMEL_FEATURES, CARMEL_SPECS, [
-        ["beach-reflection", "ON THE SAND", "Carmel on damp sand with its reflection in a tidal pool", "Wheels and tires"],
-        ["lake-reflection", "STILL WATER", "Carmel side profile on a causeway between two sheets of water", "Chassis and steering"],
-        ["downtown", "AFTER DARK", "Carmel on wet paving at night", "Dimensions and weight"],
-        ["dashboard", "THE COCKPIT", "Carmel steering wheel, gauges, and toggle switches", "Special features"],
-        ["seats", "TAN LEATHER", "Carmel tan contrast-stitched seats from above", "Comfort"],
-        ["shifter", "SHIFT BALL", "Carmel shift knob and drilled alloy pedal", "Powertrain"],
+        ["beach-reflection", "ON THE SAND", "Carmel on damp sand with its reflection in a tidal pool", "Body, wheels, and tires"],
+        ["lake-reflection", "STILL WATER", "Carmel side profile on a causeway between two sheets of water", "Chassis and dimensions"],
+        ["downtown", "AFTER DARK", "Carmel on wet paving at night"],
+        ["dashboard", "THE COCKPIT", "Carmel steering wheel, gauges, and toggle switches", "Powertrain and comfort"],
+        ["seats", "TAN LEATHER", "Carmel tan contrast-stitched seats from above"],
+        ["shifter", "SHIFT BALL", "Carmel shift knob and drilled alloy pedal"],
       ]),
     },
   },
@@ -530,7 +601,7 @@ export const models = [
         ["forest-road", "FOREST ROAD", "Venice on a forest road at sunrise", "Chassis and suspension"],
         ["mountain-lake", "AT THE LAKE", "Venice parked beside an alpine lake", "Wheels, tires, and brakes"],
         ["motion", "ON THE MOVE", "Venice photographed in motion under an underpass", "Powertrain and capacities"],
-        ["seats", "TWO SEATS", "Venice tan leather seats and wood-rimmed steering wheel", "Comfort"],
+        ["seats", "TWO SEATS", "Venice tan leather seats and wood-rimmed steering wheel", "Comfort and controls"],
         ["speedometer", "ONE DIAL", "Venice analog speedometer set into tan leather"],
         ["steering-wheel", "WOOD AND ALUMINUM", "Venice four-spoke steering wheel with a wooden rim"],
       ]),

@@ -234,6 +234,67 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches && CSS.supports("ani
   });
 }
 
+// Scroll reveals for browsers with no scroll-driven animation, V11-B.
+//
+// Every reveal on this site is a CSS view() timeline, which is correct where it is supported and
+// invisible where it is not: Safari and Firefox rendered a site with no scroll motion at all, which
+// is most likely what Owen was looking at when he asked for motion "on every page". This is the same
+// reveal expressed as a transition, and it is mutually exclusive with the CSS path by construction:
+// the guard below is the exact feature query the stylesheet's @supports block uses, so an element can
+// never be driven by both.
+//
+// Three constraints, all of them enforced here rather than in the stylesheet:
+//
+// - Reduced motion means no reveal at all on either path, not a faster one.
+// - Only elements sitting entirely below the fold at init are touched. This is the guard the word
+//   cascade has used since V9 and the reason is the same: this file runs after the load event, so
+//   hiding something the visitor is already reading would visibly re-hide it. The first viewport
+//   stays still, and motion is earned by scrolling.
+// - The start state lives on the attribute this sets, so a page without JavaScript, or one where
+//   this file never arrives, renders every element in its final state. Nothing can be left hidden.
+const REVEAL_SELECTORS = [
+  ".vehicle-section__media", ".vehicle-section__body",
+  ".photo-module__media", ".photo-module__body",
+  ".card-grid--concepts .card", ".concept-figure",
+  ".split__media", ".split__body",
+  ".section-heading", ".spec-table", ".gts-figures", ".gts-scene", ".disclosures", ".resource-group",
+  ".photo-module__specs .spec-row", ".vehicle-section__row .vehicle-section__support",
+].join(", ");
+
+// Mirrors the nth-child offsets in site.css, so the two paths deal a row of cards or a group of
+// figures out one at a time rather than snapping them in together. Capped at the sixth row, which is
+// the largest specification group on the site after the V11-C rebalance.
+const REVEAL_STEP = 70;
+const revealDelay = (element) => {
+  const position = () => [...element.parentElement.children].indexOf(element);
+  if (element.matches(".photo-module__specs .spec-row")) return Math.min(position(), 5) * REVEAL_STEP;
+  if (element.matches(".card-grid--concepts .card")) return (position() % 3) * REVEAL_STEP;
+  if (element.matches(".vehicle-section__row .vehicle-section__support")) return position() * REVEAL_STEP;
+  if (element.matches(".vehicle-section__body, .photo-module__body")) return REVEAL_STEP;
+  return 0;
+};
+
+if (!matchMedia("(prefers-reduced-motion: reduce)").matches && !CSS.supports("animation-timeline: view()")) {
+  // Revealed a little before the element reaches the middle of the screen, so the motion has finished
+  // by the time the visitor is reading it rather than while they are.
+  const revealer = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      if (!entry.isIntersecting) continue;
+      entry.target.dataset.reveal = "shown";
+      // Once shown, always shown. A reveal that replayed on the way back up would be a page that
+      // never settles.
+      revealer.unobserve(entry.target);
+    }
+  }, { rootMargin: "0px 0px -12% 0px" });
+  for (const element of document.querySelectorAll(REVEAL_SELECTORS)) {
+    if (element.getBoundingClientRect().top < innerHeight) continue;
+    const delay = revealDelay(element);
+    if (delay) element.style.setProperty("--reveal-delay", `${delay}ms`);
+    element.dataset.reveal = "";
+    revealer.observe(element);
+  }
+}
+
 // The concept band. Its own reduced-motion guard rather than relying on the stylesheet's: under
 // reduced motion the band stays a static filmstrip and the pause button stays hidden, because a
 // control that stops something already stopped is worse than no control.
@@ -247,19 +308,56 @@ document.querySelectorAll("[data-marquee]").forEach((band) => {
     const paused = band.classList.toggle("is-paused");
     toggle.setAttribute("aria-pressed", String(paused));
   });
+
+  // V11-F, the fallback half of the dissolve. Where view() timelines are supported the stylesheet
+  // drives this and nothing here runs; where they are not, the band's own visible fraction is written
+  // into a custom property and the stylesheet turns it into opacity and blur. An IntersectionObserver
+  // with a fine threshold ladder rather than a scroll listener, which is what makes this continuous
+  // without putting layout reads on the scroll path. The property is set on the viewport, never on
+  // the bar, so the pause control does not fade with the film it controls.
+  if (CSS.supports("animation-timeline: view()")) return;
+  const viewport = band.querySelector(".concept-marquee__viewport");
+  if (!viewport) return;
+  // The ratio is remapped rather than used raw, so this path finishes where the view() path finishes.
+  // The stylesheet dissolves across exit -40% to exit 45%, which is to say it is done once 45% of the
+  // band has left the top of the screen. A raw intersectionRatio would still be at 0.55 there and the
+  // strip would linger through the cards. STRIP_FLOOR is that same 45%, expressed as the ratio the
+  // fade must reach zero at, so the two paths are one decision written twice rather than two.
+  const STRIP_FLOOR = 0.55;
+  const steps = Array.from({ length: 21 }, (_, index) => index / 20);
+  new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+      const visible = Math.min(1, Math.max(0, (entry.intersectionRatio - STRIP_FLOOR) / (1 - STRIP_FLOOR)));
+      // Rounded to the ladder's own resolution so a sub-pixel scroll cannot write a new value that
+      // triggers a repaint for no visible change.
+      viewport.style.setProperty("--strip-visibility", (Math.round(visible * 20) / 20).toFixed(2));
+    }
+  }, { threshold: steps }).observe(band);
 });
 
-// Ambient video, V10. Three loops: the homepage hero and one block each on /brawley/ and
-// /brawley/gts/. All three are silent, and none of them carries a src attribute in the markup, only
-// data-src. That is the load gate rather than a convention: a visitor who is not eligible for video,
-// or who has no JavaScript, cannot request a byte of it, because there is nothing for the parser to
-// fetch. This file itself runs after the load event, so no video can compete with the poster, the
-// stylesheet or the first paint either.
+// Ambient video. V10 shipped three loops; V11-A leaves one, the montage behind the homepage hero.
+// It is silent, and it carries no src attribute in the markup, only data-src. That is the load gate
+// rather than a convention: a visitor who is not eligible for video, or who has no JavaScript, cannot
+// request a byte of it, because there is nothing for the parser to fetch. This file itself runs after
+// the load event, so no video can compete with the poster, the stylesheet or the first paint either.
 //
-// Two refusals are honoured before anything else happens, and both mean no video and no control at
-// all rather than a stopped video and a button: reduced motion, and Save-Data. A control that offers
-// to pause something that was never going to move is worse than no control.
-if (!matchMedia("(prefers-reduced-motion: reduce)").matches && !navigator.connection?.saveData) {
+// Three refusals are honoured before anything else happens, and each means no video and no control at
+// all rather than a stopped video and a button. A control that offers to pause something that was
+// never going to move is worse than no control.
+//
+// Reduced motion and Save-Data are the visitor's own preferences and were already here. The third is
+// screen width, and it is new: Q-V11-1, answered by Owen on 2026-08-05. The one remaining loop is
+// 2.83 MB of WebM against the 292 KB clip it replaces, and it now sits on the homepage, so that cost
+// would land on every phone that opens the site. Above 768px the loop plays; below it the visitor
+// gets the poster frame, which is the loop's own first frame, and loses motion and nothing else. The
+// homepage LCP element is the poster either way.
+//
+// Read once, at load, rather than through a live matchMedia listener: this is an ambient loop, and
+// beginning a 2.8 MB fetch because somebody rotated a tablet is not what the gate is for.
+const VIDEO_MIN_WIDTH = 768;
+if (!matchMedia("(prefers-reduced-motion: reduce)").matches
+  && !navigator.connection?.saveData
+  && matchMedia(`(min-width: ${VIDEO_MIN_WIDTH}px)`).matches) {
   document.querySelectorAll("[data-ambient]").forEach((block) => {
     const video = block.querySelector("[data-ambient-video]");
     const toggle = block.querySelector("[data-ambient-toggle]");

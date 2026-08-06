@@ -149,6 +149,67 @@
   --hero-min-mobile: min(80svh, max(26rem, 66svh));
 }
 
+/* V11-E. The concepts hub and the nine concept detail pages render on a white studio field, per
+   D-V11-1. The class sits on <main>, so it is full width at any viewport and the sticky header and
+   the footer, which are outside main, stay dark exactly as they are everywhere else.
+
+   Why the pages moved: the renders were authored on a white studio floor with soft shadows and
+   reflections, and V9 keyed that floor onto the dark paper. No threshold key removes a gradient
+   cleanly, so the hub cards kept grey ghosting where the contact shadow had been and the detail
+   heroes showed vertical banding through the field around the vehicle. Owen, on 2026-08-05:
+   "Originally, we were on a white background, and it looked really good. Now, when we edited it, it
+   has these gray marks." Putting the pages back on white removes the cause rather than chasing it
+   with a better key, and the image pipeline stops keying these files at all.
+
+   THIS IS NOT LIGHT MODE, and the distinction is mechanical rather than a matter of opinion. What V9
+   removed was a stored preference, a visible control, and colours defined as two-value functions that
+   had to be kept in step with each other. None of those comes back here: this is one class carrying
+   fixed values on two page types, with no branch to take, nothing to store, and nothing to switch.
+   The check suite's bans on the two-value function and on the stored preference stay in force and
+   still pass.
+
+   Every value in the ramp is restated rather than inherited. A custom property's var() references
+   resolve where the property is declared, not where it is used, so redeclaring --ink alone would
+   leave every --ink-NN below still mixing the dark value. The whole ramp is written out for that
+   reason, and verify-browser measures the computed result rather than trusting this note. */
+.page--studio {
+  color-scheme: light;
+
+  --paper: #FFFFFF;
+  --ink: #101014;
+  /* Derived, not chosen. #E08A55 measures 7.29:1 on the dark paper and 2.65:1 on white, and
+     --focus-color is the accent, so on white it would ship a focus indicator below the 3:1 floor.
+     This value is the same hue scaled toward black until it measured a target of 3.5:1, which is the
+     3:1 requirement with room to spare rather than a value sitting exactly on the line. Measured:
+     3.50:1 on white, 5.51:1 on the dark paper. The accent marks themselves are decorative and exempt;
+     the focus ring is not, which is what set the target. */
+  --accent: #C17749;
+
+  --ink-70: color-mix(in srgb, var(--ink) 70%, transparent);
+  --ink-60: color-mix(in srgb, var(--ink) 60%, transparent);
+  --ink-50: color-mix(in srgb, var(--ink) 50%, transparent);
+  --ink-24: color-mix(in srgb, var(--ink) 24%, transparent);
+  --ink-12: color-mix(in srgb, var(--ink) 12%, transparent);
+  --ink-06: color-mix(in srgb, var(--ink) 6%, transparent);
+  --ink-03: color-mix(in srgb, var(--ink) 3%, transparent);
+
+  --surface-1: var(--ink-03);
+  --surface-2: var(--ink-06);
+  --surface-hover: var(--ink-06);
+  --line: var(--ink-12);
+  --line-strong: var(--ink-50);
+  --line-faint: var(--ink-06);
+
+  --text-primary: var(--ink);
+  --text-secondary: var(--ink-70);
+  --text-tertiary: var(--ink-60);
+
+  --focus-color: var(--accent);
+
+  background: var(--paper);
+  color: var(--text-primary);
+}
+
 @media (min-width: 1024px) {
   :root { --header-h: 4.75rem; }
 }
