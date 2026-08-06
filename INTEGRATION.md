@@ -267,29 +267,41 @@ convenience route and not a submission endpoint.
 
 ### `brawley-film` (Vanderhall)
 
-**This is the one V13 item that was not built.** The plan's own answer to Q-V13-16 is that public delivery is
-blocked until publication rights and the treatment of the master's burned-in safety warning are documented.
-Neither has happened, so the homepage still carries the V11 canyon montage and `src/data/video.mjs` is
-unchanged.
+**The film is delivered.** Owen instructed delivery in chat on 2026-08-06 and the homepage hero now carries
+one play-once film cut from `../Assets/Source Video/Brawley/brawley-final-master.mp4`. What keeps this
+blocker open is the paperwork the delivery decision did not resolve: **written publication rights for
+footage, people, locations, and vehicle treatment, and a documented decision on the master's burned-in
+safety warning.** Until both exist this stays a production blocker, and the exposure now sits on the live
+homepage rather than in a plan.
 
-When rights and legal treatment are documented, the work is:
+What shipped, so the next person does not have to re-derive it:
 
-- Trim `../Assets/Source Video/Brawley/brawley-final-master.mp4` at **exactly 25.000 s** and use the remainder
-  through 62.059 s, about 37.059 s. The 25-second point is deliberate; do not substitute a scene-detection
-  result.
-- Produce MP4 and WebM derivatives, one video stream each, **no audio stream** (document that the audio was
-  removed deliberately rather than omitted by accident).
-- Responsive posters from an approved frame, no upscaling. The poster stays the eager, high-priority LCP
-  element and the video sources stay unresolved until after load.
-- Retire the montage's five delivered files and add the retired basenames to the retired-video list in
-  `check-content.mjs`.
-- Migrate `check-video.mjs`: the exact delivered pair, duration within a frame-accurate tolerance, a byte
-  budget, poster aspect and start-frame match, codecs, dimensions, frame rate, MP4 fast start, and a
-  start-frame fingerprint so a derivative beginning before or after 25.000 s fails.
-- Preserve every V11 gate: the 768 px mobile gate, Save-Data, reduced motion, no-JavaScript, pause offscreen,
-  and the keyboard-operable pause control. Both Brawley routes stay video-free.
-- Do **not** crop away, replace, or rely on the burned-in warning line, and do not transcribe legal wording
-  from video pixels. If an HTML safety disclosure is required, render approved text independently.
+- The trim starts at **exactly 25.000 s**, Owen's approved cut past the studio reveal, and ends at
+  **59.500 s** rather than the master's 62.059 s end: the master fades to full black across its final two
+  seconds, and the play-once hold would have settled the hero on a black panel. Owen approved "up until the
+  minute" in the same chat; 59.500 is the last clean moment of the close front view before the fade begins.
+  Neither timestamp may be replaced with a scene-detection result.
+- Delivered pair: `brawley-film-25-60.webm` (VP9, 7,842,968 bytes) and `brawley-film-25-60.mp4` (H.264,
+  fast-started, 12,950,302 bytes), both 1920 by 1080 at 24000/1001 fps, one video stream each, **no audio
+  stream** (removed deliberately at encode time, not omitted by accident; the page offers no volume
+  control). Three poster rungs at 960, 1280, and 1920 from the film's own first frame, no upscaling.
+- The film plays once and holds its final frame; the markup carries no `loop` attribute and site.js will not
+  restart a finished film on scroll return or tab return. Only the visitor's press of the control replays it.
+- The montage's five delivered files are deleted and their basenames sit in the retired-video list in
+  `check-content.mjs`, so restoring them has to be a decision.
+- `check-video.mjs` asserts the exact delivered pair, duration within a frame-accurate window, byte budgets,
+  codecs, dimensions, frame rate, MP4 fast start, and start- and final-frame fingerprints against
+  `scripts/lib/film-refs/`, so a derivative cut before or after 25.000 s fails. The poster is
+  fingerprint-matched to the film's first frame.
+- Every V11 gate is preserved: the 768 px mobile gate, Save-Data, reduced motion, no-JavaScript, pause
+  offscreen, and the keyboard-operable pause control. Both Brawley routes stay video-free.
+- The burned-in warning line near the lower edge is neither cropped away, replaced, nor relied on, and no
+  legal wording was transcribed from video pixels. If approved legal guidance calls for an HTML safety
+  disclosure, render the approved text independently.
+
+To clear this: Vanderhall documents written publication rights for the master and confirms whether the
+burned-in warning is required; both records land wherever the other rights records live, and this entry is
+updated to point at them.
 
 ### `campaign-state-owner` (Owen)
 

@@ -36,7 +36,7 @@ export const PRODUCTION_BLOCKERS = Object.freeze([
   { id: "privacy-copy", owner: "Vanderhall legal", detail: "The privacy policy still describes the old WordPress site. Approved replacement copy is required before publication." },
   { id: "brawley-trademark-clause", owner: "Vanderhall legal", detail: "Approved Vanderhall-only wording for the Brawley trademark attribution. The old corporate-name sentence is withheld from public output and must not be paraphrased." },
   { id: "inquiry-mailbox", owner: "John", detail: "Confirm ownership, monitoring, and response responsibility for inquiry@vanderhall.com before launch." },
-  { id: "brawley-film", owner: "Vanderhall", detail: "Written publication rights for the new Brawley master and a decision on its burned-in safety warning. Q-V13-16 blocks public delivery, so the homepage still carries the V11 montage." },
+  { id: "brawley-film", owner: "Vanderhall", detail: "Written publication rights for the new Brawley master and a decision on its burned-in safety warning. The film is on the homepage per Owen's 2026-08-06 instruction; the rights paperwork is still outstanding and keeps this blocker open." },
   { id: "campaign-state-owner", owner: "Owen", detail: "A named owner for the Santarosa campaign phase and the Brawley delivery status, plus the review dates both carry." },
   { id: "redirect-ownership", owner: "John", detail: "Redirect ownership across vanderhallusa.com, the dealer subdomain, and the portal subdomain." },
 ]);

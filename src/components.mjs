@@ -374,7 +374,7 @@ const videoSources = ({ webm, mp4 }) => `<source data-src="${webm}" type="video/
 const videoToggle = (className) => `<button class="${className}" type="button" data-ambient-toggle hidden>Pause</button>`;
 
 export const hero = ({ src, srcset, tallSrcset, alt, focal, align = "", content, width = 1920, height = 823, video = null }) => `<section class="hero bleed${align === "end" ? " hero--content-end" : ""}" style="--hero-focal:${focal}"${video ? " data-ambient" : ""}>
-    <div class="hero__media"><picture>${tallSrcset ? `<source media="(max-width: 767px)" srcset="${tallSrcset}" sizes="100vw">` : ""}<img class="hero__image" src="${src}" srcset="${srcset}" sizes="100vw" width="${width}" height="${height}" alt="${escapeHtml(alt)}" loading="eager" fetchpriority="high" decoding="async"></picture>${video ? `<video class="hero__video" muted loop playsinline preload="none" tabindex="-1" aria-hidden="true" data-ambient-video>${videoSources(video)}</video>` : ""}</div>
+    <div class="hero__media"><picture>${tallSrcset ? `<source media="(max-width: 767px)" srcset="${tallSrcset}" sizes="100vw">` : ""}<img class="hero__image" src="${src}" srcset="${srcset}" sizes="100vw" width="${width}" height="${height}" alt="${escapeHtml(alt)}" loading="eager" fetchpriority="high" decoding="async"></picture>${video ? `<video class="hero__video" muted playsinline preload="none" tabindex="-1" aria-hidden="true" data-ambient-video>${videoSources(video)}</video>` : ""}</div>
     <div class="hero__scrim" aria-hidden="true"></div>
     <div class="hero__content">${content}</div>
     ${video ? `<div class="hero__bar">${videoToggle("hero__toggle")}</div>` : ""}

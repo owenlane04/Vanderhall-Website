@@ -1008,7 +1008,9 @@ for (const [route, blockSelector, posterSelector] of AMBIENT_PLACEMENTS) {
   if (videoSources.some((url) => url.endsWith(".mp4"))) failures.push(`${route}: Chrome fell through to the H.264 file: ${videoSources.join(", ")}`);
   if (!shape.painted || shape.videoOpacity < 0.99) failures.push(`${route}: the video never faded in over its poster: ${JSON.stringify(shape)}`);
   if (shape.paused) failures.push(`${route}: the ambient video is not playing`);
-  if (!shape.muted || !shape.loop) failures.push(`${route}: the ambient video must be muted and looping`);
+  // The V13 film plays once and holds its final frame; a loop attribute here would jump from the
+  // close-front-view hold straight back to the action start.
+  if (!shape.muted || shape.loop) failures.push(`${route}: the ambient video must be muted and must not loop`);
   if (!shape.currentSrc.endsWith(".webm")) failures.push(`${route}: the playing source is ${shape.currentSrc}`);
   if (!shape.toggleVisible || shape.toggleLabel !== "Pause") failures.push(`${route}: the control must be revealed reading Pause once playback starts, got ${JSON.stringify(shape.toggleLabel)}`);
   if (!shape.posterStillThere) failures.push(`${route}: the poster was removed, so there is nothing under the video`);
@@ -1018,7 +1020,7 @@ for (const [route, blockSelector, posterSelector] of AMBIENT_PLACEMENTS) {
 // The homepage's LCP must stay the poster image. A decoded video frame becoming the LCP element would
 // mean the largest paint had moved behind the load event and the video gate.
 const homeLcp = report.ambient.routes["/"].lcp;
-if (!homeLcp?.url?.includes("/assets/video/brawley/brawley-canyon-montage-00-12-poster-")) failures.push(`The homepage LCP element must be the hero poster, got ${JSON.stringify(homeLcp)}`);
+if (!homeLcp?.url?.includes("/assets/video/brawley/brawley-film-25-60-poster-")) failures.push(`The homepage LCP element must be the hero poster, got ${JSON.stringify(homeLcp)}`);
 
 // V11-A. The two retired loops, proved gone rather than assumed gone: no video element, no request
 // for a video byte, and no reference to the asset directory at all. This is the assertion that would
@@ -1042,8 +1044,8 @@ for (const route of ["/brawley/", "/brawley/gts/"]) {
   await silentPage.close();
 }
 
-// Q-V11-1. Below 768px the loop is not loaded at all: the visitor gets the poster, which is the
-// loop's own first frame, and no control. The clip is 2.83 MB of WebM and the site's one video now
+// Q-V11-1. Below 768px the film is not loaded at all: the visitor gets the poster, which is the
+// film's own first frame, and no control. The film is megabytes of WebM and the site's one video
 // sits on the homepage, so this is the assertion that keeps that cost off a phone. readyState 0 is
 // the proof that nothing loaded rather than that nothing played.
 report.ambient.mobileGate = {};
@@ -1142,6 +1144,33 @@ report.ambient.hiddenTab.resumedWhenVisible = !await ambientPaused();
 if (!report.ambient.hiddenTab.pausedWhenHidden || !report.ambient.hiddenTab.resumedWhenVisible) {
   failures.push(`Hidden-tab pause and resume failed: ${JSON.stringify(report.ambient.hiddenTab)}`);
 }
+
+// The settled-final state. The V13 film plays once and holds its close-front-view final frame, so a
+// finished film must stay finished through the two events that resume an unfinished one: scrolling
+// away and back, and the tab going hidden and visible. Seeked rather than waited out, because the
+// contract under test is the ended state, not the 34 seconds before it. Only the visitor's own press
+// of the control may start it again, and that press replays from the top.
+await offscreenPage.locator(".hero__video").evaluate((video) => {
+  video.currentTime = video.duration - 0.15;
+  return new Promise((done) => video.addEventListener("ended", done, { once: true }));
+});
+await offscreenPage.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
+await offscreenPage.waitForTimeout(400);
+await offscreenPage.evaluate(() => scrollTo(0, 0));
+await offscreenPage.waitForTimeout(600);
+report.ambient.settled = await offscreenPage.locator(".hero__video").evaluate((video) => ({
+  endedAfterScrollReturn: video.ended,
+  stillPainted: document.querySelector(".hero").hasAttribute("data-painted"),
+  label: document.querySelector("[data-ambient-toggle]").textContent,
+}));
+if (!report.ambient.settled.endedAfterScrollReturn) failures.push("A finished film restarted itself after the visitor scrolled away and back");
+if (!report.ambient.settled.stillPainted) failures.push("The settled film dropped its final frame back to the poster");
+if (report.ambient.settled.label !== "Play") failures.push(`The control over a settled film must read Play, got ${JSON.stringify(report.ambient.settled.label)}`);
+await offscreenPage.locator("[data-ambient-toggle]").focus();
+await offscreenPage.locator("[data-ambient-toggle]").press("Enter");
+await offscreenPage.waitForTimeout(400);
+report.ambient.settled.replay = await offscreenPage.locator(".hero__video").evaluate((video) => ({ paused: video.paused, time: video.currentTime }));
+if (report.ambient.settled.replay.paused || report.ambient.settled.replay.time > 5) failures.push(`Pressing Play on a settled film must replay it from the top: ${JSON.stringify(report.ambient.settled.replay)}`);
 await offscreenPage.close();
 await videoContext.close();
 

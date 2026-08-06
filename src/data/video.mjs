@@ -1,23 +1,26 @@
-// The one ambient loop. V10 shipped three, delivered by Plans/video-image-plan.md; V11-A keeps the
-// rock-ledge montage and deletes the other two, per D-V11-2 and D-V11-3. The montage moves from
-// /brawley/ to the homepage hero, which is also where vanderhallusa.com runs it, and /brawley/ and
-// /brawley/gts/ ship no motion footage at all.
+// The one ambient film. V10 shipped three loops; V11-A kept the rock-ledge montage; V13 planned its
+// replacement (Plans/V13-plan.md 7.7 and 7.8) and held it back behind publication rights. Owen
+// instructed delivery in chat on 2026-08-06, so the montage is retired and the homepage carries one
+// play-once film cut from the new Brawley master. /brawley/ and /brawley/gts/ still ship no motion
+// footage at all, per D-V11-2 and D-V11-3.
 //
-// Provenance: this file was cut from one clip in Vanderhall's own media library,
-// vanderhallusa.com/wp-content/uploads/2025/03/Brawley-sequence-001.mp4. The exact source URL, trim,
-// codec, byte size and full-resolution burned-text review are in
-// Assets/Video Image Plan/video-asset-manifest.csv, and the evidence behind the selection is in
-// Research/video-image-harvest.md. Provenance is not written publication permission: rights,
-// likeness and location status remain unconfirmed and are on the open-items list. V11 reduces the
-// exposure from three clips to one; it does not resolve it.
+// Provenance: cut from Assets/Source Video/Brawley/brawley-final-master.mp4, the 62.059-second
+// 3840x2160 master inspected for V13 planning on 2026-08-06. The trim starts at exactly 25.000
+// seconds, which is Owen's approved cut past the studio reveal, and ends at 59.500 seconds rather
+// than the master's end: the master fades to full black across its final two seconds, and holding a
+// black panel behind the homepage h1 is not what "hold on the final frame" was for. Owen approved
+// "up until the minute" in chat on 2026-08-06; 59.500 is the last clean moment of the close front
+// view before the fade begins. Do not re-derive either timestamp from scene detection.
 //
-// Filenames are the source package's basenames, unchanged, so any row in that manifest can be
-// matched to a delivered file by name alone. That is worth more than tidier names. The ten retired
-// files are deleted from the build rather than left unreferenced, and the source package is
-// untouched, so restoring either loop is a copy rather than a re-encode.
+// Provenance is not written publication permission: rights, likeness and location status for this
+// footage remain unconfirmed and stay on the open-items list (INTEGRATION.md `brawley-film`).
+// Delivery happened on Owen's instruction; the paperwork is still a Vanderhall ask.
 //
-// Nothing here is re-encoded. Both files carry a video stream and no audio stream, which
-// scripts/check-video.mjs re-proves with ffprobe on every check run rather than trusting this note.
+// Both files are re-encoded from the master (1920x1080, one video stream each) and the audio stream
+// was removed deliberately, not omitted by accident: the page offers no volume control and no
+// unmute affordance, so a track nobody can reach must not ship. scripts/check-video.mjs re-proves
+// stream counts, codecs, the byte budget, and the start and final frames with ffprobe/ffmpeg on
+// every check run rather than trusting this note.
 //
 // These are Brawley files. D-VIP-6 said they may appear on Brawley surfaces only; the homepage is
 // not a vehicle page and makes no claim about a machine, so the lineup's own flagship opening the
@@ -25,15 +28,15 @@
 
 const BASE = "/assets/video/brawley";
 
-// Every delivered frame and poster is 1900 by 900, which is the source clip's own size. Declared
+// Every delivered frame and poster is 1920 by 1080, the master's own aspect at half scale. Declared
 // once: the poster and the video must share one box exactly, or the switch from one to the other
 // moves the layout.
-export const AMBIENT_WIDTH = 1900;
-export const AMBIENT_HEIGHT = 900;
-const POSTER_RUNGS = [960, 1280, 1900];
+export const AMBIENT_WIDTH = 1920;
+export const AMBIENT_HEIGHT = 1080;
+const POSTER_RUNGS = [960, 1280, 1920];
 
 // src is the widest rung, because this poster is eagerly fetched and is meant to be the LCP element.
-const poster = (stem, alt, { src = 1900 } = {}) => ({
+const poster = (stem, alt, { src = 1920 } = {}) => ({
   src: `${BASE}/${stem}-${src}.webp`,
   srcset: POSTER_RUNGS.map((width) => `${BASE}/${stem}-${width}.webp ${width}w`).join(", "),
   width: AMBIENT_WIDTH,
@@ -44,19 +47,18 @@ const poster = (stem, alt, { src = 1900 } = {}) => ({
 // Alt text describes only what is in the frame. No terrain, weather, location, model year, trim or
 // performance claim is inferred from footage, which is the video plan's section 8 rule.
 //
-// The poster frame carries a green lens flare across its lower right, inherent to the source at
-// 00:02.5. It read as a light leak rather than a defect below the fold on /brawley/, and Owen
-// accepted it at the front of the page on 2026-08-05. Re-cutting means re-encoding, which the video
-// plan forbids.
-export const heroLoop = {
-  webm: `${BASE}/brawley-canyon-montage-00-12.webm`,
-  mp4: `${BASE}/brawley-canyon-montage-00-12.mp4`,
-  focal: "50% 45%",
-  poster: poster("brawley-canyon-montage-00-12-poster", "Dark Vanderhall Brawley driving away along a rocky ledge, trailing dust"),
+// The poster is the film's own first frame, the 25.000-second action start, so the crossfade from
+// poster to motion is a moment of the same scene rather than a scene change, and a visitor below
+// the 768px gate sees the frame the film would have opened on.
+export const heroFilm = {
+  webm: `${BASE}/brawley-film-25-60.webm`,
+  mp4: `${BASE}/brawley-film-25-60.mp4`,
+  focal: "50% 50%",
+  poster: poster("brawley-film-25-60-poster", "Dark Vanderhall Brawley driving across open desert scrub, trailing dust"),
 };
 
 // One list, so the check scripts can assert the delivered set against the same source the pages
 // render from rather than against a second copy of the filenames. One item now, and the shape is
-// kept rather than collapsed: the check that walks it is the check that would catch a second loop
+// kept rather than collapsed: the check that walks it is the check that would catch a second film
 // arriving without a placement decision.
-export const ambientVideos = [heroLoop];
+export const ambientVideos = [heroFilm];

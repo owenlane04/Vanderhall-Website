@@ -366,25 +366,27 @@ document.querySelectorAll("[data-marquee]").forEach((band) => {
   }, { threshold: steps }).observe(band);
 });
 
-// Ambient video. V10 shipped three loops; V11-A leaves one, the montage behind the homepage hero.
-// It is silent, and it carries no src attribute in the markup, only data-src. That is the load gate
-// rather than a convention: a visitor who is not eligible for video, or who has no JavaScript, cannot
-// request a byte of it, because there is nothing for the parser to fetch. This file itself runs after
-// the load event, so no video can compete with the poster, the stylesheet or the first paint either.
+// Ambient video. V10 shipped three loops; V11-A left one; the V13 film replaces it and does not
+// loop: it plays once from the 25-second action start and settles on its final frame, the close
+// front view, because Plans/V13-plan.md 7.7 prefers a hold over an obvious loop jump back to the
+// action. It is silent, and it carries no src attribute in the markup, only data-src. That is the
+// load gate rather than a convention: a visitor who is not eligible for video, or who has no
+// JavaScript, cannot request a byte of it, because there is nothing for the parser to fetch. This
+// file itself runs after the load event, so no video can compete with the poster, the stylesheet or
+// the first paint either.
 //
 // Three refusals are honoured before anything else happens, and each means no video and no control at
 // all rather than a stopped video and a button. A control that offers to pause something that was
 // never going to move is worse than no control.
 //
 // Reduced motion and Save-Data are the visitor's own preferences and were already here. The third is
-// screen width, and it is new: Q-V11-1, answered by Owen on 2026-08-05. The one remaining loop is
-// 2.83 MB of WebM against the 292 KB clip it replaces, and it now sits on the homepage, so that cost
-// would land on every phone that opens the site. Above 768px the loop plays; below it the visitor
-// gets the poster frame, which is the loop's own first frame, and loses motion and nothing else. The
-// homepage LCP element is the poster either way.
+// screen width: Q-V11-1, answered by Owen on 2026-08-05. The film is megabytes of WebM and it sits
+// on the homepage, so that cost would land on every phone that opens the site. Above 768px the film
+// plays; below it the visitor gets the poster frame, which is the film's own first frame, and loses
+// motion and nothing else. The homepage LCP element is the poster either way.
 //
-// Read once, at load, rather than through a live matchMedia listener: this is an ambient loop, and
-// beginning a 2.8 MB fetch because somebody rotated a tablet is not what the gate is for.
+// Read once, at load, rather than through a live matchMedia listener: this is an ambient film, and
+// beginning a multi-megabyte fetch because somebody rotated a tablet is not what the gate is for.
 const VIDEO_MIN_WIDTH = 768;
 if (!matchMedia("(prefers-reduced-motion: reduce)").matches
   && !navigator.connection?.saveData
@@ -440,10 +442,14 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches
       label();
     });
 
+    // A finished film stays finished. play() on an ended element seeks back to the start, so without
+    // this guard, scrolling away and back or switching tabs would replay the film from the action
+    // start, and "one play followed by a hold" would quietly become a loop with extra steps. Only
+    // the visitor's own press of the control restarts it.
     new IntersectionObserver((entries) => {
       for (const entry of entries) {
         inView = entry.isIntersecting;
-        if (inView && !chosenPause && document.visibilityState === "visible") play();
+        if (inView && !chosenPause && !video.ended && document.visibilityState === "visible") play();
         else if (!inView) stop();
       }
       // rootMargin gives a below-fold block a moment to fetch before it arrives, so it is moving by
@@ -452,7 +458,7 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches
 
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState !== "visible") stop();
-      else if (inView && !chosenPause) play();
+      else if (inView && !chosenPause && !video.ended) play();
     });
   });
 }

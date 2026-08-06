@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { concepts } from "./data/concepts.mjs";
 import { currentModels, modelBySlug, models, pastModels } from "./data/models.mjs";
-import { heroLoop } from "./data/video.mjs";
+import { heroFilm } from "./data/video.mjs";
 import { INQUIRY_EMAIL } from "./data/forms.mjs";
 import { assertProductionReady, IS_PROTOTYPE, PRODUCTION_BLOCKERS } from "./data/prototype.mjs";
 import { campaignReviewFailures, campaignStatement } from "./data/mock/campaign.mjs";
@@ -243,18 +243,19 @@ const homePage = () => {
       <p class="hero__descriptor">Vanderhall builds electric UTVs, side-by-sides, and three-wheeled autocycles. Experience performance, comfort, and style.</p>
       <div class="hero__actions">${buttonLink("Explore vehicles", "/vehicles/", "inverse")}</div>`;
   const body = `<div class="page">
-    ${/* V13 does NOT change this hero's film. Q-V13-16 blocks public delivery of the new Brawley master
-          until publication rights and the treatment of its burned-in safety warning are documented, so the
-          V11 montage stays and the new film is a production blocker rather than a shipped change. */
+    ${/* The V13 Brawley film, delivered on Owen's chat instruction of 2026-08-06: one play from the
+          25.000-second action start, settling on the close front view. Publication rights remain an
+          open item in INTEGRATION.md `brawley-film`; what Q-V13-16 still blocks is the production
+          build, not this prototype delivery. */
       hero({
-        src: heroLoop.poster.src,
-        srcset: heroLoop.poster.srcset,
-        alt: heroLoop.poster.alt,
-        width: heroLoop.poster.width,
-        height: heroLoop.poster.height,
-        focal: heroLoop.focal,
+        src: heroFilm.poster.src,
+        srcset: heroFilm.poster.srcset,
+        alt: heroFilm.poster.alt,
+        width: heroFilm.poster.width,
+        height: heroFilm.poster.height,
+        focal: heroFilm.focal,
         content: heroContent,
-        video: heroLoop,
+        video: heroFilm,
       })}
     ${/* V13-E. Two operational statements directly after the hero and before the lineup, Brawley first.
           Both are read from the campaign data, so this band and the Launch Edition page can never disagree

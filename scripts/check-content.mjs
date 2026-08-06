@@ -1239,8 +1239,8 @@ for (const [route, text] of [["/brawley/gts/index.html", "ELECTRIC OFF-ROAD UTV"
   if (!pageBySuffix(route).includes(`<p class="eyebrow">${text}</p>`)) failures.push(`${route}: the informational ${text} eyebrow must stay`);
 }
 
-// V11-A. ONE ambient block, on the homepage, and nowhere else. D-V11-2 and D-V11-3: the montage
-// becomes the hero loop and the other two are deleted. The block has to be complete in the markup,
+// ONE ambient block, on the homepage, and nowhere else: D-V11-2 and D-V11-3 set the placement, and
+// the V13 film inherits it from the montage it replaces. The block has to be complete in the markup,
 // because the markup is the whole no-JavaScript, reduced-motion and below-768px experience.
 const AMBIENT_ROUTES = { "index.html": "hero" };
 const ambientCount = (combinedHtml.match(/data-ambient(?=[\s>])/g) || []).length;
@@ -1271,10 +1271,15 @@ for (const [key, kind] of Object.entries(AMBIENT_ROUTES)) {
   // No src, only data-src. This is what makes the video unreachable to a parser, and therefore
   // unreachable without script: it is the load gate, not a style.
   if (/<source[^>]+\ssrc=/.test(tag)) failures.push(`${key}: an ambient source ships a src attribute, so the video loads before it is eligible`);
-  for (const required of ["muted", "loop", "playsinline", 'preload="none"']) {
+  for (const required of ["muted", "playsinline", 'preload="none"']) {
     if (!tag.includes(required)) failures.push(`${key}: ambient video is missing ${required}`);
   }
   if (tag.includes("autoplay")) failures.push(`${key}: ambient video must not declare autoplay`);
+  // The V13 film plays once and settles on its close-front-view final frame, per Plans/V13-plan.md
+  // 7.7's stated preference: the cut ends before the master's fade to black, and a loop attribute
+  // would jump from that hold straight back to the action start, which is the obvious seam the
+  // play-once decision exists to avoid.
+  if (/\sloop[\s>]/.test(tag)) failures.push(`${key}: the film must not loop; it plays once and holds its final frame`);
   // Ships hidden. site.js reveals it only once playback has actually been attempted, which is the
   // same rule the concept band's pause button follows.
   if (!/data-ambient-toggle hidden>Pause<\/button>/.test(html)) failures.push(`${key}: the ambient control must ship hidden and labelled Pause`);
@@ -1283,9 +1288,9 @@ for (const [key, kind] of Object.entries(AMBIENT_ROUTES)) {
     ? html.match(/<img class="hero__image"[^>]*>/)?.[0]
     : html.match(/<img class="ambient__poster"[^>]*>/)?.[0];
   if (!poster) { failures.push(`${key}: the ambient block has no poster image`); continue; }
-  if (!/width="1900" height="900"/.test(poster)) failures.push(`${key}: the poster must declare the 1900 by 900 box the video shares`);
+  if (!/width="1920" height="1080"/.test(poster)) failures.push(`${key}: the poster must declare the 1920 by 1080 box the video shares`);
   const rungs = [...poster.matchAll(/(\d+)w/g)].map((match) => match[1]);
-  if (JSON.stringify(rungs) !== JSON.stringify(["960", "1280", "1900"])) failures.push(`${key}: the poster must offer the three delivered rungs, found ${rungs.join(", ")}`);
+  if (JSON.stringify(rungs) !== JSON.stringify(["960", "1280", "1920"])) failures.push(`${key}: the poster must offer the three delivered rungs, found ${rungs.join(", ")}`);
   // The homepage poster stays the LCP candidate; the two below-fold posters must not compete with it.
   if (kind === "hero") {
     if (!poster.includes('loading="eager"') || !poster.includes('fetchpriority="high"')) failures.push("The homepage poster must stay eager and high priority");
@@ -1312,14 +1317,15 @@ for (const url of deliveredPosters) {
   if (!referenced.has(url)) failures.push(`Delivered poster that no page references: ${url}`);
 }
 if (deliveredPosters.length !== 3) failures.push(`Expected three delivered posters, found ${deliveredPosters.length}`);
-// V11-A. The ten retired files are deleted, not merely unreferenced, and they are named here so the
-// deletion cannot be quietly undone by a copy from the source package. The package itself is
-// untouched in Assets/Video Image Plan/, so restoring either loop is a copy rather than a re-encode;
-// what this forbids is a restore that nobody decided on. The orphan check above would catch the two
-// video files, but not the six poster rungs, which is why every basename is listed.
-for (const stem of ["brawley-canyon-hero-36-46", "brawley-canyon-action-13-23", "brawley-canyon-hero-poster", "brawley-canyon-action-13-23-poster"]) {
+// V11-A retired ten files; the V13 film delivery retires the montage's five as well. Every stem is
+// deleted, not merely unreferenced, and they are named here so the deletion cannot be quietly undone
+// by a copy from the source package. The V11 loops' package is untouched in Assets/Video Image Plan/
+// and the montage can be re-cut from the same source, so restoring any of them is cheap; what this
+// forbids is a restore that nobody decided on. The orphan check above would catch the video files,
+// but not the poster rungs, which is why every basename is listed.
+for (const stem of ["brawley-canyon-hero-36-46", "brawley-canyon-action-13-23", "brawley-canyon-hero-poster", "brawley-canyon-action-13-23-poster", "brawley-canyon-montage-00-12", "brawley-canyon-montage-00-12-poster"]) {
   const survivors = files.filter((path) => path.includes("/assets/video/") && path.includes(stem)).map((path) => path.replace(root, ""));
-  if (survivors.length) failures.push(`Retired V11-A video delivery remains: ${survivors.join(", ")}`);
+  if (survivors.length) failures.push(`Retired video delivery remains: ${survivors.join(", ")}`);
 }
 
 // ---------------------------------------------------------------------------------------------
