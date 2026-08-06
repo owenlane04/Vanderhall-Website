@@ -16,7 +16,6 @@ import {
   hero,
   internationalDealerForm,
   leadForm,
-  modelBar,
   modelHeadline,
   pageHeader,
   organizationSchema,
@@ -58,19 +57,22 @@ const PARENTS = {
 
 const modelPage = (model) => {
   const cta = model.cta || { label: "Contact", href: `/dealers/?model=${model.slug}` };
-  const heroContent = `${eyebrow(`${model.powertrain.fuel} · ${model.powertrain.layout}`)}
+  // V12-A: the way back opens the hero content rather than sitting in a bar beneath the photograph.
+  // It stays the page's one and only back-nav, so the sitewide back-link rule is untouched, and
+  // .hero__content already inherits the reverse ink the photograph needs.
+  const heroContent = `${backLink(PARENTS[model.slug])}
+      ${eyebrow(`${model.powertrain.fuel} · ${model.powertrain.layout}`)}
       ${modelHeadline(model.name, { level: 1, pastModel: model.pastModel })}
       <p class="hero__descriptor">${model.descriptor}</p>
       <div class="hero__actions">${buttonLink(cta.label, cta.href, "inverse")}</div>`;
   const body = `<div class="page">
     ${hero({ src: model.images.hero, srcset: model.images.heroSrcset, tallSrcset: model.images.heroTallSrcset, alt: model.images.heroAlt, focal: model.images.focal, align: model.images.heroAlign, content: heroContent })}
-    ${/* The bar carries the way back on every model page now, which is something the header does
-          not offer, so it earns its space on all four rather than on Brawley alone. */
-      modelBar(model, { back: PARENTS[model.slug] })}
-    <section class="section--tight narrow"><p class="lede">${model.overview}</p></section>
-    ${/* V11-A: the ambient block that sat here between the overview and the detail scroll is gone
-          with the other two loops. The overview now runs straight into "A closer look", which is
-          the shape all four model pages shared before V10 and share again. */""}
+    ${/* V12-A: the sticky bar and the overview paragraph that sat here are gone, per Owen on
+          2026-08-06: "take away the all vehicles brawley and pricing and colors bar under the
+          photo so it looks less cluttered. Also take away the paragraph under that and go straight
+          into the In detail look." The photograph now hands straight to "A closer look", and every
+          sentence the overview carried is said by the six photographs below it, each beside the
+          thing it describes. */""}
     <section class="section">
       ${sectionHeading("IN DETAIL", `A closer look at ${model.name}.`)}
       ${/* Each photograph carries the figures it shows. The specification table that used to sit
@@ -94,9 +96,12 @@ const brawleyGtsPage = (model) => {
     srcset: [640, 800, 960, 1280].map((width) => `/assets/images/brawley/lifestyle/${gts.scene.name}-${width}.webp ${width}w`).join(", "),
   };
   const body = `<div class="page">
-    ${modelBar(model, { name: gts.name, label: "Order yours now", href: gts.reserveUrl, back: PARENTS["brawley/gts"] })}
     <section class="section--tight">
       <div class="gts-open">
+        ${/* V12-A: the bar is retired here too, per Owen's choice of a small back link only. This
+              page sits a level below /brawley/, so the way back stays; the reserve action it also
+              carried is said twice more below, in the opening block and again under ORDER. */""}
+        ${backLink(PARENTS["brawley/gts"])}
         <div class="gts-open__row">
           <div class="gts-open__intro">
             ${eyebrow("ELECTRIC OFF-ROAD UTV")}
@@ -108,8 +113,11 @@ const brawleyGtsPage = (model) => {
         ${actions("primary")}
       </div>
     </section>
-    <section class="section--tight">${walkaround(gts)}</section>
-    <section class="section--tight">${figureBand(gts.figures)}<p class="gts-note">${gts.specDisclaimer}</p></section>
+    <section class="section">${walkaround(gts)}</section>
+    ${/* V12-D: the disclaimer that sat under the figure band is gone from here. It is printed verbatim
+          under DISCLOSURES at the foot of this page, which is where the other two live, and a page
+          that says the same sentence twice on one screen reads as unedited rather than as careful. */""}
+    <section class="section--tight">${figureBand(gts.figures)}</section>
     <section class="section--tight"><figure class="gts-scene"><img src="${scene.src}" srcset="${scene.srcset}" sizes="(min-width: 1280px) 1200px, 92vw" width="${sizeOf(scene.src).width}" height="${sizeOf(scene.src).height}" alt="${gts.scene.alt}" loading="lazy" decoding="async"><figcaption>${gts.scene.label}</figcaption></figure></section>
     ${/* V11-A: the action loop that sat between the lifestyle photograph and the figures is gone.
           The purchase page is now entirely still: the studio walkaround, the paint tiers, the price,
@@ -133,6 +141,7 @@ const brawleyGtsPage = (model) => {
     description: `${gts.name} pricing and paint colors. ${gts.price.value} MSRP, quad-motor 4WD, 488 lb-ft of torque, and up to 140 mi of range.`,
     path: "/brawley/gts",
     body,
+    mainClass: STUDIO,
     schema: productSchema(model),
   });
 };
@@ -207,9 +216,12 @@ const vehiclesPage = () => {
   return shell({ title: "Vehicles", description: "The Vanderhall vehicle lineup: Venice, Carmel, Santarosa, and Brawley.", path: "/vehicles", body });
 };
 
-// V11-E, D-V11-1. The ten concept routes and no others. Declared once here so that the hub and the
-// nine detail pages cannot drift apart, and so that check-content can assert the exact route set: a
-// white field appearing on an eleventh page would be a page whose imagery is still keyed onto black.
+// The white studio field. V11-E introduced it for the ten concept routes; V12-D adds the purchase
+// page, per Owen on 2026-08-06, so the walkaround frames read as photographs of a vehicle rather than
+// as tiles on a dark page. Eleven routes and no others. Declared once here so no page can drift onto
+// the white field on its own, and so check-content can assert the exact set: this scope is only ever
+// correct on a page whose imagery is delivered on white, which since V12-D means it is only correct
+// where the image pipeline does no keying at all.
 const STUDIO = "page--studio";
 
 const conceptsPage = () => {

@@ -91,7 +91,13 @@
   --sf-xl: clamp(3.5rem, 1.916rem + 6.76vw, 8rem);
   --sf-2xl: clamp(5rem, 2.711rem + 9.77vw, 11.5rem);
 
-  --w-page: 1440px;
+  /* V12-E: --w-page is gone. Owen on 2026-08-06: the site filled his MacBook Pro but not a larger
+     monitor. A 1440px cap on .page meant that above that width every full-bleed element stopped too,
+     so a 2560 monitor showed the heroes, the concept band and the lifestyle photographs as a centred
+     1440 block with paper down both sides. The page grid's own named lines already hold the reading
+     column at --w-content; the outer cap was only ever holding the photography back. Anything that
+     needs to agree with the content column now says so with --w-content, which is the measure it
+     actually meant. */
   --w-content: 1200px;
   --w-narrow: 800px;
   --w-text: 65ch;
@@ -124,9 +130,8 @@
   --focus-offset: 2px;
   --focus-color: var(--accent);
 
-  /* The word cascade's rise, in em so it scales with whatever type size it lands on. The block
-     reveals use a fixed 1.75rem, which would be a shove on a caption and a twitch on display-xl. */
-  --rise-word: 0.35em;
+  /* V12-C: --rise-word is gone with the word cascade it existed for. The reveals are time-based
+     transitions now and their distance is --rise, declared on [data-reveal] in site.css. */
   --ar-feature: 3 / 2;
   --ar-cutout: 16 / 10;
 
@@ -149,9 +154,16 @@
   --hero-min-mobile: min(80svh, max(26rem, 66svh));
 }
 
-/* V11-E. The concepts hub and the nine concept detail pages render on a white studio field, per
-   D-V11-1. The class sits on <main>, so it is full width at any viewport and the sticky header and
-   the footer, which are outside main, stay dark exactly as they are everywhere else.
+/* V11-E, extended by V12-D. The concepts hub, the nine concept detail pages, and the Brawley GTS
+   purchase page render on a white studio field. The class sits on <main>, so it is full width at any
+   viewport and the sticky header and the footer, which are outside main, stay dark exactly as they are
+   everywhere else.
+
+   V12-D added the purchase page for the same reason V11-E moved the concepts, and it is worth stating
+   as a rule rather than as two decisions: this scope belongs on a page whose imagery was shot in a
+   white studio. Owen on 2026-08-06 asked for the page to be white so the images look cleaner, and
+   what made them unclean was the keying that the dark page required. The walkaround frames are
+   delivered unkeyed now, so the vehicle stands on the same white it was photographed on.
 
    Why the pages moved: the renders were authored on a white studio floor with soft shadows and
    reflections, and V9 keyed that floor onto the dark paper. No threshold key removes a gradient
@@ -164,7 +176,7 @@
    THIS IS NOT LIGHT MODE, and the distinction is mechanical rather than a matter of opinion. What V9
    removed was a stored preference, a visible control, and colours defined as two-value functions that
    had to be kept in step with each other. None of those comes back here: this is one class carrying
-   fixed values on two page types, with no branch to take, nothing to store, and nothing to switch.
+   fixed values on eleven routes, with no branch to take, nothing to store, and nothing to switch.
    The check suite's bans on the two-value function and on the stored preference stay in force and
    still pass.
 

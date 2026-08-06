@@ -188,70 +188,25 @@ document.querySelectorAll("[data-walkaround]").forEach((viewer) => {
   });
 });
 
-// Word cascade. The words of each section heading and lede become inline-block spans carrying a
-// normalised position, and CSS animates them along the element's own view timeline. See site.css.
+// Scroll reveals, V12-C. This is now the ONLY reveal mechanism, on every browser.
 //
-// The built HTML is untouched by this, which is the point: every string assertion in the check suite
-// keeps passing, and a search engine indexes whole headings.
-//
-// Hero and page-header h1s are excluded deliberately, for two mechanical reasons rather than taste.
-// A top-of-page element is already past its entry range at scroll zero, so a view() reveal on it
-// resolves instantly and buys nothing. And this file loads after the load event, so splitting text
-// that has already painted would visibly re-hide words the visitor is reading, which is the one
-// failure mode that reads broken rather than premium. The guard below is what enforces it: only a
-// block that sits entirely under the fold at split time is touched. Motion here is earned by
-// scrolling, and the first viewport stays still.
-if (!matchMedia("(prefers-reduced-motion: reduce)").matches && CSS.supports("animation-timeline: view()")) {
-  document.querySelectorAll(".section-heading h2, .lede").forEach((element) => {
-    if (element.dataset.split) return;
-    // Text-only targets. An element with element children would have its markup rebuilt by the split.
-    if (element.firstElementChild) return;
-    if (element.getBoundingClientRect().top < innerHeight) return;
-    const words = element.textContent.split(/(\s+)/).filter((part) => part.length);
-    if (words.filter((part) => part.trim()).length < 2) return;
-    const total = words.filter((part) => part.trim()).length;
-    const fragment = document.createDocumentFragment();
-    let index = 0;
-    for (const part of words) {
-      if (!part.trim()) {
-        // Whitespace stays a real text node, so textContent is unchanged and words still wrap.
-        fragment.append(part);
-        continue;
-      }
-      const span = document.createElement("span");
-      span.className = "word";
-      span.style.setProperty("--wf", total > 1 ? String(index / (total - 1)) : "0");
-      span.textContent = part;
-      fragment.append(span);
-      index += 1;
-    }
-    element.replaceChildren(fragment);
-    element.dataset.split = "true";
-    element.classList.add("is-split");
-    // Moves the container's own reveal onto its siblings rather than stacking two animations.
-    const heading = element.closest(".section-heading");
-    if (heading) heading.dataset.split = "true";
-  });
-}
-
-// Scroll reveals for browsers with no scroll-driven animation, V11-B.
-//
-// Every reveal on this site is a CSS view() timeline, which is correct where it is supported and
-// invisible where it is not: Safari and Firefox rendered a site with no scroll motion at all, which
-// is most likely what Owen was looking at when he asked for motion "on every page". This is the same
-// reveal expressed as a transition, and it is mutually exclusive with the CSS path by construction:
-// the guard below is the exact feature query the stylesheet's @supports block uses, so an element can
-// never be driven by both.
+// V11 ran this as a fallback behind CSS.supports("animation-timeline: view()"), with scrubbed view()
+// timelines as the primary path. That primary path was the reason Owen twice reported seeing no
+// scroll motion with Reduce Motion off: a scrubbed reveal has no duration, so a trackpad flick spent
+// its whole range in two frames, at the bottom edge of the screen, before the element reached
+// anything a person reads. A transition on a real clock cannot be outrun that way. The feature query
+// is therefore gone from this gate, which also means there is no longer a pair of paths to keep from
+// driving the same element twice: there is one path. See the long note in site.css.
 //
 // Three constraints, all of them enforced here rather than in the stylesheet:
 //
-// - Reduced motion means no reveal at all on either path, not a faster one.
-// - Only elements sitting entirely below the fold at init are touched. This is the guard the word
-//   cascade has used since V9 and the reason is the same: this file runs after the load event, so
-//   hiding something the visitor is already reading would visibly re-hide it. The first viewport
-//   stays still, and motion is earned by scrolling.
+// - Reduced motion means no reveal at all, not a faster one. Nothing is marked and nothing hides.
+// - Only elements sitting entirely below the fold at init are touched. This file runs after the load
+//   event, so hiding something the visitor is already reading would visibly re-hide it. The first
+//   viewport stays still, and motion is earned by scrolling.
 // - The start state lives on the attribute this sets, so a page without JavaScript, or one where
 //   this file never arrives, renders every element in its final state. Nothing can be left hidden.
+//   This mattered in V11 and it is the whole safety story now that no CSS path renders the end state.
 const REVEAL_SELECTORS = [
   ".vehicle-section__media", ".vehicle-section__body",
   ".photo-module__media", ".photo-module__body",
@@ -259,40 +214,99 @@ const REVEAL_SELECTORS = [
   ".split__media", ".split__body",
   ".section-heading", ".spec-table", ".gts-figures", ".gts-scene", ".disclosures", ".resource-group",
   ".photo-module__specs .spec-row", ".vehicle-section__row .vehicle-section__support",
+  // V12-C coverage. Five routes had no reveal target of any kind: the privacy policy, the three form
+  // pages, and 404. The concept detail pages had one. These are their content blocks.
+  // The form selectors are child combinators on purpose: one flat level per form, so a fieldset and
+  // the fields inside it are never both marked. Two 0-to-1 fades on the same pixels multiply into a
+  // dimmer, slower arrival than either. Where V11 chose that compounding deliberately, it stays: a
+  // photo module's specification rows sit inside its revealed body and resolve together, which is
+  // what deals them out one at a time rather than as a block.
+  ".policy__section", ".lede", ".spec-note", ".form-heading",
+  ".lead-form > .field", ".lead-form > .form-fieldset", ".lead-form > .form-submit-row",
 ].join(", ");
 
-// Mirrors the nth-child offsets in site.css, so the two paths deal a row of cards or a group of
-// figures out one at a time rather than snapping them in together. Capped at the sixth row, which is
-// the largest specification group on the site after the V11-C rebalance.
-const REVEAL_STEP = 70;
+// Groups are dealt out one at a time rather than snapping in together: a row of cards, a group of
+// specification rows, a stack of form fields. Capped so a long list never waits on a queue.
+const REVEAL_STEP = 90;
+const REVEAL_STEP_CAP = 5;
+// How far up from the bottom edge an element must come before it reveals, as a fraction of the
+// viewport. Shared by the observer's rootMargin and the safety sweep so the two cannot disagree.
+const REVEAL_MARGIN = 0.12;
 const revealDelay = (element) => {
   const position = () => [...element.parentElement.children].indexOf(element);
-  if (element.matches(".photo-module__specs .spec-row")) return Math.min(position(), 5) * REVEAL_STEP;
+  const step = (index) => Math.min(index, REVEAL_STEP_CAP) * REVEAL_STEP;
+  if (element.matches(".photo-module__specs .spec-row")) return step(position());
   if (element.matches(".card-grid--concepts .card")) return (position() % 3) * REVEAL_STEP;
-  if (element.matches(".vehicle-section__row .vehicle-section__support")) return position() * REVEAL_STEP;
+  if (element.matches(".vehicle-section__row .vehicle-section__support")) return step(position());
+  if (element.matches(".lead-form > .field")) return step(position() % 4);
   if (element.matches(".vehicle-section__body, .photo-module__body")) return REVEAL_STEP;
   return 0;
 };
 
-if (!matchMedia("(prefers-reduced-motion: reduce)").matches && !CSS.supports("animation-timeline: view()")) {
+if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  const pending = new Set();
+  const show = (element) => {
+    element.dataset.reveal = "shown";
+    pending.delete(element);
+    revealer.unobserve(element);
+    // Nothing left to reveal, so nothing left to listen for. The sweep below is cheap but it is not
+    // free, and a page whose reveals have all fired should carry no scroll handler at all.
+    if (!pending.size) removeEventListener("scroll", onScroll);
+  };
   // Revealed a little before the element reaches the middle of the screen, so the motion has finished
   // by the time the visitor is reading it rather than while they are.
   const revealer = new IntersectionObserver((entries) => {
     for (const entry of entries) {
       if (!entry.isIntersecting) continue;
-      entry.target.dataset.reveal = "shown";
       // Once shown, always shown. A reveal that replayed on the way back up would be a page that
       // never settles.
-      revealer.unobserve(entry.target);
+      show(entry.target);
     }
-  }, { rootMargin: "0px 0px -12% 0px" });
+  }, { rootMargin: `0px 0px -${REVEAL_MARGIN * 100}% 0px` });
+
+  // The safety sweep, and it is load-bearing rather than belt-and-braces. An IntersectionObserver only
+  // reports THRESHOLD CROSSINGS: if a jump takes an element from below the viewport to above it between
+  // two frames, its intersection ratio was 0 before and is 0 after, no threshold was crossed, and no
+  // callback ever fires. The element keeps the start state, and the start state is opacity 0. That is
+  // content permanently invisible, and it is reachable by ordinary means: an in-page anchor, a browser
+  // restoring scroll position on reload, a Home or End press, a fast flick on a trackpad.
+  //
+  // This was not a hypothetical. The verification suite scrolls each marked element into view in a
+  // tight loop and then jumps to the foot of the page, and it found 61 elements across seven routes
+  // left hidden that way. V11 could not have had this bug, because its primary path was CSS: an
+  // element scrolled past had a resolved timeline no matter how it got there. Moving to a JavaScript
+  // trigger is what introduced the failure mode, so the trigger has to answer for it.
+  //
+  // Anything now above the reveal line is revealed immediately. It has already been scrolled past, so
+  // there is no motion left to show it: what matters is that it is visible, not that it animated.
+  //
+  // The sweep uses the observer's own trigger line, not the viewport edge. One shared constant, because
+  // two nearly-equal lines would mean the sweep quietly winning every ordinary scroll and revealing
+  // things 12% of a viewport earlier than intended, which is a behaviour change disguised as a safety
+  // net rather than a safety net.
+  let sweeping = false;
+  const sweep = () => {
+    sweeping = false;
+    const line = innerHeight * (1 - REVEAL_MARGIN);
+    for (const element of [...pending]) {
+      if (element.getBoundingClientRect().top < line) show(element);
+    }
+  };
+  const onScroll = () => {
+    if (sweeping) return;
+    sweeping = true;
+    requestAnimationFrame(sweep);
+  };
+
   for (const element of document.querySelectorAll(REVEAL_SELECTORS)) {
     if (element.getBoundingClientRect().top < innerHeight) continue;
     const delay = revealDelay(element);
     if (delay) element.style.setProperty("--reveal-delay", `${delay}ms`);
     element.dataset.reveal = "";
+    pending.add(element);
     revealer.observe(element);
   }
+  if (pending.size) addEventListener("scroll", onScroll, { passive: true });
 }
 
 // The concept band. Its own reduced-motion guard rather than relying on the stylesheet's: under

@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { readFile, readdir } from "node:fs/promises";
 import { dirname, extname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -75,7 +76,12 @@ const combinedHtml = builtPages.map((page) => page.text).join("\n");
 // callers when V11-A deleted the two below-fold loops. Neither component exists any more, and both
 // are banned here rather than merely unreferenced, so a future edit cannot reintroduce markup whose
 // styles have gone. class="pathway matches both the container and the card, which is deliberate.
-for (const token of ["data-missing", "MISSING:", "data-vehicles-trigger", "data-mega-panel", "data-open-lead", "data-lead-sheet", "data-filter-pill", "class=\"chapter", "concepts-theme", "stat-band", "concept-feature", "concept-wide", "concept-tile", "card-grid--vehicles", "card-grid--related", "class=\"gallery", "chip--status", "faq-list", "concept-ring", "row-links", "unit-toggle", "data-unit", "data-spec-table", "unit-metric", "vhw.units", "spec-toolbar", "concept-back", "resource-row", "pathway", "class=\"ambient", "ambient__", "footer-social"]) {
+// V12 retires three more. The sticky model bar went from all five pages that carried it, per Owen on
+// 2026-08-06: its name repeated the heading in the photograph above it and its action repeated the
+// hero button, leaving only the way back, which moved into the hero content. The word cascade and its
+// .word spans went with the scrubbed reveal path in V12-C. And .gts-note lost its only caller when the
+// purchase page stopped printing one disclaimer twice.
+for (const token of ["data-missing", "MISSING:", "data-vehicles-trigger", "data-mega-panel", "data-open-lead", "data-lead-sheet", "data-filter-pill", "class=\"chapter", "concepts-theme", "stat-band", "concept-feature", "concept-wide", "concept-tile", "card-grid--vehicles", "card-grid--related", "class=\"gallery", "chip--status", "faq-list", "concept-ring", "row-links", "unit-toggle", "data-unit", "data-spec-table", "unit-metric", "vhw.units", "spec-toolbar", "concept-back", "resource-row", "pathway", "class=\"ambient", "ambient__", "footer-social", "class=\"model-bar", "model-bar__", "class=\"word\"", "is-split", "data-split"]) {
   if (combinedHtml.includes(token)) failures.push(`Retired markup remains: ${token}`);
 }
 // The stylesheet has to lose them too. A retired component whose CSS survives is dead weight that
@@ -85,18 +91,20 @@ const bundleCss = await readFile(resolve(root, "styles/bundle.css"), "utf8");
 // exactly what this file is full of, and a check that forbids writing down the reason would push the
 // reason out of the code.
 const bundleRules = bundleCss.replace(/\/\*[\s\S]*?\*\//g, "");
-for (const token of [".pathway", ".ambient", ".footer-social"]) {
+for (const token of [".pathway", ".ambient", ".footer-social", ".model-bar", ".is-split", ".word", ".gts-note"]) {
   if (new RegExp(`\\${token}[\\s{,:_]`).test(bundleRules)) failures.push(`Retired component styles remain in the bundle: ${token}`);
 }
-// V11-B. The scroll reveal's start state must stay inside @supports (animation-timeline: view()), and
-// this is the one assertion protecting the visitor who has neither script nor view() timelines. Both
-// the animation and its from-state live in there together, so a browser that cannot run the timeline
-// renders the final state rather than hiding content it can never reveal. Verify-browser cannot test
-// that combination: faking the feature query needs JavaScript, and the case is JavaScript being
-// absent. So it is asserted structurally, on the source.
+// V12-C. The reveals are no longer driven by view() at all: they are IntersectionObserver-triggered
+// transitions on [data-reveal], which is now the only reveal mechanism on every browser. What is left
+// inside the @supports guard is the two continuous scrub effects, the hero parallax drift and the
+// concept band's dissolve, and neither reveals content, so neither can hide anything from a browser
+// that lacks view(). The assertions below still exist for the same reason they always did: anything
+// inside that guard is invisible to a browser without timelines, so nothing that hides content may
+// live there, and nothing that declares a view() timeline may live outside it.
 //
-// The fallback's own start state is the opposite case and is safe by a different mechanism: it hangs
-// off [data-reveal], which only site.js sets, so no-JavaScript means no start state at all.
+// The reveal's own start state is safe by a different mechanism, asserted further down: it hangs off
+// [data-reveal], which only site.js sets, so no JavaScript means no start state at all. That mattered
+// in V11 and it is the whole safety story now that no CSS path renders the end state.
 // Written with real brace matching, and the first version of it is why. That one searched the bundle
 // for the guard with indexOf and checked everything before the match. Mutation testing said MISSED:
 // indexOf had found the string inside a COMMENT, hundreds of lines above the first real guard, so
@@ -115,39 +123,57 @@ for (const match of cssRules.matchAll(/@supports \(animation-timeline: view\(\)\
   guardRanges.push([match.index, index]);
 }
 const insideAGuard = (offset) => guardRanges.some(([start, end]) => offset > start && offset < end);
-if (!guardRanges.length) failures.push("The scroll reveals must stay inside an @supports (animation-timeline: view()) guard");
+if (!guardRanges.length) failures.push("The scroll-scrubbed effects must stay inside an @supports (animation-timeline: view()) guard");
 else {
   // The keyframe carries the start state. Outside the guard, a browser that cannot run the timeline
   // would apply opacity: 0 and never advance past it, which is content hidden with no way to reveal
   // it. verify-browser cannot test that combination, because faking the feature query needs
   // JavaScript and the case is JavaScript being absent.
-  for (const match of cssRules.matchAll(/@keyframes\s+(rise-in|strip-dissolve)\b/g)) {
+  for (const match of cssRules.matchAll(/@keyframes\s+(hero-drift|strip-dissolve)\b/g)) {
     if (!insideAGuard(match.index)) failures.push(`The ${match[1]} keyframe escaped the @supports guard, so a browser without view() timelines would hide content it can never reveal`);
   }
   for (const match of cssRules.matchAll(/animation-timeline:\s*view\(\)/g)) {
     if (!insideAGuard(match.index)) failures.push("A view() timeline is declared outside the @supports guard");
   }
-  // And the guard must actually contain the reveal, or it is guarding nothing.
-  if (!guardRanges.some(([start, end]) => cssRules.slice(start, end).includes("animation: rise-in"))) {
-    failures.push("No @supports guard contains the rise-in reveal, so the guard and the animation have drifted apart");
+  // And the guards must actually contain the two effects, or they are guarding nothing.
+  for (const effect of ["hero-drift", "strip-dissolve"]) {
+    if (!guardRanges.some(([start, end]) => cssRules.slice(start, end).includes(`animation: ${effect}`))) {
+      failures.push(`No @supports guard contains the ${effect} animation, so the guard and the animation have drifted apart`);
+    }
+  }
+  // The scrubbed reveal is retired, and this is what stops it coming back. A rise-in inside the guard
+  // would be a reveal that Safari and Firefox cannot see; outside it, one that hides content on a
+  // browser without timelines. Either way it is the defect V12-C removed: a reveal with no duration,
+  // spent in two frames at the bottom edge of the screen.
+  if (/@keyframes\s+rise-in\b/.test(cssRules) || /animation:\s*rise-in/.test(cssRules)) {
+    failures.push("The scrubbed rise-in reveal is retired: reveals are time-based transitions on [data-reveal]");
   }
 }
-// And the fallback's start state must be reachable ONLY through the attribute, which is what makes a
+// And the reveal's start state must be reachable ONLY through the attribute, which is what makes a
 // page with no JavaScript have no start state at all. The selector list is read out and required to
-// be exactly [data-reveal]: a rule that also names a class would hide that class unconditionally on
-// any browser without view() timelines, and no browser test available here can see that combination,
-// because faking the feature query needs JavaScript and the case is JavaScript being absent.
+// be exactly [data-reveal]: a rule that also named a class would hide that class unconditionally,
+// including on a page whose script never arrived, and no browser test available here can see that
+// combination because the case is JavaScript being absent. This was true in V11 and it is now the only
+// thing standing between a failed script load and a page of invisible content.
 // The opening delimiter includes { because this rule lives inside a media block, so the character
 // before its selector is that block's own brace rather than a semicolon or a closing brace.
 const fallbackRule = cssRules.match(/(^|[;{}])\s*([^{};@]*\[data-reveal\][^{};]*?)\s*\{([^}]*opacity:\s*0[^}]*)\}/);
-if (!fallbackRule) failures.push("The reveal fallback's start state must hang off [data-reveal], which only site.js sets");
+if (!fallbackRule) failures.push("The reveal's start state must hang off [data-reveal], which only site.js sets");
 else {
   const selectors = fallbackRule[2].split(",").map((entry) => entry.trim()).filter(Boolean);
   if (selectors.length !== 1 || selectors[0] !== "[data-reveal]") {
-    failures.push(`The reveal fallback's start state must be keyed on [data-reveal] alone, found: ${selectors.join(", ")}`);
+    failures.push(`The reveal's start state must be keyed on [data-reveal] alone, found: ${selectors.join(", ")}`);
   }
 }
-if (!/\[data-reveal="shown"\]/.test(cssRules)) failures.push("The reveal fallback has no revealed state to transition into");
+if (!/\[data-reveal="shown"\]/.test(cssRules)) failures.push("The reveal has no revealed state to transition into");
+// V12-C: the reveal must be driven by a transition with a real duration. This is the assertion that
+// encodes why the mechanism changed at all. A scrubbed animation advances only as far as the scroll
+// does, so a flick spends its whole range in two frames and the motion is never seen; a transition
+// runs on its own clock and cannot be outrun. If this rule ever loses its transition, the reveal
+// becomes an instant state change and the site is back to having no visible scroll motion.
+if (fallbackRule && !/transition:[^;]*opacity/.test(fallbackRule[3])) {
+  failures.push("The reveal's start state must declare a transition on opacity, or the reveal has no duration a visitor can see");
+}
 for (const route of ["/about/", "/faq/", "/contact/"]) {
   if (combinedHtml.includes(route)) failures.push(`A link to the removed ${route} route remains`);
 }
@@ -247,8 +273,18 @@ for (const slug of MODEL_SLUGS) {
   const model = modelBySlug[slug];
   const found = (html.match(/<figure class="photo-module/g) || []).length;
   if (found !== MODULE_COUNTS[slug]) failures.push(`/${slug}/ must present ${MODULE_COUNTS[slug]} photo modules, found ${found}`);
-  // The bar carries the way back on every model page now, so all four have it.
-  if (!html.includes('class="model-bar')) failures.push(`/${slug}/ is missing the sticky model bar`);
+  // V12-A. The bar is gone and the way back opens the hero content instead, which is asserted as an
+  // adjacency rather than as a presence: the whole point is that it is the first thing inside the
+  // photograph's content column, above the eyebrow, rather than in a strip beneath the photograph.
+  if (!/<div class="hero__content"[^>]*>\s*<nav class="back-nav"/.test(html)) {
+    failures.push(`/${slug}/ must open its hero content with the way back`);
+  }
+  // And the photograph must hand straight to the detail section: no paragraph in between. This is the
+  // second half of what Owen asked for on 2026-08-06 and the only assertion that would notice an
+  // overview paragraph being reintroduced between the hero and "A closer look".
+  if (/<\/section>\s*<section class="section--tight narrow"><p class="lede">/.test(html)) {
+    failures.push(`/${slug}/ must run from the hero straight into IN DETAIL, with no overview paragraph between them`);
+  }
   if (!html.includes(`A closer look at ${slug[0].toUpperCase() + slug.slice(1)}.`)) failures.push(`/${slug}/ is missing its in-detail heading`);
   // Every module needs a label, and the label must be the caption's first child, because the
   // specification block follows it.
@@ -365,7 +401,9 @@ if ((gtsHtml.match(/class="swatch[^"]*"[^>]*disabled/g) || []).length !== 9) fai
 if ((gtsHtml.match(/fetchpriority="high"/g) || []).length !== 1) failures.push("/brawley/gts/ must promote exactly one frame to high priority");
 const RESERVE_URL = "https://dealer.vanderhallusa.com/reserve/index/brawley";
 const reserveLinks = (gtsHtml.match(new RegExp(`href="${RESERVE_URL}"`, "g")) || []).length;
-if (reserveLinks !== 3) failures.push(`/brawley/gts/ must carry three reservation links, found ${reserveLinks}`);
+// V12-A: two, not three. The third was the retired model bar's action, and it was the third time the
+// same URL appeared on one page. The two that remain are the opening block and the ORDER section.
+if (reserveLinks !== 2) failures.push(`/brawley/gts/ must carry two reservation links, found ${reserveLinks}`);
 for (const required of [
   "Manufacturer's Suggested Retail Price. Excludes options; taxes; title; registration; delivery, processing and handling fee; dealer charges.",
   "Features and specifications are estimated and subject to change without notice.",
@@ -377,14 +415,17 @@ for (const required of [
 ]) {
   if (!gtsHtml.includes(required)) failures.push(`/brawley/gts/ is missing required disclosure text: ${required.slice(0, 48)}`);
 }
-// Brawley is the one model with a page beyond the inquiry form, so its bar and hero point there.
-if (!pageBySuffix("/brawley/index.html").includes('class="model-bar__action" href="/brawley/gts/"')) failures.push("/brawley/ model bar must lead to the purchase page");
-if (!gtsHtml.includes('class="model-bar__action" href="https://dealer.vanderhallusa.com/reserve/index/brawley"')) failures.push("/brawley/gts/ model bar must carry the reservation link");
+// Brawley is the one model with a page beyond the inquiry form. V12-A retired the bar that carried a
+// second link to it, so the hero button is now the only way there from /brawley/ and this assertion is
+// what keeps the purchase page reachable at all from the page that sells it.
+if (!pageBySuffix("/brawley/index.html").includes('class="button button--inverse" href="/brawley/gts/"')) {
+  failures.push("/brawley/ hero must lead to the purchase page");
+}
 // V8 renamed the destination. "See more info" promised information and delivered a configurator
-// with a price, which is what read as three pages of "more" in a row. The label appears twice on
-// the page, once in the hero and once in the bar, from one string in the data.
+// with a price, which is what read as three pages of "more" in a row. V12-A: the label appears ONCE
+// now, in the hero. It used to appear twice, in the hero and in the bar, from one string in the data.
 const brawleyLabels = (pageBySuffix("/brawley/index.html").match(/>Pricing and colors</g) || []).length;
-if (brawleyLabels !== 2) failures.push(`/brawley/ must offer Pricing and colors in both the hero and the model bar, found ${brawleyLabels}`);
+if (brawleyLabels !== 1) failures.push(`/brawley/ must offer Pricing and colors once, in the hero, found ${brawleyLabels}`);
 if (combinedHtml.includes("See more info")) failures.push("The retired See more info label remains");
 // The purchase page holds the only specification table and the only anchor to one on the site.
 if (!gtsHtml.includes('id="specifications"')) failures.push("/brawley/gts/ must keep its specification anchor");
@@ -533,12 +574,18 @@ if (conceptsHeaderAt < 0 || conceptsBandAt < 0 || conceptsHeaderAt > conceptsBan
 }
 if (!conceptsHubHtml.includes('<div class="page page--concepts">')) failures.push("The concepts hub must carry the class that overlaps its header and its band");
 
-// V11-E, D-V11-1. The white studio field is on the ten concept routes and on no others. A page
-// whose imagery is still keyed onto black must never receive it, and the concept imagery is no
-// longer keyed at all, so it must never lose it either. Stated as an exact route list rather than a
-// count, which is what makes a wrong page fail by name.
-const STUDIO_ROUTES = ["/concepts/index.html", ...["indio", "coachella", "brawley-r", "santarosa-r", "speedster", "yuma", "yuma-defense", "laduna", "balboa"].map((slug) => `/concepts/${slug}/index.html`)];
-if (STUDIO_ROUTES.length !== 10) failures.push(`The studio route list must name all ten concept routes, found ${STUDIO_ROUTES.length}`);
+// V11-E, extended by V12-D. The white studio field is on the ten concept routes and the purchase page,
+// and on no others. The rule behind the list: a page earns it when its imagery was shot in a white
+// studio and is delivered unkeyed. Nothing in this pipeline keys onto a dark field any more, so a page
+// that took this scope without white imagery would show its subject on a plate, and a page that lost
+// it would show white plates on black. Stated as an exact route list rather than a count, which is
+// what makes a wrong page fail by name.
+const STUDIO_ROUTES = [
+  "/concepts/index.html",
+  ...["indio", "coachella", "brawley-r", "santarosa-r", "speedster", "yuma", "yuma-defense", "laduna", "balboa"].map((slug) => `/concepts/${slug}/index.html`),
+  "/brawley/gts/index.html",
+];
+if (STUDIO_ROUTES.length !== 11) failures.push(`The studio route list must name the ten concept routes and the purchase page, found ${STUDIO_ROUTES.length}`);
 for (const page of builtPages) {
   const relative = page.path.replace(root, "");
   const expected = STUDIO_ROUTES.includes(relative);
@@ -668,19 +715,28 @@ if (/heroes\/home/.test(pipelineSource)) failures.push("The retired home hero la
 // V11-E. The concept slides and hub cards are delivered as authored, on the white canvas they were
 // drawn on. No threshold key removes a soft studio floor cleanly, and what survived V9's attempt is
 // the grey ghosting Owen reported. The pipeline must not key them again.
-for (const token of ["keyCanvas", "keyWhiteCanvas"]) {
-  if (pipelineSource.includes(token)) failures.push(`The image pipeline still keys the concept canvas: ${token}`);
-}
-if (/hubCards[\s\S]{0,1200}keyStudioFrame/.test(pipelineSource)) failures.push("The concept hub cards must not be keyed: they are extended onto the white they were shot on");
 if (!pipelineSource.includes('const STUDIO_PAPER = "#FFFFFF"') || !pipelineSource.includes("background: STUDIO_PAPER")) failures.push("The concept hub cards must be extended onto the studio white");
-// The dark paper survives for the Brawley GTS walkaround, which is on a dark page and keys cleanly.
-if (!pipelineSource.includes("keyStudioFrame")) failures.push("The walkaround keying must survive: those frames are still on a dark page");
+// V12-D inverts what V11 asserted here. V11 required the walkaround keying to SURVIVE, because those
+// frames were the one set still on a dark page. The purchase page is white now, so the keying is not
+// merely unnecessary, it is the defect: no threshold key removes a soft contact shadow, and what got
+// through the mask only hid because the paper behind it was darker still. Nothing in this pipeline
+// composites onto a dark field any more, and these three assertions are what keep it that way.
+for (const token of ["keyCanvas", "keyWhiteCanvas", "keyStudioFrame", "DARK_PAPER"]) {
+  if (pipelineSource.includes(token)) failures.push(`The image pipeline must not key onto a dark field: ${token}`);
+}
+if (existsSync(resolve(root, "scripts/lib/key-studio-frame.mjs"))) {
+  failures.push("scripts/lib/key-studio-frame.mjs is retired with the keying and must not exist");
+}
 // The studio walkaround returns in V6: eight angles for each of the eight complete colours, plus
 // one still for Jean Grey, at two rungs each. Concrete Grey is not offered and is not delivered.
 const walkaroundRows = manifest.filter((entry) => entry.delivered_file.includes("brawley/walkaround"));
 if (walkaroundRows.length !== 130) failures.push(`Expected 130 walkaround frames in the manifest, found ${walkaroundRows.length}`);
 if (walkaroundRows.some((entry) => !entry.output_width || entry.output_width > entry.source_width)) failures.push("A walkaround frame is missing dimensions or exceeds its source width");
 if (walkaroundRows.some((entry) => entry.delivered_file.includes("concrete-grey"))) failures.push("Concrete Grey is not offered and must not be delivered");
+// And the positive half of the keying retirement, on the delivered rows rather than on the pipeline:
+// every frame must say what it is, which is the studio white it was photographed on.
+const notWhite = walkaroundRows.filter((entry) => !entry.transform.includes("white studio as shot; not keyed"));
+if (notWhite.length) failures.push(`${notWhite.length} walkaround frames are not recorded as delivered on the white studio field as shot, starting with ${notWhite[0].delivered_file}`);
 
 // Every image referenced by the built pages must exist on disk, and nothing delivered may go unreferenced.
 // data-frames and data-still are read too. The viewer builds its frame list from those attributes

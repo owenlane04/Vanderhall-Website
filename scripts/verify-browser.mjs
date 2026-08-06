@@ -168,13 +168,15 @@ if (sectionShape.focusableMedia !== 0) failures.push(`${sectionShape.focusableMe
 
 // Model pages: each photo module carries a photograph, a label, and the figures that photograph
 // shows. Prose captions are gone, so a module holds either specification rows or its label alone,
-// never a sentence. The sticky bar names the model and carries the way back on all four now.
+// never a sentence. V12-A retired the sticky bar from all four and moved the way back into the hero,
+// which is measured here as boxes rather than read from the markup: the link must be inside the
+// photograph's content column and above the heading, which is the whole point of the move.
 report.interactions.photoScroll = {};
-for (const [route, expected, pairedGroups, tags, barAction] of [
+for (const [route, expected, pairedGroups, tags, heroCta] of [
   ["/brawley/", 6, 6, 0, "/brawley/gts/"],
-  ["/santarosa/", 5, 5, 0, null],
-  ["/carmel/", 6, 3, 1, null],
-  ["/venice/", 6, 4, 1, null],
+  ["/santarosa/", 5, 5, 0, "/dealers/"],
+  ["/carmel/", 6, 3, 1, "/dealers/"],
+  ["/venice/", 6, 4, 1, "/dealers/"],
 ]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   const shape = await page.evaluate(() => {
@@ -195,9 +197,19 @@ for (const [route, expected, pairedGroups, tags, barAction] of [
       tags: document.querySelectorAll(".model-tag").length,
       heroTag: document.querySelectorAll(".hero__content .model-tag").length,
       bars: document.querySelectorAll(".model-bar").length,
-      stickyBar: document.querySelector(".model-bar") ? getComputedStyle(document.querySelector(".model-bar")).position : null,
-      barAction: document.querySelector(".model-bar__action")?.getAttribute("href"),
-      barBack: document.querySelector(".model-bar .back-nav a")?.getAttribute("href"),
+      // No paragraph may sit between the hero and the IN DETAIL heading. Measured in the DOM rather
+      // than by string, so a lede reintroduced under any class name still fails.
+      ledes: document.querySelectorAll(".page > .section--tight > .lede").length,
+      heroBack: document.querySelector(".hero__content .back-nav a")?.getAttribute("href"),
+      heroCta: document.querySelector(".hero__actions a")?.getAttribute("href"),
+      // The way back must render above the heading and inside the photograph, which is the geometry
+      // the move was for. Two boxes, compared, rather than a class name asserted.
+      backAboveHeading: (() => {
+        const back = document.querySelector(".hero__content .back-nav a")?.getBoundingClientRect();
+        const heading = document.querySelector(".hero__content h1")?.getBoundingClientRect();
+        if (!back || !heading) return null;
+        return { above: back.bottom <= heading.top, sharedLeft: Math.abs(back.left - heading.left) < 2, painted: back.width > 0 && back.height > 0 };
+      })(),
       relatedGrids: document.querySelectorAll(".card-grid--related, .card").length,
     };
   });
@@ -210,14 +222,13 @@ for (const [route, expected, pairedGroups, tags, barAction] of [
   if (shape.retiredUnitMarkup !== 0) failures.push(`${route} still carries retired unit or spec-table markup`);
   if (shape.specNotes !== 1) failures.push(`${route} must carry one disclosure note, found ${shape.specNotes}`);
   if (shape.tags !== tags || shape.heroTag !== tags) failures.push(`${route} must carry ${tags} Past model tag in its hero, found ${shape.tags}`);
-  // The bar is on every model page now, because it carries the way back, which the header does not.
-  if (shape.bars !== 1) failures.push(`${route} must carry one sticky model bar, found ${shape.bars}`);
-  if (shape.stickyBar !== "sticky") failures.push(`${route} model bar is not sticky`);
-  if (shape.barBack !== "/vehicles/") failures.push(`${route} model bar must lead back to /vehicles/, got ${shape.barBack}`);
-  if (barAction === null) {
-    if (shape.barAction) failures.push(`${route} model bar must offer no action beyond the way back, got ${shape.barAction}`);
-  } else if (!shape.barAction?.startsWith(barAction)) {
-    failures.push(`Sticky model bar failed on ${route}: expected ${barAction}, got ${shape.barAction}`);
+  // V12-A. No bar, no overview paragraph, and the way back inside the photograph above the heading.
+  if (shape.bars !== 0) failures.push(`${route} must carry no sticky model bar, found ${shape.bars}`);
+  if (shape.ledes !== 0) failures.push(`${route} must run hero to IN DETAIL with no overview paragraph, found ${shape.ledes}`);
+  if (shape.heroBack !== "/vehicles/") failures.push(`${route} hero must carry the way back to /vehicles/, got ${shape.heroBack}`);
+  if (!shape.heroCta?.startsWith(heroCta)) failures.push(`${route} hero action must lead to ${heroCta}, got ${shape.heroCta}`);
+  if (!shape.backAboveHeading?.above || !shape.backAboveHeading?.sharedLeft || !shape.backAboveHeading?.painted) {
+    failures.push(`${route} way back must paint above the heading on its left edge: ${JSON.stringify(shape.backAboveHeading)}`);
   }
   if (shape.relatedGrids !== 0) failures.push(`${route} still pushes the visitor to other models`);
 }
@@ -274,10 +285,35 @@ report.interactions.gtsSpecTable = await page.evaluate(() => ({
   toggles: document.querySelectorAll(".unit-toggle, [data-unit]").length,
   emptyValues: [...document.querySelectorAll(".spec-table .spec-row strong")].filter((node) => !node.textContent.trim()).length,
   figures: [...document.querySelectorAll(".gts-figure__value")].map((node) => node.textContent.trim()).filter(Boolean).length,
+  // V12-A and V12-D, measured on the page rather than in the markup: no bar, the way back above the
+  // title, the disclaimer printed once, and the walkaround standing on the paper with no plate.
+  bars: document.querySelectorAll(".model-bar").length,
+  notes: document.querySelectorAll(".gts-note").length,
+  backAboveTitle: (() => {
+    const back = document.querySelector(".gts-open .back-nav a")?.getBoundingClientRect();
+    const title = document.querySelector(".gts-open__intro h1")?.getBoundingClientRect();
+    return back && title ? back.bottom <= title.top : null;
+  })(),
+  stage: (() => {
+    const stage = document.querySelector(".walkaround__stage");
+    if (!stage) return null;
+    const style = getComputedStyle(stage);
+    return { background: style.backgroundColor, borderWidth: style.borderTopWidth };
+  })(),
+  // The disclaimer sentence must still be on the page, at the foot, exactly once.
+  disclaimerCount: [...document.querySelectorAll("p")].filter((node) => node.textContent.includes("Features and specifications are estimated")).length,
 }));
 const gtsShape = report.interactions.gtsSpecTable;
 if (gtsShape.tables !== 1 || gtsShape.toggles !== 0 || gtsShape.emptyValues !== 0 || gtsShape.figures !== 4) {
   failures.push(`Purchase page specification table failed: ${JSON.stringify(gtsShape)}`);
+}
+if (gtsShape.bars !== 0 || gtsShape.notes !== 0) failures.push(`The purchase page must carry no model bar and no duplicated note: ${JSON.stringify(gtsShape)}`);
+if (gtsShape.backAboveTitle !== true) failures.push("The purchase page's way back must paint above its title");
+if (gtsShape.disclaimerCount !== 1) failures.push(`The specification disclaimer must appear once on the purchase page, found ${gtsShape.disclaimerCount}`);
+// The stage is the page's own white with no plate around it: the frames are delivered on the studio
+// white they were shot on, so a border would draw a box around a photograph rather than contain one.
+if (gtsShape.stage?.background !== "rgb(255, 255, 255)" || parseFloat(gtsShape.stage?.borderWidth) !== 0) {
+  failures.push(`The walkaround stage must be unbordered white on the studio field: ${JSON.stringify(gtsShape.stage)}`);
 }
 
 await page.goto(`${base}/concepts/`, { waitUntil: "networkidle" });
@@ -537,34 +573,46 @@ await page.goto(`${base}/`, { waitUntil: "networkidle" });
 report.reducedMotion = await page.evaluate(() => ({
   duration1: getComputedStyle(document.documentElement).getPropertyValue("--dur-1").trim(),
   scrollBehavior: getComputedStyle(document.documentElement).scrollBehavior,
-  // V11-B moved the reveal off .vehicle-section and onto its two halves, so that they can stagger
-  // against each other without compounding two opacity animations on the same pixels.
-  revealAnimation: getComputedStyle(document.querySelector(".vehicle-section__media")).animationName,
-  bodyAnimation: getComputedStyle(document.querySelector(".vehicle-section__body")).animationName,
-  parentAnimation: getComputedStyle(document.querySelector(".vehicle-section")).animationName,
+  // The hero drift is the only scroll-driven animation left on this page, so it is the one that must
+  // read "none" here. The reveals are transitions on [data-reveal] and are made inert a different way,
+  // below: site.js never marks anything under reduced motion, so there is no start state at all.
   heroTimeline: getComputedStyle(document.querySelector(".hero__image")).animationName,
-  // The V11-B fallback must be inert here too, and the way it is inert is that site.js never marks
-  // anything under reduced motion, so there is no start state to be stuck in.
-  markedForFallback: document.querySelectorAll("[data-reveal]").length,
+  revealAnimation: getComputedStyle(document.querySelector(".vehicle-section__media")).animationName,
+  marked: document.querySelectorAll("[data-reveal]").length,
+  // The strongest form of the claim: nothing the reveal covers is faded. It does not depend on knowing
+  // which selectors are in the list, and it reports what it found rather than a count, because a count
+  // tells the next reader nothing about which element to go and look at.
+  //
+  // Scoped to the reveal's own start state rather than to every descendant of .page. Two elements on
+  // this page are deliberately at opacity 0 and have nothing to do with scrolling: the hero video,
+  // which fades in only once it has painted a frame and under reduced motion never paints at all, and
+  // the walkaround frames that are not the active one. Sweeping every node would report those as
+  // failures forever, which is a check that has to be ignored to be used.
+  faded: [...document.querySelectorAll("[data-reveal], .vehicle-section__media, .vehicle-section__body, .section-heading, .split__media, .split__body")]
+    .filter((node) => Number(getComputedStyle(node).opacity) < 0.99)
+    .map((node) => `${node.className}@${Number(getComputedStyle(node).opacity).toFixed(2)}`),
 }));
 if (report.reducedMotion.duration1 !== "1ms" || report.reducedMotion.scrollBehavior !== "auto") failures.push("Reduced motion override failed");
-if (report.reducedMotion.revealAnimation !== "none" || report.reducedMotion.heroTimeline !== "none") failures.push(`Reduced motion must remove the scroll-driven animations, got ${report.reducedMotion.revealAnimation} and ${report.reducedMotion.heroTimeline}`);
-if (report.reducedMotion.markedForFallback !== 0) failures.push(`Reduced motion left ${report.reducedMotion.markedForFallback} elements marked for the observer fallback, which is a start state nothing will clear`);
+if (report.reducedMotion.heroTimeline !== "none" || report.reducedMotion.revealAnimation !== "none") failures.push(`Reduced motion must remove the scroll-driven animations, got ${report.reducedMotion.heroTimeline} and ${report.reducedMotion.revealAnimation}`);
+if (report.reducedMotion.marked !== 0) failures.push(`Reduced motion left ${report.reducedMotion.marked} elements marked for reveal, which is a start state nothing will clear`);
+if (report.reducedMotion.faded.length) failures.push(`Reduced motion left ${report.reducedMotion.faded.length} revealable blocks below full opacity: ${report.reducedMotion.faded.join(", ")}`);
 
-// Under reduced motion the word cascade must not exist at all, rather than existing and being stilled.
-// site.js carries its own guard for exactly this: a split element whose animation has been cleared is
-// still a heading rebuilt out of spans, and there is no reason to rebuild it.
+// V12-C retired the word cascade, so this is no longer a reduced-motion assertion but a retirement
+// one: the split must not happen in ANY context. It went because it had the same defect as the other
+// scrubbed reveals and in its worst form, a whole animation spent across one line-height of scroll,
+// and because a heading rebuilt out of spans is a real cost to carry for motion nobody could see.
+// Headings are read back whole here, which is the thing that would actually break if a split returned
+// and went wrong.
 for (const route of ["/", "/brawley/", "/concepts/indio/"]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   const shape = await page.evaluate(() => ({
     words: document.querySelectorAll(".word").length,
     split: document.querySelectorAll(".is-split, [data-split]").length,
     headings: [...document.querySelectorAll(".section-heading h2")].map((node) => node.textContent),
-    lede: document.querySelector(".lede")?.textContent ?? null,
   }));
   report.reducedMotion[`cascade${route}`] = shape;
-  if (shape.words !== 0 || shape.split !== 0) failures.push(`${route}: reduced motion must leave text unsplit, found ${shape.words} word spans`);
-  if (shape.headings.some((text) => !text.trim())) failures.push(`${route}: a section heading is empty under reduced motion`);
+  if (shape.words !== 0 || shape.split !== 0) failures.push(`${route}: the word cascade is retired, found ${shape.words} word spans and ${shape.split} split elements`);
+  if (shape.headings.some((text) => !text.trim())) failures.push(`${route}: a section heading is empty`);
 }
 await page.goto(`${base}/`, { waitUntil: "networkidle" });
 
@@ -577,31 +625,63 @@ report.reducedMotion.gts = await page.evaluate(() => ({
 if (report.reducedMotion.gts.frameTransition !== "0.001s" || report.reducedMotion.gts.figuresAnimation !== "none") failures.push(`Reduced motion did not clear the purchase page motion: ${JSON.stringify(report.reducedMotion.gts)}`);
 await page.goto(`${base}/`, { waitUntil: "networkidle" });
 
-// The motion itself, checked in a context that asks for it. Scroll-driven reveals must be
-// attached to a view() timeline and must resolve to fully visible once the block has entered.
+// The motion itself, in a context that asks for it. V12-C made this the primary path rather than a
+// fallback, so what is measured changed with it: not "is a view() timeline attached", but "is the
+// element actually hidden before it arrives, does it carry a real duration, and does it resolve".
+//
+// The duration is the assertion that matters most, and it is the one V11 could not have made. A
+// scrubbed reveal has no duration: it advances only with the scroll, which is why a flick spent the
+// whole effect in two frames off the bottom of the screen and Owen twice reported seeing no motion.
+// A transition with 680ms on the clock cannot be outrun by a fast scroll.
 const motionContext = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: "no-preference" });
 const motionPage = await motionContext.newPage();
 await motionPage.goto(`${base}/`, { waitUntil: "networkidle" });
 report.motion = await motionPage.evaluate(async () => {
-  // V11-B moved the reveal off .vehicle-section onto its two halves, so they can stagger against
-  // each other. Reading the parent here would report "none" and be right about the wrong element.
-  const section = document.querySelectorAll(".vehicle-section__media")[2];
-  const style = getComputedStyle(section);
-  const attached = { animationName: style.animationName, timeline: style.animationTimeline, range: style.animationRange };
+  const marked = [...document.querySelectorAll("[data-reveal]")];
+  const belowFold = marked.filter((node) => node.getBoundingClientRect().top >= innerHeight).length;
+  const target = marked.find((node) => Number(getComputedStyle(node).opacity) < 0.99);
+  const before = target ? { opacity: Number(getComputedStyle(target).opacity), transition: getComputedStyle(target).transitionProperty, duration: getComputedStyle(target).transitionDuration, transform: getComputedStyle(target).transform } : null;
   const heroStyle = getComputedStyle(document.querySelector(".hero__image"));
-  section.scrollIntoView({ block: "center", behavior: "instant" });
-  await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+  let after = null;
+  if (target) {
+    target.scrollIntoView({ block: "center", behavior: "instant" });
+    // The transition needs its own time, unlike a scrubbed animation which resolved with the scroll.
+    // That difference is the entire point of the change, so the wait is part of the assertion.
+    await new Promise((done) => setTimeout(done, 1400));
+    after = { opacity: Number(getComputedStyle(target).opacity), state: target.dataset.reveal, transform: getComputedStyle(target).transform };
+  }
   return {
-    ...attached,
+    markedCount: marked.length,
+    markedAboveFold: marked.length - belowFold,
+    before,
+    after,
     hero: { animationName: heroStyle.animationName, timeline: heroStyle.animationTimeline },
-    opacityOnceEntered: Number(getComputedStyle(section).opacity),
-    // No JavaScript may be introduced to drive any of this.
     scriptTags: document.querySelectorAll("script[src]").length,
   };
 });
-if (report.motion.animationName !== "rise-in" || !report.motion.timeline.includes("view")) failures.push(`Scroll reveal is not attached: ${JSON.stringify(report.motion)}`);
+if (report.motion.markedCount === 0) failures.push("The homepage marked nothing for reveal, so it has no scroll motion");
+if (report.motion.markedAboveFold !== 0) failures.push(`${report.motion.markedAboveFold} elements above the fold were marked for reveal, which re-hides text the visitor is already reading`);
+if (!report.motion.before) failures.push("Nothing on the homepage was actually hidden before it entered, so the reveal has no start state");
+else {
+  if (!report.motion.before.transition.includes("opacity")) failures.push(`The reveal must transition opacity, got ${report.motion.before.transition}`);
+  // A duration a person can see. 680ms is --dur-4; this is the check that would catch the reveal
+  // regressing to an instant state change or back to a scroll-scrubbed animation with no clock.
+  if (parseFloat(report.motion.before.duration) < 0.3) failures.push(`The reveal's duration is ${report.motion.before.duration}, which is too short to be seen at any scroll speed`);
+  // And it must actually be displaced, not merely faded: the rise is what makes it read as arriving.
+  if (report.motion.before.transform === "none") failures.push("The reveal must carry a rise, not only a fade");
+}
+if (report.motion.after && (report.motion.after.opacity < 0.99 || report.motion.after.state !== "shown")) {
+  failures.push(`A scrolled-into-view element did not resolve: ${JSON.stringify(report.motion.after)}`);
+}
+// A finished transform computes to an identity matrix rather than to the string "none", so the
+// translation is read out of the matrix rather than compared against a keyword. V11's mutation testing
+// found this exact defect in the check that came before this one.
+if (report.motion.after) {
+  const matrix = report.motion.after.transform.match(/matrix\(([^)]+)\)/);
+  const translated = matrix ? Math.abs(parseFloat(matrix[1].split(",")[5])) : 0;
+  if (translated > 0.5) failures.push(`A revealed element is still displaced by ${translated}px`);
+}
 if (report.motion.hero.animationName !== "hero-drift") failures.push("Hero drift is not attached");
-if (report.motion.opacityOnceEntered < 0.99) failures.push(`A scrolled-into-view section did not resolve to fully visible: opacity ${report.motion.opacityOnceEntered}`);
 
 // The concept band in a context that asks for motion: running, pausable by hover, and pausable by its
 // button. The button is blurred before the resume is read, because :focus-within also pauses the band
@@ -637,100 +717,88 @@ await motionPage.locator("[data-marquee-toggle]").focus();
 report.motion.marquee.toggleOnFocus = await motionPage.locator("[data-marquee-toggle]").evaluate((node) => Math.round(node.getBoundingClientRect().width * node.getBoundingClientRect().height));
 if (report.motion.marquee.toggleOnFocus < 200) failures.push(`The concept band's pause control must become visible on focus, painted ${report.motion.marquee.toggleOnFocus}px2`);
 await motionPage.locator("[data-marquee-toggle]").evaluate((node) => node.blur());
-// Hover pauses without touching state, so the band resumes on its own when the pointer leaves.
-// V11-F moved the hover target: the band sits behind the page header now and the header's box covers
-// it across the whole content column, so the header is what a pointer over the tiles actually hits.
-await motionPage.locator(".page--concepts > .page-header").hover();
-report.motion.marquee.hovered = await trackState();
-if (report.motion.marquee.hovered.playState !== "paused") failures.push("Hovering the concept band must pause it");
+// V12-B inverts this. Owen on 2026-08-06: the band should "never stop even when you hover so it looks
+// smooth and continuous". Both hover-pause rules are gone, so the assertion is that a pointer over the
+// band CANNOT stall it. Two positions are tested because V11-F put the band behind the page header:
+// the header's box covers the tiles across the content column, so a pointer over a tile actually hits
+// the header, and both were hover targets until now.
+// The header is hovered through its locator. The band cannot be, and the reason is the geometry
+// itself: Playwright refuses to hover an element the header's box covers, which is precisely V11-F's
+// note about why a second hover rule ever existed. So the band is hovered by moving the pointer to a
+// measured point inside its own box, near its left edge, where the band is a full-bleed element and
+// the header's content column is not. That point is over a tile and over nothing else.
+const bandPoint = await motionPage.locator(".concept-marquee").evaluate((node) => {
+  const rect = node.getBoundingClientRect();
+  return { x: Math.round(rect.left + 24), y: Math.round(rect.top + rect.height / 2) };
+});
+for (const [label, action] of [
+  ["header", () => motionPage.locator(".page--concepts > .page-header").first().hover()],
+  ["band", () => motionPage.mouse.move(bandPoint.x, bandPoint.y)],
+]) {
+  await action();
+  await motionPage.waitForTimeout(120);
+  report.motion.marquee[`hovered_${label}`] = await trackState();
+  if (report.motion.marquee[`hovered_${label}`].playState !== "running") {
+    failures.push(`Hovering the ${label} must not stop the concept band: ${JSON.stringify(report.motion.marquee[`hovered_${label}`])}`);
+  }
+}
 await motionPage.mouse.move(0, 0);
 report.motion.marquee.unhovered = await trackState();
-if (report.motion.marquee.unhovered.playState !== "running") failures.push("Leaving the concept band must resume it");
+if (report.motion.marquee.unhovered.playState !== "running") failures.push("The concept band must keep drifting with the pointer away");
 // The button, which does hold state.
 await motionPage.locator("[data-marquee-toggle]").press("Enter");
 report.motion.marquee.afterPress = { ...await trackState(), pressed: await motionPage.locator("[data-marquee-toggle]").getAttribute("aria-pressed") };
 if (report.motion.marquee.afterPress.playState !== "paused" || report.motion.marquee.afterPress.pressed !== "true") failures.push(`The pause button did not pause the band: ${JSON.stringify(report.motion.marquee.afterPress)}`);
 await motionPage.locator("[data-marquee-toggle]").press("Enter");
-// Both the focus and the pointer have to leave before the resume can be read. Hover and focus-within
-// each pause the band by design, and clicking leaves the pointer on the button and the focus in it, so
-// reading play-state here without releasing both would report a pause the button did not cause.
+// The focus has to leave before the resume can be read: :focus-within pauses the band by design and
+// clicking leaves the focus in the button, so reading play-state without blurring would report a pause
+// the button did not cause. The pointer is moved away too, which is no longer strictly required now
+// that hover does not pause, but it keeps this reading about the button and nothing else.
 await motionPage.locator("[data-marquee-toggle]").evaluate((node) => node.blur());
 await motionPage.mouse.move(0, 0);
 report.motion.marquee.afterSecondPress = { ...await trackState(), pressed: await motionPage.locator("[data-marquee-toggle]").getAttribute("aria-pressed") };
 if (report.motion.marquee.afterSecondPress.playState !== "running" || report.motion.marquee.afterSecondPress.pressed !== "false") failures.push(`The pause button did not resume the band: ${JSON.stringify(report.motion.marquee.afterSecondPress)}`);
 
-// The word cascade. Which headings get split depends on what sits below the fold at load time, and
-// that is deliberate: the first viewport stays still. So existence is asserted across a set of routes
-// rather than on one, while the invariants that must always hold are asserted on every one of them.
-report.motion.wordCascade = { routes: {} };
-for (const route of ["/", "/brawley/", "/concepts/indio/", "/brawley/gts/"]) {
+// Reveal coverage, route by route, in a context that asks for motion. This replaces the word-cascade
+// suite, and it is the assertion that answers Owen's actual complaint rather than a mechanism detail:
+// he said he was not seeing scroll motion, and V11 had five routes with no reveal target of any kind
+// (the privacy policy, the three form pages and 404) plus concept detail pages with one. Every route
+// below must mark something, and the previously barren ones are in the list by name so that a coverage
+// regression fails here rather than being noticed by eye months later.
+//
+// Which elements get marked depends on what sits below the fold at load, and that is deliberate: the
+// first viewport stays still. So the assertion is "something below the fold was marked, nothing above
+// it was", per route, rather than an exact count.
+report.motion.coverage = {};
+for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/concepts/", "/concepts/indio/", "/owners/", "/dealers/", "/privacy/", "/recommend-dealer/", "/dealer-inquiry/"]) {
   await motionPage.goto(`${base}${route}`, { waitUntil: "networkidle" });
   await motionPage.waitForTimeout(400);
   const shape = await motionPage.evaluate(async () => {
-    const split = [...document.querySelectorAll(".is-split")];
-    // Measured before anything scrolls, which is the only moment this means what it says. The guard in
-    // site.js only splits blocks that sit entirely below the fold, because splitting text the visitor
-    // is already reading would visibly re-hide it. This is that guarantee, stated as a number.
-    const aboveFold = split.filter((element) => element.getBoundingClientRect().top < innerHeight)
-      .map((element) => element.textContent.slice(0, 40));
-    const readRange = (node) => {
-      const style = getComputedStyle(node);
-      return { start: style.animationRangeStart, name: style.animationName, timeline: style.animationTimeline };
-    };
-    const detail = split.map((element) => {
-      const words = [...element.querySelectorAll(".word")];
-      return {
-        words: words.length,
-        first: words[0] ? readRange(words[0]) : null,
-        last: words.at(-1) ? readRange(words.at(-1)) : null,
-        // The split must not change what the element says.
-        text: element.textContent,
-      };
-    });
-    // Resolve one of them and confirm every word lands fully visible.
-    let resolved = null;
-    if (split.length) {
-      split[0].scrollIntoView({ block: "center", behavior: "instant" });
-      await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
-      resolved = Math.min(...[...split[0].querySelectorAll(".word")].map((word) => Number(getComputedStyle(word).opacity)));
-    }
-    return {
-      detail,
-      resolved,
-      aboveFold,
-      // Belt and braces on the selector itself: hero and page-header h1s are excluded by never being
-      // targeted, and this fires if that ever changes.
-      heroSplit: document.querySelectorAll(".hero__content h1.is-split, .page-header h1.is-split").length,
-      // The container's own reveal moves to its siblings rather than stacking with the cascade.
-      splitContainers: [...document.querySelectorAll(".section-heading[data-split]")].map((node) => ({
-        container: getComputedStyle(node).animationName,
-        eyebrow: node.querySelector(".eyebrow") ? getComputedStyle(node.querySelector(".eyebrow")).animationName : null,
-      })),
-    };
+    const marked = [...document.querySelectorAll("[data-reveal]")];
+    const aboveFold = marked.filter((node) => node.getBoundingClientRect().top < innerHeight)
+      .map((node) => `${node.className || node.tagName}: ${node.textContent.trim().slice(0, 30)}`);
+    const hidden = marked.filter((node) => Number(getComputedStyle(node).opacity) < 0.99);
+    const staggered = marked.filter((node) => node.style.getPropertyValue("--reveal-delay")).length;
+    // Scroll the whole page and confirm every marked element resolves. This is the failure mode that
+    // matters most: a marked element that never intersects is content permanently invisible.
+    for (const node of marked) node.scrollIntoView({ block: "center", behavior: "instant" });
+    window.scrollTo(0, document.body.scrollHeight);
+    await new Promise((done) => setTimeout(done, 1500));
+    const unresolved = marked.filter((node) => Number(getComputedStyle(node).opacity) < 0.99)
+      .map((node) => `${node.className || node.tagName}`);
+    return { markedCount: marked.length, aboveFold, hiddenBefore: hidden.length, staggered, unresolved };
   });
-  report.motion.wordCascade.routes[route] = shape;
-  if (shape.heroSplit !== 0) failures.push(`${route}: ${shape.heroSplit} first-viewport headings were split`);
-  if (shape.aboveFold.length) failures.push(`${route}: ${shape.aboveFold.length} already-visible blocks were split, which re-hides text the visitor is reading: ${shape.aboveFold.join(" / ")}`);
-  for (const container of shape.splitContainers) {
-    if (container.container !== "none") failures.push(`${route}: a split section heading still runs its own block reveal (${container.container})`);
-    if (container.eyebrow !== "rise-in") failures.push(`${route}: a split section heading's eyebrow lost its reveal (${container.eyebrow})`);
-  }
-  for (const element of shape.detail) {
-    if (element.words < 2) failures.push(`${route}: a split element has ${element.words} words`);
-    if (element.first?.name !== "rise-in") failures.push(`${route}: split words are not animated (${element.first?.name})`);
-    if (!element.first?.timeline.includes("vhw-words")) failures.push(`${route}: split words are not on the element's named timeline (${element.first?.timeline})`);
-    // The stagger IS the feature. Identical ranges mean the browser rejected calc inside a range and
-    // fell back to every word rising together, which is a real regression and must be named, not
-    // discovered by eye. Plan B in the V9 plan is bucketed ranges if this ever fires.
-    if (element.first?.start === element.last?.start) failures.push(`${route}: the word stagger collapsed, every word starts at ${element.first?.start}. calc-in-range is unsupported here; apply the bucketed-range fallback.`);
-  }
-  if (shape.resolved !== null && shape.resolved < 0.99) failures.push(`${route}: a scrolled-into-view cascade did not resolve to fully visible: ${shape.resolved}`);
+  report.motion.coverage[route] = shape;
+  if (shape.markedCount === 0) failures.push(`${route} marks nothing for reveal, so it has no scroll motion at all`);
+  if (shape.hiddenBefore === 0) failures.push(`${route} marked ${shape.markedCount} elements but hid none of them, so nothing can be seen to arrive`);
+  if (shape.aboveFold.length) failures.push(`${route}: ${shape.aboveFold.length} already-visible blocks were marked, which re-hides content the visitor is reading: ${shape.aboveFold.join(" / ")}`);
+  if (shape.unresolved.length) failures.push(`${route}: ${shape.unresolved.length} revealed elements never resolved and are permanently invisible: ${shape.unresolved.join(", ")}`);
 }
-const cascadeRoutes = Object.values(report.motion.wordCascade.routes);
-report.motion.wordCascade.totalSplit = cascadeRoutes.reduce((sum, shape) => sum + shape.detail.length, 0);
-report.motion.wordCascade.totalWords = cascadeRoutes.reduce((sum, shape) => sum + shape.detail.reduce((inner, element) => inner + element.words, 0), 0);
-if (report.motion.wordCascade.totalSplit < 3) failures.push(`The word cascade reached only ${report.motion.wordCascade.totalSplit} elements across four routes`);
-if (report.motion.wordCascade.totalWords < 20) failures.push(`The word cascade split only ${report.motion.wordCascade.totalWords} words across four routes`);
+// The stagger is a feature and it must be reaching something, or groups snap in as blocks. Asserted
+// across the set rather than per route, because which groups fall below the fold varies by page.
+report.motion.totalStaggered = Object.values(report.motion.coverage).reduce((sum, shape) => sum + shape.staggered, 0);
+if (report.motion.totalStaggered < 3) failures.push(`The reveal stagger reached only ${report.motion.totalStaggered} elements across eleven routes`);
+
 await motionContext.close();
 
 // V10. Everything below is new in this version: the renamed action, the footer's destinations, the
@@ -1292,11 +1360,16 @@ for (const [route, blockSelector, posterSelector] of AMBIENT_PLACEMENTS) {
 // context with javaScriptEnabled: false has no working timers, so an in-page `await setTimeout` never
 // resolves and Playwright eventually reports the promise as garbage collected. Every evaluate below
 // is synchronous; the waiting happens on this side.
+// Mirrors REVEAL_SELECTORS in src/scripts/site.js. Two copies of this list rather than V11's three:
+// the CSS copy went with the scrubbed path in V12-C. It is duplicated here on purpose, because a check
+// that imported the list from the file it is checking would agree with a mistake in it.
 const REVEAL_SELECTOR = [
   ".vehicle-section__media", ".vehicle-section__body", ".photo-module__media", ".photo-module__body",
   ".card-grid--concepts .card", ".concept-figure", ".split__media", ".split__body",
   ".section-heading", ".spec-table", ".gts-figures", ".gts-scene", ".disclosures", ".resource-group",
   ".photo-module__specs .spec-row", ".vehicle-section__row .vehicle-section__support",
+  ".policy__section", ".lede", ".spec-note", ".form-heading",
+  ".lead-form > .field", ".lead-form > .form-fieldset", ".lead-form > .form-submit-row",
 ].join(", ");
 for (const route of ["/", "/vehicles/", "/brawley/", "/concepts/", "/owners/"]) {
   await noJsPage.goto(`${base}${route}`, { waitUntil: "load" });
@@ -1305,6 +1378,13 @@ for (const route of ["/", "/vehicles/", "/brawley/", "/concepts/", "/owners/"]) 
     return {
       candidates: document.querySelectorAll(selector).length,
       markedBeforeScroll: document.querySelectorAll("[data-reveal]").length,
+      // V12-C makes this assertion possible, and it is much stronger than the one below it. In V11 a
+      // below-fold block legitimately sat at opacity 0 without script, because the CSS view() path
+      // needed no script and had not advanced its timeline yet, so nothing could be asserted at scroll
+      // zero. There is no CSS reveal path now: without JavaScript nothing is ever hidden at any scroll
+      // position, so a single faded candidate here is a defect no matter where it sits on the page.
+      fadedAtRest: [...document.querySelectorAll(selector)].filter((element) => Number(getComputedStyle(element).opacity) < 0.99)
+        .map((element) => `${element.className}@${Number(getComputedStyle(element).opacity).toFixed(2)}`),
       height: document.documentElement.scrollHeight,
       viewport: innerHeight,
     };
@@ -1340,6 +1420,7 @@ for (const route of ["/", "/vehicles/", "/brawley/", "/concepts/", "/owners/"]) 
   const shape = { ...before, ...measured };
   report.noJs[`reveals${route}`] = shape;
   if (shape.candidates === 0) failures.push(`No-JS ${route}: found no revealable blocks to check, so this assertion proves nothing`);
+  if (shape.fadedAtRest.length) failures.push(`No-JS ${route}: ${shape.fadedAtRest.length} blocks are hidden before any scroll, which without script is content nothing can reveal: ${shape.fadedAtRest.slice(0, 4).join(", ")}`);
   if (shape.scrolledPast === 0) failures.push(`No-JS ${route}: nothing was scrolled past, so nothing was actually measured`);
   // The fallback's start state can only be set by site.js, so it must be absent at both ends.
   if (shape.markedBeforeScroll !== 0 || shape.markedAfterScroll !== 0) failures.push(`No-JS ${route}: ${shape.markedAfterScroll} elements carry the fallback's start state, which nothing will ever clear`);
@@ -1439,13 +1520,18 @@ const contrastRatio = (a, b) => {
 };
 
 report.studio = { routes: {} };
-for (const route of ["/concepts/", "/concepts/indio/", "/concepts/yuma/", "/concepts/balboa/"]) {
+// V12-D adds the purchase page to the sample. A sample rather than all eleven routes: check-content
+// asserts the exact route set as strings, and this measures that the scope actually resolves.
+for (const route of ["/concepts/", "/concepts/indio/", "/concepts/yuma/", "/concepts/balboa/", "/brawley/gts/"]) {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   const shape = await page.evaluate(() => {
     const main = document.querySelector("main");
     const style = getComputedStyle(main);
-    const title = document.querySelector(".page-header h1, .concept-title");
+    // The purchase page's h1 is inside .gts-open__intro rather than in a .page-header, and it has no
+    // .concept-title, so without the third selector this returns null and the contrast read below
+    // throws instead of measuring.
+    const title = document.querySelector(".page-header h1, .concept-title, .gts-open__intro h1");
     const wordmark = document.querySelector(".concept-title img");
     return {
       scoped: main.classList.contains("page--studio"),
@@ -1567,75 +1653,41 @@ if (report.strip.mobile.cards !== 9) failures.push(`The concepts index must stil
 if (!report.strip.mobile.noHorizontalScroll) failures.push("The concepts hub widened the document at 390px");
 await stripContext.close();
 
-// V11-B. The reveal fallback, exercised by pretending view() timelines do not exist. This is the
-// path Safari and Firefox take, and until V11 they saw a site with no scroll motion at all. Faking
-// the feature query is the only way to reach it from Chrome; what is being tested is site.js's
-// branch and the transition it drives, both of which are engine-independent.
-const fallbackContext = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion: "no-preference" });
-await fallbackContext.addInitScript(() => {
-  const supports = CSS.supports.bind(CSS);
-  CSS.supports = (...args) => (String(args[0]).includes("animation-timeline") ? false : supports(...args));
-  // Overriding CSS.supports changes what site.js believes; it does not change what the stylesheet's
-  // own @supports block evaluates to, so Chrome still runs the view() animation on these elements.
-  // An animation overrides normal declarations, so without this the measurements below would be of
-  // the CSS path with the fallback merely present alongside it, which is not what they claim to be
-  // measuring. Neutralising the animation on marked elements only is what leaves the fallback's own
-  // start state and transition as the thing under test, and it is scoped to [data-reveal] so the
-  // concept band and the hero drift are untouched.
-  addEventListener("DOMContentLoaded", () => {
-    const style = document.createElement("style");
-    style.textContent = "[data-reveal] { animation-name: none !important; }";
-    document.head.append(style);
-  });
-});
-const fallbackPage = await fallbackContext.newPage();
-await fallbackPage.goto(`${base}/vehicles/`, { waitUntil: "networkidle" });
-await fallbackPage.waitForTimeout(400);
-report.motion.fallback = await fallbackPage.evaluate(() => {
+// V12-C. What stood here was the fallback suite: it faked CSS.supports so that Chrome would take the
+// IntersectionObserver branch, then neutralised the CSS animation so the transition was the thing under
+// test, and finally asserted that on a REAL Chrome nothing was marked, because the two paths had to be
+// mutually exclusive. All of that scaffolding existed to reach a path that only Safari and Firefox took.
+//
+// There is one path now, so the scaffolding is gone and the assertions it made moved into the coverage
+// suite above, where they run on the real browser across eleven routes rather than on a faked one across
+// one. The inverse of the old no-double-drive check is asserted there too: marked elements are now
+// expected on every browser, not forbidden on this one.
+//
+// One thing that suite cannot see is the reveal running at a width where the layout changes, so that is
+// what is checked here: a phone. Groups that stack into a single column must still reveal, and nothing
+// may be left hidden at a width where the stagger's row logic no longer describes the layout.
+const narrowContext = await browser.newContext({ viewport: { width: 390, height: 844 }, reducedMotion: "no-preference" });
+const narrowPage = await narrowContext.newPage();
+await narrowPage.goto(`${base}/vehicles/`, { waitUntil: "networkidle" });
+await narrowPage.waitForTimeout(400);
+report.motion.narrow = await narrowPage.evaluate(async () => {
   const marked = [...document.querySelectorAll("[data-reveal]")];
+  const hiddenBefore = marked.filter((node) => Number(getComputedStyle(node).opacity) < 0.99).length;
+  window.scrollTo(0, document.body.scrollHeight);
+  await new Promise((done) => setTimeout(done, 1600));
   return {
     marked: marked.length,
-    // Nothing already on screen may be marked: this file runs after the load event, so hiding
-    // something the visitor is reading would visibly re-hide it. The first viewport stays still.
-    markedAboveFold: marked.filter((element) => element.getBoundingClientRect().top < innerHeight && !element.dataset.reveal).length,
-    hiddenNow: marked.filter((element) => Number(getComputedStyle(element).opacity) < 0.99).length,
-    transitions: marked.slice(0, 1).map((element) => getComputedStyle(element).transitionProperty),
-    staggered: marked.filter((element) => element.style.getPropertyValue("--reveal-delay")).length,
+    hiddenBefore,
+    unresolved: marked.filter((node) => Number(getComputedStyle(node).opacity) < 0.99).length,
+    noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1,
   };
 });
-const fallback = report.motion.fallback;
-if (fallback.marked === 0) failures.push("The reveal fallback marked nothing on /vehicles/, so browsers without view() timelines still see no scroll motion");
-if (fallback.markedAboveFold !== 0) failures.push(`${fallback.markedAboveFold} already-visible blocks were marked for reveal, which re-hides content the visitor is reading`);
-if (fallback.hiddenNow === 0) failures.push("The reveal fallback marked elements but none is in its start state, so nothing will animate");
-if (!fallback.transitions[0]?.includes("opacity")) failures.push(`The reveal fallback must transition opacity, found ${fallback.transitions[0]}`);
-if (fallback.staggered === 0) failures.push("The reveal fallback must stagger the groups the CSS path staggers");
-// Scrolled to, it resolves to fully visible. A fallback that leaves content at opacity 0 is worse
-// than no fallback, which is why the CSS start state lives on an attribute only site.js sets.
-//
-// Null-guarded, and that guard is not defensive padding. Mutation testing found this: with the
-// fallback disabled entirely there is no marked element, the raw querySelector returned null, and the
-// suite died on a TypeError before it could write its report. It still exited non-zero, so the
-// release gate held, but what a reader got was a stack trace instead of the named failure two lines
-// above it. A check that crashes where it should report is a check that will waste somebody's
-// afternoon.
-report.motion.fallbackResolved = await fallbackPage.evaluate(async () => {
-  const target = document.querySelector("[data-reveal]");
-  if (!target) return { missing: true };
-  target.scrollIntoView({ block: "center", behavior: "instant" });
-  await new Promise((done) => setTimeout(done, 1400));
-  return { opacity: Number(getComputedStyle(target).opacity), state: target.dataset.reveal };
-});
-if (report.motion.fallbackResolved.missing) {
-  failures.push("No element was marked for the fallback, so there was nothing to scroll into view; see the preceding failure for the cause");
-} else if (report.motion.fallbackResolved.opacity < 0.99 || report.motion.fallbackResolved.state !== "shown") {
-  failures.push(`A scrolled-into-view fallback reveal did not resolve: ${JSON.stringify(report.motion.fallbackResolved)}`);
-}
-// And the two paths never both run. Chrome supports view(), so nothing may be marked there.
-await page.goto(`${base}/vehicles/`, { waitUntil: "networkidle" });
-await page.waitForTimeout(400);
-report.motion.noDoubleDrive = await page.evaluate(() => document.querySelectorAll("[data-reveal]").length);
-if (report.motion.noDoubleDrive !== 0) failures.push(`${report.motion.noDoubleDrive} elements were marked for the observer fallback on a browser that supports view() timelines`);
-await fallbackContext.close();
+const narrow = report.motion.narrow;
+if (narrow.marked === 0) failures.push("Nothing was marked for reveal at 390px, so a phone sees no scroll motion");
+if (narrow.hiddenBefore === 0) failures.push("Elements were marked at 390px but none was in its start state, so nothing will animate");
+if (narrow.unresolved !== 0) failures.push(`${narrow.unresolved} elements are still hidden at 390px after scrolling to the foot of the page`);
+if (!narrow.noHorizontalScroll) failures.push("The reveal's rise widened the document at 390px");
+await narrowContext.close();
 
 // V11-C. The specification groups, per photograph. The row totals are asserted in check-content;
 // what is asserted here is the thing a visitor actually experiences, that no photograph carries one
@@ -1745,6 +1797,56 @@ for (const route of ["/", "/vehicles/", "/carmel/", "/venice/"]) {
   if (!tag.found) failures.push(`${route}: no past-model tag was found to check`);
   else if (!tag.besideNotUnder || !tag.sharesRow) failures.push(`${route}: the past-model tag must sit beside the name, not under it: ${JSON.stringify(tag)}`);
 }
+await page.setViewportSize({ width: 1440, height: 1000 });
+
+// V12-E. The site on a large monitor. Owen on 2026-08-06: it filled his MacBook Pro but not a bigger
+// screen, and the cause was a 1440px max-width on .page that stopped the full-bleed elements along with
+// everything else. The claim now has two halves and they pull in opposite directions, which is why both
+// are measured: the photography spans the viewport, and the reading column does NOT. A change that
+// satisfied only the first would give a 2560 monitor lines of text a metre wide.
+report.wide = {};
+for (const width of [1440, 2560]) {
+  for (const route of ["/", "/brawley/", "/concepts/"]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+    const shape = await page.evaluate(() => {
+      const pageEl = document.querySelector(".page");
+      const bleed = document.querySelector(".page > .bleed");
+      const content = [...document.querySelectorAll(".page > *:not(.bleed)")].find((node) => node.getBoundingClientRect().width > 0);
+      const contentRect = content?.getBoundingClientRect();
+      const brand = document.querySelector(".site-header .brand")?.getBoundingClientRect();
+      return {
+        pageMaxWidth: getComputedStyle(pageEl).maxWidth,
+        bleedWidth: bleed ? Math.round(bleed.getBoundingClientRect().width) : null,
+        contentWidth: contentRect ? Math.round(contentRect.width) : null,
+        // Centred: the space left of the content column equals the space to its right.
+        contentOffset: contentRect ? Math.round(contentRect.left - (innerWidth - contentRect.right)) : null,
+        // The header lockup and the content column must share a left edge, which is what the header's
+        // width had to be re-anchored to --w-content for.
+        brandToContent: brand && contentRect ? Math.round(brand.left - contentRect.left) : null,
+        viewport: innerWidth,
+        noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1,
+      };
+    });
+    report.wide[`${width}${route}`] = shape;
+    if (shape.pageMaxWidth !== "none") failures.push(`${route} at ${width}: .page is still capped at ${shape.pageMaxWidth}`);
+    if (shape.bleedWidth !== null && Math.abs(shape.bleedWidth - shape.viewport) > 2) {
+      failures.push(`${route} at ${width}: a full-bleed element is ${shape.bleedWidth}px wide in a ${shape.viewport}px viewport`);
+    }
+    if (shape.contentWidth !== null && shape.contentWidth > 1200) failures.push(`${route} at ${width}: the reading column is ${shape.contentWidth}px, wider than the 1200px measure`);
+    if (shape.contentOffset !== null && Math.abs(shape.contentOffset) > 2) failures.push(`${route} at ${width}: the reading column is off centre by ${shape.contentOffset}px`);
+    if (shape.brandToContent !== null && Math.abs(shape.brandToContent) > 2) failures.push(`${route} at ${width}: the header lockup is ${shape.brandToContent}px off the content column's left edge`);
+    if (!shape.noHorizontalScroll) failures.push(`${route} at ${width}: the document scrolls horizontally`);
+  }
+}
+// And the hero asks for the widest rung it has at 2560, rather than a rung it will upscale further.
+await page.setViewportSize({ width: 2560, height: 1000 });
+await page.goto(`${base}/brawley/`, { waitUntil: "networkidle" });
+report.wide.heroRung = await page.evaluate(() => {
+  const image = document.querySelector(".hero__image");
+  return { currentSrc: new URL(image.currentSrc, location.origin).pathname, natural: image.naturalWidth, painted: Math.round(image.getBoundingClientRect().width) };
+});
+if (!report.wide.heroRung.currentSrc.includes("2560")) failures.push(`At 2560 the Brawley hero requested ${report.wide.heroRung.currentSrc} rather than its widest rung`);
 await page.setViewportSize({ width: 1440, height: 1000 });
 
 report.consoleErrors = [...new Set(report.consoleErrors)];

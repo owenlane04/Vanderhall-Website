@@ -187,21 +187,12 @@ export const photoModule = (item, index) => {
 
 export const photoScroll = (items) => `<div class="photo-scroll">${items.map((item, index) => photoModule(item, index)).join("")}</div>`;
 
-// Says where you are, how to get back, and what you can do. V6 removed this bar from the three
-// models whose action only repeated the header button; V8 returns it to all of them, because it
-// now carries the way back, which the header does not offer. Where a model has no action of its
-// own, the bar is a back link and a name. Pure CSS sticky, no JavaScript.
-export const modelBar = (model, { name = model.name, label, href, back } = {}) => {
-  const action = label || model.cta?.label;
-  const target = href || model.cta?.href;
-  return `<div class="model-bar bleed">
-    <div class="model-bar__inner">
-      ${back ? backLink(back) : ""}
-      <span class="model-bar__name">${escapeHtml(name)}</span>
-      ${action ? `<a class="model-bar__action" href="${target}">${escapeHtml(action)}<span aria-hidden="true"> →</span></a>` : ""}
-    </div>
-  </div>`;
-};
+// V12-A: modelBar() is retired. Owen on 2026-08-06, looking at /brawley/: the bar under the hero
+// photograph read as clutter, and its three slots were each a repetition. The name it printed was
+// already the h1 in the photograph directly above it. Its action was the hero's own button, said
+// twice on one screen. Only the way back was unique to it, and that moves into the hero content,
+// which keeps the sitewide rule of exactly one back link per page below the homepage. The class
+// joins the retired-components list in check-content.mjs alongside pathways() and the unit toggle.
 
 // V11-J: pathways() is retired. V11-D removed its homepage pair and V11-H removed its dealers pair,
 // which were its last two callers, and a component with no callers is a thing that will be brought

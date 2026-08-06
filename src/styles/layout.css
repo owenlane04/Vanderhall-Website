@@ -19,9 +19,12 @@ body {
     [content-start] minmax(0, var(--w-content))
     [content-end] minmax(var(--gutter), 1fr)
     [full-end];
-  max-width: var(--w-page);
-  margin-inline: auto;
 }
+/* V12-E: no max-width and no auto margins. The grid does both jobs already: the middle track holds
+   the reading column at --w-content, and the two 1fr tracks either side centre it at any width, so
+   the cap was doing nothing for the content and everything to the photography. A .bleed child spans
+   full-start to full-end, which is the viewport now rather than 1440px, and the heroes, the concept
+   band and the lifestyle frames run edge to edge on a large monitor as they always did on a laptop. */
 
 .page > * { grid-column: content; }
 .page > .bleed { grid-column: full; }

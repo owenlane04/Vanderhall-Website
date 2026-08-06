@@ -91,7 +91,13 @@
   --sf-xl: clamp(3.5rem, 1.916rem + 6.76vw, 8rem);
   --sf-2xl: clamp(5rem, 2.711rem + 9.77vw, 11.5rem);
 
-  --w-page: 1440px;
+  /* V12-E: --w-page is gone. Owen on 2026-08-06: the site filled his MacBook Pro but not a larger
+     monitor. A 1440px cap on .page meant that above that width every full-bleed element stopped too,
+     so a 2560 monitor showed the heroes, the concept band and the lifestyle photographs as a centred
+     1440 block with paper down both sides. The page grid's own named lines already hold the reading
+     column at --w-content; the outer cap was only ever holding the photography back. Anything that
+     needs to agree with the content column now says so with --w-content, which is the measure it
+     actually meant. */
   --w-content: 1200px;
   --w-narrow: 800px;
   --w-text: 65ch;
@@ -124,9 +130,8 @@
   --focus-offset: 2px;
   --focus-color: var(--accent);
 
-  /* The word cascade's rise, in em so it scales with whatever type size it lands on. The block
-     reveals use a fixed 1.75rem, which would be a shove on a caption and a twitch on display-xl. */
-  --rise-word: 0.35em;
+  /* V12-C: --rise-word is gone with the word cascade it existed for. The reveals are time-based
+     transitions now and their distance is --rise, declared on [data-reveal] in site.css. */
   --ar-feature: 3 / 2;
   --ar-cutout: 16 / 10;
 
@@ -149,9 +154,16 @@
   --hero-min-mobile: min(80svh, max(26rem, 66svh));
 }
 
-/* V11-E. The concepts hub and the nine concept detail pages render on a white studio field, per
-   D-V11-1. The class sits on <main>, so it is full width at any viewport and the sticky header and
-   the footer, which are outside main, stay dark exactly as they are everywhere else.
+/* V11-E, extended by V12-D. The concepts hub, the nine concept detail pages, and the Brawley GTS
+   purchase page render on a white studio field. The class sits on <main>, so it is full width at any
+   viewport and the sticky header and the footer, which are outside main, stay dark exactly as they are
+   everywhere else.
+
+   V12-D added the purchase page for the same reason V11-E moved the concepts, and it is worth stating
+   as a rule rather than as two decisions: this scope belongs on a page whose imagery was shot in a
+   white studio. Owen on 2026-08-06 asked for the page to be white so the images look cleaner, and
+   what made them unclean was the keying that the dark page required. The walkaround frames are
+   delivered unkeyed now, so the vehicle stands on the same white it was photographed on.
 
    Why the pages moved: the renders were authored on a white studio floor with soft shadows and
    reflections, and V9 keyed that floor onto the dark paper. No threshold key removes a gradient
@@ -164,7 +176,7 @@
    THIS IS NOT LIGHT MODE, and the distinction is mechanical rather than a matter of opinion. What V9
    removed was a stored preference, a visible control, and colours defined as two-value functions that
    had to be kept in step with each other. None of those comes back here: this is one class carrying
-   fixed values on two page types, with no branch to take, nothing to store, and nothing to switch.
+   fixed values on eleven routes, with no branch to take, nothing to store, and nothing to switch.
    The check suite's bans on the two-value function and on the stored preference stay in force and
    still pass.
 
@@ -243,9 +255,12 @@ body {
     [content-start] minmax(0, var(--w-content))
     [content-end] minmax(var(--gutter), 1fr)
     [full-end];
-  max-width: var(--w-page);
-  margin-inline: auto;
 }
+/* V12-E: no max-width and no auto margins. The grid does both jobs already: the middle track holds
+   the reading column at --w-content, and the two 1fr tracks either side centre it at any width, so
+   the cap was doing nothing for the content and everything to the photography. A .bleed child spans
+   full-start to full-end, which is the viewport now rather than 1440px, and the heroes, the concept
+   band and the lifestyle frames run edge to edge on a large monitor as they always did on a laptop. */
 
 .page > * { grid-column: content; }
 .page > .bleed { grid-column: full; }
@@ -419,7 +434,9 @@ p { color: var(--text-secondary); }
 
 .site-header__inner {
   display: flex;
-  width: min(100%, var(--w-page));
+  /* V12-E: was --w-page. The header row's job is to land the lockup on the same optical left edge
+     as the content column below it, which is --w-content plus the gutter it is padded by. */
+  width: min(100%, calc(var(--w-content) + 2 * var(--gutter)));
   height: 100%;
   align-items: center;
   gap: var(--s-6);
@@ -535,7 +552,11 @@ p { color: var(--text-secondary); }
 .back-nav a:hover { color: var(--text-primary); text-decoration: underline; text-underline-offset: var(--s-2); }
 .back-nav a span { transition: transform var(--dur-2) var(--ease-out); }
 .back-nav a:hover span { transform: translateX(calc(-1 * var(--s-1))); }
-.hero__content .back-nav a, .model-bar .back-nav a { color: inherit; }
+.hero__content .back-nav a { color: inherit; }
+/* V12-A: the way back opens the hero content on the model pages, so it needs its own gap rather
+   than the column's --s-4 between it and the eyebrow. It reads as a label above the block, not as
+   a first line of it. */
+.hero__content .back-nav { margin-bottom: calc(-1 * var(--s-2)); }
 
 /* Past model, on Venice and Carmel. A hairline pill in the caps register, quiet enough to be a
    fact rather than a warning.
@@ -547,16 +568,11 @@ p { color: var(--text-secondary); }
 .model-tag { align-self: center; border: var(--hairline) solid var(--line-strong); border-radius: var(--r-pill); padding: var(--s-1) var(--s-3); color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); line-height: var(--lh-caps); text-transform: uppercase; white-space: nowrap; }
 .hero__content .model-tag { border-color: color-mix(in srgb, var(--pure-white) 55%, transparent); }
 
-/* Sticky model bar: where you are, the way back, and the one thing you can do. */
-.model-bar { position: sticky; z-index: var(--z-sticky); top: var(--header-h); border-bottom: var(--hairline) solid var(--line); background: var(--frost-bg); backdrop-filter: var(--frost-blur); }
-/* Padded to land on the same optical line as the content column of .page at every width. The back
-   link takes the first slot, the name the middle, the action the last. */
-.model-bar__inner { display: flex; width: min(100%, calc(var(--w-content) + 2 * var(--gutter))); min-height: var(--hit-target); align-items: center; justify-content: space-between; gap: var(--s-4); margin-inline: auto; padding-inline: var(--gutter); }
-.model-bar__name { font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); text-transform: uppercase; }
-.model-bar__action { display: inline-flex; min-height: var(--hit-target); align-items: center; color: var(--text-secondary); font-size: var(--fs-body-sm); font-weight: var(--wt-medium); text-decoration: none; }
-.model-bar__action:hover { color: var(--text-primary); text-decoration: underline; text-underline-offset: var(--s-2); }
-.model-bar__action span { transition: transform var(--dur-2) var(--ease-out); }
-.model-bar__action:hover span { transform: translateX(var(--s-1)); }
+/* V12-A: the sticky model bar and all five of its rules are gone. Owen asked for the bar under the
+   hero photograph to go, and its slots were repetitions of the photograph above it: the name was
+   the h1, the action was the hero button. The way back moved into .hero__content, above, and on the
+   purchase page it sits above the h1. The class is banned in check-content.mjs so it cannot return
+   by accident with no markup behind it. */
 
 /* Hero */
 .hero { position: relative; display: block; overflow: clip; background: var(--dark-paper); color: var(--dark-ink); }
@@ -664,7 +680,10 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 .form-submit-row { display: flex; flex-direction: column; align-items: flex-start; }
 
 /* Brawley GTS purchase page */
-.gts-open { display: flex; flex-direction: column; gap: var(--sf-s); }
+/* V12-D: a hairline under the opening block. The page is a sequence of ruled bands: the figure band
+   rules top and bottom, the disclosures rule above. Without one here the title, the price and the
+   walkaround ran together as one tall column of white with no structure in it. */
+.gts-open { display: flex; flex-direction: column; gap: var(--sf-s); border-bottom: var(--hairline) solid var(--line); padding-bottom: var(--sf-m); }
 .gts-open__row { display: flex; flex-direction: column; gap: var(--sf-s); }
 .gts-open__intro { display: flex; flex-direction: column; gap: var(--s-4); }
 .gts-open__descriptor { max-width: var(--w-text); font-size: var(--fs-body-lg); }
@@ -677,11 +696,13 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 .price__delivery { color: var(--text-secondary); font-size: var(--fs-body-sm); }
 .price__disclaimer { max-width: 48ch; color: var(--text-tertiary); font-size: var(--fs-caption); }
 
-/* The walkaround. The stage is the page paper since V9, not a white plate: the frames themselves are
-   keyed off their studio backdrop and onto this exact value, so there is no rectangle to hide any
-   more. The hairline border becomes visible again as a result, which is the point. */
+/* The walkaround. V12-D: no border and no radius on the stage. The page is white now and the frames
+   are delivered on the white they were shot on, so the stage is the same field as the paper around it
+   and a hairline rectangle would draw a box around a photograph rather than containing one. The
+   vehicle appears to stand on the page. Nothing is keyed and nothing is hidden; the background stays
+   var(--paper) so the studio white and the page white are the same declaration. */
 .walkaround { display: flex; flex-direction: column; gap: var(--s-5); }
-.walkaround__stage { position: relative; overflow: hidden; border: var(--hairline) solid var(--line); border-radius: var(--r-2); background: var(--paper); touch-action: pan-y; }
+.walkaround__stage { position: relative; overflow: hidden; background: var(--paper); touch-action: pan-y; }
 .walkaround__stage[data-ready] { cursor: grab; }
 .walkaround__stage.is-dragging { cursor: grabbing; }
 .walkaround__frame { width: 100%; height: auto; }
@@ -715,14 +736,18 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 .swatches { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--s-2); }
 .swatch { display: grid; width: var(--hit-target); height: var(--hit-target); place-items: center; border: 0; border-radius: var(--r-pill); padding: 0; background: transparent; }
 .swatch:not([disabled]) { cursor: pointer; }
-.swatch > span { width: var(--s-6); height: var(--s-6); border-radius: var(--r-pill); background: var(--swatch-color); box-shadow: inset 0 0 0 var(--hairline) var(--ink-24); transition: transform var(--dur-2) var(--ease-out); }
+/* V12-D: the ring is --line-strong rather than --ink-24. On the dark page a 24% ring was enough to
+   separate every paint from the paper. On white, Ivory White and Jean Grey are within a few percent of
+   the page, and at 24% the tile had no edge at all: two of the nine colours were invisible circles. */
+.swatch > span { width: var(--s-6); height: var(--s-6); border-radius: var(--r-pill); background: var(--swatch-color); box-shadow: inset 0 0 0 var(--hairline) var(--line-strong); transition: transform var(--dur-2) var(--ease-out); }
 .swatch.is-selected > span { outline: var(--focus-w) solid var(--ink); outline-offset: var(--s-1); }
 
 .gts-figures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sf-s); border-block: var(--hairline) solid var(--line); padding-block: var(--sf-s); }
 .gts-figure { display: flex; min-width: 0; flex-direction: column; gap: var(--s-1); }
 .gts-figure__value { font-size: var(--fs-display-s); font-weight: var(--wt-medium); font-variant-numeric: tabular-nums; line-height: var(--lh-heading); }
 .gts-figure__label { color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); line-height: var(--lh-caps); text-transform: uppercase; }
-.gts-note { max-width: var(--w-text); margin-top: var(--s-4); color: var(--text-tertiary); font-size: var(--fs-caption); }
+/* V12-D: .gts-note is retired with its only caller. The sentence it carried is printed under
+   DISCLOSURES at the foot of the page, verbatim, alongside the other two. */
 
 .gts-scene { margin: 0; }
 .gts-scene img { width: 100%; height: auto; border-radius: var(--r-2); }
@@ -777,12 +802,12 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
    the footer then merges invisibly into the page, so it takes the quietest surface in the set plus
    the top border it already had. That is a distinction, not a panel. */
 .site-footer { display: grid; gap: var(--sf-m); padding: var(--sf-l) var(--gutter) var(--sf-m); border-top: var(--hairline) solid var(--line); background: var(--surface-1); }
-.footer-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sf-m); width: min(100%, var(--w-page)); margin-inline: auto; }
+.footer-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sf-m); width: min(100%, var(--w-content)); margin-inline: auto; }
 .footer-links > div { display: flex; flex-direction: column; gap: var(--s-3); }
 .footer-links h2 { color: var(--text-tertiary); }
 .footer-links a { color: var(--text-secondary); font-size: var(--fs-body-sm); text-decoration: none; }
 .footer-links a:hover { color: var(--text-primary); }
-.footer-legal { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3) var(--s-5); width: min(100%, var(--w-page)); margin-inline: auto; border-top: var(--hairline) solid var(--ink-24); padding-top: var(--s-5); color: var(--text-tertiary); font-size: var(--fs-caption); }
+.footer-legal { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3) var(--s-5); width: min(100%, var(--w-content)); margin-inline: auto; border-top: var(--hairline) solid var(--ink-24); padding-top: var(--s-5); color: var(--text-tertiary); font-size: var(--fs-caption); }
 .footer-lockup { width: auto; height: 1.5rem; }
 
 /* V10 footer rows. The list resets its own styling rather than relying on a global reset the site
@@ -818,12 +843,6 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 
 @media (max-width: 399px) {
   .site-header__inner { gap: var(--s-3); }
-}
-
-/* A bar carrying both a way back and an action has no room for the name on a narrow phone: all
-   three slots wrap. The name yields, because the heading directly below it says the same word. */
-@media (max-width: 639px) {
-  .model-bar__inner:has(.back-nav):has(.model-bar__action) .model-bar__name { display: none; }
 }
 
 @media (min-width: 640px) {
@@ -1096,149 +1115,74 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
   .vehicle-section__support:hover img { transform: scale(1.03); }
   .swatch:not([disabled]):hover > span { transform: scale(1.12); }
   .resource-card:hover .resource-card__cue { transform: translateY(var(--s-1)); }
-  .concept-marquee:hover .concept-marquee__track { animation-play-state: paused; }
-  /* V11-F. Behind the title, the band's own box is covered by the header's for its whole content
-     column, so a pointer over the tiles lands on the header and .concept-marquee:hover above never
-     matches. The header is therefore the hover target for both, which is also the honest reading:
-     the band and the title are one region now. Without this a mouse user would have no way at all to
-     stop the drift, since the V11 amendment took the visible pause label off the page. The sibling
-     combinator works because the header ships first, which it does for a separate reason: so that a
-     visitor tabbing in reaches the title before the band's control. */
-  .page--concepts > .page-header:hover ~ .concept-marquee .concept-marquee__track { animation-play-state: paused; }
+  /* V12-B: both hover-pause rules are gone, per Owen on 2026-08-06: the band should "never stop even
+     when you hover so it looks smooth and continuous". A pointer resting anywhere near the title used
+     to stall the drift, which read as a stutter rather than as a control. WCAG 2.2.2 still holds
+     without them, and by the mechanism it prefers: the band carries a real pause button, hidden until
+     focused, and :focus-within above stops the drift while that control has focus. */
 }
 
-/* Scroll motion, V11-B. Two paths, and they are mutually exclusive by construction.
+/* Scroll motion, V12-C. ONE mechanism for the reveals, on every browser.
 
-   The path below is the original: CSS scroll-progress timelines, no JavaScript, nothing blocking
-   paint. Both the animation and its start state sit inside @supports, so a browser without view()
-   timelines renders the final state rather than hiding content it can never reveal. That was correct
-   and it is unchanged. What it also meant is that Safari and Firefox saw a site with no scroll motion
-   at all, which is most likely what Owen was looking at when he asked for motion "on every page".
+   V11 shipped two paths: scroll-progress view() timelines where supported, an IntersectionObserver
+   transition everywhere else. Both were correct in the sense of running, and Owen still reported
+   seeing no scroll motion at all, twice, with Reduce Motion confirmed off. The scrubbed path is why.
+   A scrubbed animation has no duration: its progress is the scroll position, so the reveal advances
+   only as far as the wheel turns. The range ran entry 0% to entry 65%, which finishes while the
+   element is still in the bottom eighth of the screen, and a normal trackpad flick crosses that whole
+   range inside two frames. The element was therefore fully resolved before it reached the part of the
+   page anybody reads. Nothing was broken; the effect was simply spent off-screen.
 
-   The path here is the fallback, for those browsers. It is the same reveal expressed as a transition
-   and driven by an IntersectionObserver in site.js. It can never double up with the block below,
-   because site.js marks elements only when CSS.supports("animation-timeline: view()") is false.
+   So the reveals are time-based now, and every browser gets the same one: an element is marked when
+   it crosses into view and animates on its own clock from there, at a duration a person can see,
+   regardless of how fast the page was scrolled. view() survives for exactly the two effects where
+   scrubbing IS the effect and a duration would be wrong, both further down: the hero photograph's
+   parallax drift and the concept band's dissolve. Neither reveals content.
 
-   Three properties of this are load-bearing rather than incidental:
-   - The start state lives on [data-reveal], and only site.js ever sets that attribute. A page with
-     no JavaScript therefore renders every element in its final state, and nothing can be left hidden
-     by a script that failed to arrive.
-   - site.js marks only elements that sit entirely below the fold at init, the guard the word cascade
-     has used since V9. Text the visitor is already reading is never re-hidden after load.
-   - opacity and transform only, so CLS stays 0. Nothing here reserves or releases space. */
+   Four properties are load-bearing rather than incidental:
+   - The start state lives on [data-reveal], and only site.js ever sets that attribute. A page whose
+     JavaScript never arrives renders every element in its final state. This was true in V11 and is
+     more important now that this is the only path: nothing may be left hidden by a script that
+     failed to load.
+   - site.js marks only elements that sit entirely below the fold at init. Text the visitor is
+     already reading is never re-hidden after load.
+   - opacity and transform only, so CLS stays 0. Nothing here reserves or releases space.
+   - Reduced motion is honoured in both places: this block is inside no-preference, and site.js bails
+     before marking anything. */
 @media (prefers-reduced-motion: no-preference) {
   [data-reveal] {
     opacity: 0;
-    transform: translateY(var(--rise, 2.5rem));
+    transform: translateY(var(--rise, 2rem));
     transition: opacity var(--dur-4) var(--ease-out), transform var(--dur-4) var(--ease-out);
     transition-delay: var(--reveal-delay, 0ms);
+    will-change: opacity, transform;
   }
   /* Equal specificity to the rule above, so source order is what makes it win. Deliberate: it keeps
      the revealed state readable as "the same selector, later" rather than as a specificity trick. */
-  [data-reveal="shown"] { opacity: 1; transform: none; }
+  [data-reveal="shown"] { opacity: 1; transform: none; will-change: auto; }
+
+  /* Small things travel less. A specification row or a form field rising a full 2rem reads as a jump
+     out of proportion to the element; the shorter distance keeps the stagger legible instead. These
+     sit outside the @supports guard because they belong to the transition above, not to view(). */
+  .photo-module__specs .spec-row,
+  .vehicle-section__row .vehicle-section__support,
+  .lead-form > .field,
+  .lead-form > .form-submit-row,
+  .policy__section { --rise: 1rem; }
 }
 
+/* What remains of the view() path, and the reason it remains: a parallax drift is a position, not an
+   event. It has no beginning or end to play, so tying it to scroll progress is not a compromise, it
+   is the definition of the effect. The concept band's dissolve, further up this file, stays for the
+   same reason. Neither reveals content, so neither can hide anything from a browser that lacks view().
+
+   V12-C removed the rest: the rise-in keyframes, the sixteen-selector scrub list, the per-row and
+   per-card range offsets, and the word cascade. The cascade went for the same reason as the block
+   reveals and worse: a word's whole animation was one line-height of scroll, so it was the least
+   visible thing on the site, and it kept a third copy of the selector list in the verification
+   suite. The reveals it used to decorate now arrive on a clock, whole. */
 @supports (animation-timeline: view()) {
   @media (prefers-reduced-motion: no-preference) {
-    /* 2.5rem rather than V9's 1.75rem, over a range widened from 55% to 65% of entry. Owen asked for
-       motion he could see; the old figures were a twitch at the bottom of the screen. */
-    @keyframes rise-in {
-      from { opacity: 0; transform: translateY(var(--rise, 2.5rem)); }
-      to { opacity: 1; transform: none; }
-    }
-
-    /* The two halves of a vehicle section stagger against each other rather than the grid row
-       rising as one block. .vehicle-section itself is no longer in this list: revealing the parent
-       and both children would compound two opacity animations on the same pixels. */
-    .vehicle-section__media,
-    .vehicle-section__body,
-    /* Likewise a photo module reveals as its photograph and its caption, so the specification rows
-       below can carry a stagger of their own without compounding against a parent. */
-    .photo-module__media,
-    .photo-module__body,
-    .card-grid--concepts .card,
-    .concept-figure,
-    .split__media,
-    .split__body,
-    .section-heading,
-    .spec-table,
-    .gts-figures,
-    .gts-scene,
-    .disclosures,
-    .resource-group {
-      animation: rise-in var(--ease-out) both;
-      animation-timeline: view();
-      animation-range: entry 0% entry 65%;
-    }
-
-    /* The body follows the photograph rather than arriving with it. */
-    .vehicle-section__body { animation-range: entry 8% entry 73%; }
-    .photo-module__body { animation-range: entry 6% entry 71%; }
-
-    /* V11-C. The rows enter one after another as the module arrives, which is what makes a
-       specification group read as a list being set rather than a block appearing. Six steps, which
-       is the largest group on the site after the V11-C rebalance. The rows are nested inside
-       .photo-module__body, whose own reveal is above, so these compound with it and resolve to fully
-       opaque together; that is why the offsets here are small. */
-    .photo-module__specs .spec-row {
-      animation: rise-in var(--ease-out) both;
-      animation-timeline: view();
-      animation-range: entry 8% entry 73%;
-      --rise: 1rem;
-    }
-    .photo-module__specs .spec-row:nth-child(2) { animation-range: entry 12% entry 77%; }
-    .photo-module__specs .spec-row:nth-child(3) { animation-range: entry 16% entry 81%; }
-    .photo-module__specs .spec-row:nth-child(4) { animation-range: entry 20% entry 85%; }
-    .photo-module__specs .spec-row:nth-child(5) { animation-range: entry 24% entry 89%; }
-    .photo-module__specs .spec-row:nth-child(n + 6) { animation-range: entry 28% entry 93%; }
-
-    /* Rows of cards enter together, so a small stagger across the row keeps it from reading
-       as one block snapping into place. The supporting frames get the same treatment, for the
-       same reason. */
-    /* Word cascade, V9. site.js splits the target's words into inline-block spans and gives each a
-       pre-normalised --wf from 0 to 1 across the element.
-       The timeline is NAMED and declared on the split element, not view() on each word. A word's own
-       view() range is one line-height of scroll, so it would pop at the viewport edge; the element's
-       timeline plays the whole cascade across the element's own entry, which matches the pacing of
-       the block reveals above it.
-       The plain animation-range line is a fallback and must stay first: a browser that rejects calc
-       inside a range drops the two lines under it and degrades to every word rising together, which
-       is exactly today's look rather than nothing. verify-browser compares the computed range of the
-       first and last word, so a regression to that fallback is named rather than silent. */
-    /* The cascade's rise stays in em so it scales with the type it lands on; see --rise-word. */
-    .is-split { view-timeline: --vhw-words; }
-    .is-split .word {
-      --rise: var(--rise-word);
-      display: inline-block;
-      animation: rise-in var(--ease-out) both;
-      animation-timeline: --vhw-words;
-      animation-range: entry 0% entry 100%;
-      animation-range-start: entry calc(var(--wf, 0) * 100%);
-      animation-range-end: entry calc(100% + var(--wf, 0) * 100%);
-    }
-    /* Compounding is resolved by moving the reveal, not stacking two. When site.js splits an h2 it
-       marks the parent, which turns the container's own rise off and gives the eyebrow and the intro
-       paragraph the identical reveal individually. The h2 then carries the cascade alone. No-JS and
-       no-timeline browsers never see data-split, so the block rule above applies to them unchanged. */
-    .section-heading[data-split] { animation-name: none; }
-    .section-heading[data-split] > .eyebrow,
-    .section-heading[data-split] > p {
-      animation: rise-in var(--ease-out) both;
-      animation-timeline: view();
-      animation-range: entry 0% entry 65%;
-    }
-
-    .card-grid--concepts .card:nth-child(3n + 2) { animation-range: entry 6% entry 71%; }
-    .card-grid--concepts .card:nth-child(3n) { animation-range: entry 12% entry 77%; }
-
-    .vehicle-section__row .vehicle-section__support {
-      animation: rise-in var(--ease-out) both;
-      animation-timeline: view();
-      animation-range: entry 4% entry 69%;
-      --rise: 1.25rem;
-    }
-    .vehicle-section__row .vehicle-section__support:nth-child(2) { animation-range: entry 12% entry 77%; }
-
     /* The photograph drifts against the scroll. Held to a few percent, and pre-scaled so the
        frame stays covered at the extremes. */
     @keyframes hero-drift {

@@ -478,7 +478,6 @@ export const models = [
     // the estimate sentence, and no photograph shows a warranty. Read from the live feature page
     // 2026-08-05; the entity was verified in V1.
     warranty: "6-month Vanderhall limited warranty. 36-month battery pack warranty. Warranty entity: Vanderhall North America, LLC (Vanderhall NA).",
-    overview: "Brawley is a quad-motor electric off-road UTV with a seating capacity of four. Published output spans 283 to 404 hp with 488 lb-ft of torque and up to 140 mi of range.",
     summary: "Quad-motor electric off-road UTV with seating for four, 488 lb-ft of torque, and up to 140 mi of range.",
     intro: "Quad-motor electric off-road UTV with a seating capacity of four. Published output spans 283 to 404 hp with 488 lb-ft of torque, up to 140 mi of range, and 21 in of suspension travel.",
     specGroups: BRAWLEY_SPECS,
@@ -519,7 +518,6 @@ export const models = [
     powertrain: { fuel: "electric", layout: "3-wheel" },
     descriptor: "Three-wheel electric autocycle.",
     warranty: "1-year Vanderhall limited warranty. 36-month battery pack warranty.",
-    overview: "Santarosa is a three-wheel electric autocycle. Twin-motor front-wheel drive produces 180 hp, with a published standard range of 150 mi.",
     summary: "Three-wheel electric autocycle. Twin motors drive the front wheels, with 180 hp and a published standard range of 150 mi.",
     intro: "Three-wheel electric autocycle. Twin motors drive the front wheels and produce 180 hp and 216 lb-ft, with a published standard range of 150 mi.",
     specGroups: SANTAROSA_SPECS,
@@ -553,7 +551,6 @@ export const models = [
     // Stated on the page because the figures describe one model year. Source documents and the
     // reasoning are in the CARMEL_SPECS comment above.
     specNote: "Specifications shown are for the 2019 Carmel.",
-    overview: "Carmel is an open three-wheel gas roadster. Vanderhall built it in Provo, Utah.",
     summary: "Open two-seat gas roadster on three wheels, shown here in red with a tan interior.",
     intro: "Open two-seat gas roadster on three wheels. The photographs show red bodywork, a leather-wrapped three-spoke wheel, four analog gauges, and tan contrast-stitched seats.",
     specGroups: CARMEL_SPECS,
@@ -588,7 +585,6 @@ export const models = [
     descriptor: "Three-wheel gas roadster.",
     pastModel: true,
     specNote: "Specifications shown are for the 2020 Venice GT.",
-    overview: "Venice is an open three-wheel gas roadster. Vanderhall built it in Provo, Utah.",
     // Homepage section: one line. Vehicles page: the same line plus one more.
     summary: "Open two-seat gas roadster on three wheels, shown here in silver over black.",
     intro: "Open two-seat gas roadster on three wheels. The photographs show polished silver bodywork over a black lower body, a wood-rimmed steering wheel, and tan leather seats.",

@@ -4,7 +4,6 @@ import { basename, dirname, relative, resolve } from "node:path";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
-import { keyStudioFrame, keyingNote, KEYING } from "./lib/key-studio-frame.mjs";
 
 const run = promisify(execFile);
 const websiteRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -17,10 +16,11 @@ const outputRoot = resolve(websiteRoot, "assets/images");
 const brandRoot = resolve(websiteRoot, "assets/brand");
 const manifest = [];
 
-// V9 baked anything that used to sit on a white canvas onto the dark page paper instead. V11-E takes
-// the concepts back to a white studio field, so this value now has one consumer left: the Brawley GTS
-// walkaround frames, which are on a dark page and key cleanly.
-const DARK_PAPER = "#0E0E10";
+// V12-D: DARK_PAPER is gone with its last consumer. V9 baked anything that sat on a white canvas onto
+// the dark page paper; V11-E took the concepts back to white and left the walkaround frames as the one
+// keyed set, and V12-D takes those to white too, because their page is white now. Nothing in this
+// pipeline composites onto a dark field any more, and check-content asserts it cannot start again.
+
 // V11-E. The concept hub cards are extended onto white again, which is the canvas their sources were
 // authored on, so the extension is invisible by construction rather than by a threshold.
 const STUDIO_PAPER = "#FFFFFF";
@@ -418,27 +418,20 @@ const STUDIO_COLORS = [
 const STUDIO_STILL_ONLY = { "jean-grey": "front" };
 const STUDIO_WIDTHS = [960, 1600];
 
-// V9 keys these frames onto the dark page paper instead of leaving them on a white plate. See
-// scripts/lib/key-studio-frame.mjs for the algorithm and the measurements behind it.
+// V12-D: the keying is retired and these frames ship as they were shot, on the photographer's white.
 //
-// The QA gate below is mandatory and is what decides whether a color ships keyed. Its expected ink
-// boxes are the per-angle medians measured across all nine colors during the V9 planning pass: the
-// camera does not move between colors, so eight angles give eight expected boxes, and a color that
-// disagrees is the one whose mask moved. They are stated here rather than recomputed so the gate
-// cannot agree with a mask that drifted on every color at once.
-const STUDIO_INK_BOXES = {
-  front: { left: 704, top: 220, width: 1495, height: 1208 },
-  "front-side-driver": { left: 108, top: 248, width: 2671, height: 1198 },
-  "front-side-passenger": { left: 99, top: 245, width: 2669, height: 1197 },
-  rear: { left: 691, top: 188, width: 1502, height: 1246 },
-  side: { left: 154, top: 293, width: 2559, height: 1152 },
-  "side-rear-driver": { left: 167, top: 226, width: 2535, height: 1220 },
-  "side-rear-passenger": { left: 175, top: 228, width: 2481, height: 1196 },
-  "side-reverse": { left: 158, top: 296, width: 2555, height: 1150 },
-};
-// Measured maxima across the set, with headroom: drift 13, light-below-midline 18851, punctures 0,
-// smallest vehicle region 1391997.
-const STUDIO_QA = { maxDrift: 24, maxLightBelowMid: 40_000, maxHolesInBody: 0, minVehicleArea: 1_000_000 };
+// V9 keyed them onto the dark page paper because the purchase page was dark and a white plate behind
+// each frame would have read as a card. Owen on 2026-08-06 asked for that page to be white so the
+// vehicles look cleaner, and the moment the paper is white the keying is not just unnecessary, it is
+// the defect: a threshold key cannot remove a soft contact shadow cleanly, so what survived the mask
+// was a grey ghost that only hid because the page behind it was darker still. This is the same
+// correction V11-E made for the concept slides, and for the same reason. The sources are white-studio
+// originals, so delivering them unkeyed is a plain encode of what the camera saw.
+//
+// What went with it: the whole QA gate, its eight expected ink boxes, the per-color fallback, and
+// scripts/lib/key-studio-frame.mjs. The gate existed to catch a mask that drifted, and there is no
+// mask now. check-content.mjs asserts the opposite of what it used to: the keying must NOT come back,
+// the library file must not exist, and every walkaround row in the manifest must say white studio.
 
 // One source per color and angle. Two files per slot differ only by a "(1)" suffix, so the first
 // wins, which is the rule V6 used and the frames the QA gate was measured against.
@@ -454,71 +447,21 @@ for (const filename of studioFiles) {
 }
 
 const studioPath = (color, angle, width) => resolve(outputRoot, `brawley/walkaround/${color}/${angle}-${width}.webp`);
-const studioQaReport = [];
-const studioFallbackColors = [];
 let studioWritten = 0;
 
-// Grouped by color because the plan's fallback is per color, not per frame: a color that fails on one
-// angle ships all eight angles on the white stage, so the viewer never mixes two stages in one
-// rotation. Frames are keyed and judged one at a time, so only one full-resolution buffer is ever
-// held in memory.
-for (const [, colorName] of STUDIO_COLORS) {
-  const slots = [...studioSlots.values()].filter((slot) => slot.color === colorName);
-  if (!slots.length) continue;
-  const keyedFor = [];
-  const failures = [];
-  for (const slot of slots) {
-    const input = resolve(studioDir, slot.filename);
-    const raw = await sharp(input).removeAlpha().raw().toBuffer({ resolveWithObject: true });
-    const keyed = keyStudioFrame({ data: raw.data, width: raw.info.width, height: raw.info.height, channels: raw.info.channels });
-    const want = STUDIO_INK_BOXES[slot.angle];
-    if (!want) throw new Error(`No expected ink box recorded for the ${slot.angle} angle`);
-    const drift = Math.max(
-      Math.abs(keyed.inkBox.left - want.left), Math.abs(keyed.inkBox.top - want.top),
-      Math.abs(keyed.inkBox.width - want.width), Math.abs(keyed.inkBox.height - want.height),
-    );
-    const reasons = [];
-    if (drift > STUDIO_QA.maxDrift) reasons.push(`ink box drifted ${drift}px`);
-    if (keyed.metrics.holesInBody > STUDIO_QA.maxHolesInBody) reasons.push(`${keyed.metrics.holesInBody} keyed pixels enclosed above the vehicle midline`);
-    if (keyed.metrics.lightBelowMid > STUDIO_QA.maxLightBelowMid) reasons.push(`${keyed.metrics.lightBelowMid} light pixels survive below the midline`);
-    if (keyed.metrics.vehicleArea < STUDIO_QA.minVehicleArea) reasons.push(`vehicle region is only ${keyed.metrics.vehicleArea} pixels`);
-    studioQaReport.push({ slot: `${colorName}/${slot.angle}`, drift, ...keyed.metrics, inkBox: keyed.inkBox, reasons });
-    if (reasons.length) failures.push(`${colorName}/${slot.angle}: ${reasons.join("; ")}`);
-    keyedFor.push({ slot, keyed, drift, input, sourceMeta: raw.info });
-  }
-
-  const shipKeyed = failures.length === 0;
-  if (!shipKeyed) {
-    studioFallbackColors.push(colorName);
-    console.warn(`Keying QA failed for ${colorName}, shipping it on the white stage:\n  ${failures.join("\n  ")}`);
-  }
-  for (const entry of keyedFor) {
-    const { slot, keyed, drift, input } = entry;
-    for (const width of STUDIO_WIDTHS) {
-      const output = studioPath(slot.color, slot.angle, width);
-      if (shipKeyed) {
-        await mkdir(dirname(output), { recursive: true });
-        const info = await sharp(keyed.data, { raw: { width: keyed.width, height: keyed.height, channels: 3 } })
-          .resize({ width, withoutEnlargement: true })
-          .webp({ quality: 80, effort: 6, smartSubsample: true })
-          .toFile(output);
-        record(output, input, `${width}w studio walkaround frame, ${slot.color} ${slot.angle}; native 16:9, no crop; ${keyingNote()}; ink box drift ${drift}px`, {
-          source_width: keyed.width,
-          source_height: keyed.height,
-          output_width: info.width,
-          output_height: info.height,
-          crop_window: "full frame",
-          verified_clean: "yes",
-        });
-      } else {
-        await encode(input, output, { width, transform: `${width}w studio walkaround frame, ${slot.color} ${slot.angle}; native 16:9, no crop; white studio background; keying QA fallback` });
-      }
-      studioWritten += 1;
-    }
+// One plain encode per frame per rung. Same 130 filenames as V9 through V11, so no page, manifest row
+// or orphan check moves; only the pixels behind them change, from keyed-dark to as-shot.
+for (const slot of studioSlots.values()) {
+  const input = resolve(studioDir, slot.filename);
+  for (const width of STUDIO_WIDTHS) {
+    await encode(input, studioPath(slot.color, slot.angle, width), {
+      width,
+      transform: `${width}w studio walkaround frame, ${slot.color} ${slot.angle}; native 16:9, no crop; white studio as shot; not keyed`,
+    });
+    studioWritten += 1;
   }
 }
-await writeFile(resolve(websiteRoot, "work/v9-keying-qa.json"), JSON.stringify({ params: KEYING, gate: STUDIO_QA, expected: STUDIO_INK_BOXES, fallbackColors: studioFallbackColors, frames: studioQaReport }, null, 2));
-console.log(`Delivered ${studioWritten} walkaround frames. Keyed onto ${DARK_PAPER}; white-stage fallbacks: ${studioFallbackColors.length ? studioFallbackColors.join(", ") : "none"}.`);
+console.log(`Delivered ${studioWritten} walkaround frames on the white studio field as shot.`);
 
 await mkdir(brandRoot, { recursive: true });
 const logoPdf = resolve(assetsRoot, "vanderhall logos/vanderhall logo with symbols.pdf");
