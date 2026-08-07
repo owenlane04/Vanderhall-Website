@@ -1105,6 +1105,10 @@ html[data-intro-seen] .intro-veil { display: none; }
 .record-card__summary { max-width: var(--w-text); }
 .record-card__meta { color: var(--text-tertiary); font-size: var(--fs-caption); }
 .record-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3) var(--s-5); }
+/* V17: a recall title is a full sentence naming the model, the model years and the hazard, and at the
+   display-L a job title takes it ran to seven lines before the facts. One step down, the same move
+   V16-G made on the featured story, for the same reason: the size was fighting the sentence. */
+.record-head--notice h1 { font-size: var(--fs-display-m); }
 .record-section + .record-section { margin-top: var(--sf-m); }
 .record-section h2 { margin-bottom: var(--s-4); font-size: var(--fs-display-s); }
 .record-section ul { max-width: var(--w-text); margin: 0; padding-left: var(--s-5); color: var(--text-secondary); }

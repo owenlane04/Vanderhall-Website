@@ -162,6 +162,47 @@ Needed: endpoint, CRM and campaign field mapping, **deduplication against existi
 campaign phase source, state and territory eligibility, spam protection, analytics, confirmation email, error
 handling, retention rules, and approved success and response copy.
 
+### `brawley-order-endpoint` (John)
+
+`id="brawley-order-form"`, `data-form-id="brawley-order"`, `FORM_ENDPOINTS["brawley-order"]` is `null`.
+Route `/brawley/order/`.
+
+**This is now the site's only order path.** V17 repointed both "Order yours now" buttons on `/brawley/gts/`
+and the JSON-LD `offers.url` away from `https://dealer.vanderhallusa.com/reserve/index/brawley` and onto
+this page, at Owen's instruction on 2026-08-07. Until this row closes, a visitor who completes the form is
+told that online submissions are not open and given `inquiry@vanderhall.com`. That is a heavier consequence
+than an unwired endpoint carries anywhere else on the site, and it is the reason this blocker should be
+first in the queue.
+
+The form was rebuilt from the legacy reservation form, read on 2026-08-07 **without submitting anything**.
+All five fields are required and carry the legacy names, so the wiring is a destination change rather than a
+mapping exercise:
+
+| Legacy field | Legacy name | Ours |
+|---|---|---|
+| First Name | `customer_first_name` | same, `autocomplete="given-name"` |
+| Last Name | `customer_last_name` | same, `autocomplete="family-name"` |
+| Email Address | `customer_email` | same, `type="email"` |
+| Phone Number | `customer_phone` | same, `type="tel"` |
+| Country | `customer_country` | same, ISO 3166 alpha-2 values, `ORDER_COUNTRIES` |
+
+Two differences from the legacy page, both deliberate. The legacy form had **no submit button**: the country
+select carried `onchange="document.getElementById('intake_form').submit();"`, which fails WCAG 3.2.2 and
+surprises anyone arrowing through a country list. Ours ends in a Submit order button. And the legacy country
+select was a raw CLDR dump of 266 options still offering East Germany, the USSR, the Netherlands Antilles and
+an option labelled "Unknown or Invalid Region"; `ORDER_COUNTRIES` drops twenty such entries and keeps every
+code, so a submission still means to the backend exactly what it meant before.
+
+**The legacy flow past the country field was never inspected**, because inspecting it means submitting a form
+on the live system. Whatever step follows that auto-submit is unknown, so the backend may expect more than
+these five fields. Confirm before wiring.
+
+Needed: the endpoint, the request shape the reservation system expects after step one, CRM routing,
+deduplication against existing reservation holders, spam protection, analytics names, confirmation email, error
+handling, retention rules, and approved success copy. If Vanderhall would rather keep the external system as
+the order path, reverting is a one-line change to `orderUrl` in `src/data/models.mjs` plus the matching
+assertions in `check-content.mjs`.
+
 ### `launch-consent` (Legal)
 
 Phone and email are both required and the introduction promises updates, announcements, and previews. That is
@@ -238,22 +279,40 @@ than this project drafting one; the detail template prints it only when it exist
 
 ### `safety-records` (Vanderhall safety)
 
-V15 changed this page's shape. With the visible sample markers retired sitewide, an **unlabelled fictional
-recall notice is the one thing on this site that could hurt someone if it were believed**, so `/safety/`
-now publishes no notice at all: it is a portal page that directs visitors to the official safety notices
-portal and to Contact. It makes no claim of absence in either direction, because only the authoritative
-system can make that determination, and real live notices exist.
+V17 changed this page again, in the opposite direction from V15. `/safety/` publishes records once more,
+and they are Vanderhall's **three real notices**, transcribed from the portal on **2026-08-07** and held in
+`src/data/safety.mjs`: SN-00003 (accelerator, firmware 7.1.0), SN-00001 (tie rods, CPSC Fast-Track) and
+SN-00002 (rear steer and high-voltage isolation). Each has a detail route at `/safety/<id>/` linking to the
+portal copy it came from. `src/data/mock/safety.mjs` is **deleted**, and `check-content.mjs` fails if it
+returns: the three fictional placeholders it held must never be published, and there is no longer any use
+for them now that real records exist.
 
-The three fictional records remain in `src/data/mock/safety.mjs` and the card, list, and detail templates
-remain in the codebase, unreferenced. Connecting the real safety source through
-`getSafetyNotices()`/`getSafetyNoticeRoutes()` and rendering the list again is what closes this row. The
-old fixture rules still stand for that work: Vanderhall's live accelerator, tie-rod, rear-steer, and
-electrical-shock notices are **not** adapted as placeholders (`check-content.mjs` fails on those subject
-words), and the contract needs a **freshness timestamp**, a stable notice ID, a status, **revision
-handling**, and a source URL.
+**What still keeps this row open is freshness, and it is now the more urgent half of the problem.** These
+are static transcriptions. Nothing in this build learns that Vanderhall has revised a notice, closed one,
+or posted a fourth, and a stale recall is worse than a missing one. Closing this row means replacing the
+static array behind `getSafetyNotices()`/`getSafetyNoticeRoutes()` with the authoritative feed. The contract
+still needs a **freshness timestamp**, a stable notice ID, a status, **revision handling**, and a source URL,
+which is exactly the shape the records already carry.
 
-The official portal (`https://portal.vanderhallusa.com/safety_notices`) is the page's primary action until
-parity and working detail routes are verified. (Q-V13-10)
+Until then:
+
+- The official portal (`https://portal.vanderhallusa.com/safety_notices`) stays the page's first action and
+  is asserted present, because it is the live document and this page is a copy. (Q-V13-10)
+- Every page carrying a notice prints the date the copy was read. `SAFETY_RETRIEVED_AT` in
+  `src/data/safety.mjs` is that date, and it must be updated whenever the text is.
+- The page still makes **no claim of absence** in either direction. Only the authoritative system can say
+  there are no other notices.
+- Notice text is **verbatim**, typos and all, on the same rule the privacy policy follows. Two of the three
+  notices contain em dashes inside CPSC's own sentences, and SN-00003 quotes a sale price; `check-content.mjs`
+  carries narrow, written-out exemptions for exactly those files and amounts rather than allowing either
+  sitewide. Do not "fix" a recall notice.
+- No notice page collects anything, asserted. A safety page with a form on it has become a lead source.
+- The safety routes carry a **noindex**, so the portal keeps the search presence while these copies can go
+  stale. Connecting the live source is what makes indexing them reasonable.
+
+Adding a notice by hand before the feed exists is appending one object to `SAFETY_NOTICES`, updating
+`SAFETY_RETRIEVED_AT`, and adding its id, path and portal URL to `SAFETY_NOTICE_SOURCES` in
+`check-content.mjs`, plus the sitemap, noindex and browser-suite route lists.
 
 ### `privacy-copy` (Vanderhall legal)
 

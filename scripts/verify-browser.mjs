@@ -20,9 +20,12 @@ const conceptRoutes = conceptSlugs.map((slug) => `/concepts/${slug}/`);
 // suite, because a route that is not in all three is a route nobody is checking.
 // V15, folding in V14: the two real Vanderhall articles replace the sample routes, and the fictional
 // safety notice routes are retired with the safety page's portal state.
+// V17: notice routes return, this time as Vanderhall's three real recalls, and the Brawley order page
+// joins the form routes.
 const articleRoutes = ["/blog/what-is-a-side-by-side-experience-the-future-with-the-vanderhall-brawley/", "/blog/electric-off-road-vehicles-the-future-of-adventure-driving/"];
 const careerRoutes = ["/careers/assembly-technician/", "/careers/customer-experience-specialist/"];
-const routes = ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/santarosa/", "/santarosa/launch-edition/", "/carmel/", "/venice/", "/concepts/", ...conceptRoutes, "/experience/", "/blog/", ...articleRoutes, "/dealers/", "/contact/", "/careers/", ...careerRoutes, "/safety/", "/recommend-dealer/", "/dealer-inquiry/", "/owners/", "/privacy/", "/404/"];
+const noticeRoutes = ["/safety/sn-00003/", "/safety/sn-00001/", "/safety/sn-00002/"];
+const routes = ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/brawley/order/", "/santarosa/", "/santarosa/launch-edition/", "/carmel/", "/venice/", "/concepts/", ...conceptRoutes, "/experience/", "/blog/", ...articleRoutes, "/dealers/", "/contact/", "/careers/", ...careerRoutes, "/safety/", ...noticeRoutes, "/recommend-dealer/", "/dealer-inquiry/", "/owners/", "/privacy/", "/404/"];
 
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 const page = await context.newPage();
@@ -108,7 +111,10 @@ await probeContext.close();
 // contrast pair on ten routes at once, so all ten are audited rather than the hub and one sample.
 // V13 adds the Experience hub, the Launch Edition, and every new index plus one representative detail of
 // each. The two past-model galleries stay in the list because their layout changed completely.
-for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/santarosa/", "/santarosa/launch-edition/", "/venice/", "/carmel/", "/recommend-dealer/", "/dealer-inquiry/", "/concepts/", ...conceptRoutes, "/owners/", "/dealers/", "/contact/", "/experience/", "/blog/", ...articleRoutes, "/careers/", "/careers/assembly-technician/", "/safety/", "/privacy/", "/404/"]) {
+// V17 adds the order page and all three notice details. All three, not one representative: each is a
+// different length of running legal copy with its own list and heading structure, and this is the one
+// place on the site where a visitor may be reading under stress.
+for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/brawley/order/", "/santarosa/", "/santarosa/launch-edition/", "/venice/", "/carmel/", "/recommend-dealer/", "/dealer-inquiry/", "/concepts/", ...conceptRoutes, "/owners/", "/dealers/", "/contact/", "/experience/", "/blog/", ...articleRoutes, "/careers/", "/careers/assembly-technician/", "/safety/", ...noticeRoutes, "/privacy/", "/404/"]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   await page.addScriptTag({ content: axe.source });
   const result = await page.evaluate(async () => axe.run(document, { resultTypes: ["violations"] }));
@@ -664,7 +670,8 @@ const schema = report.interactions.schema;
 if (schema.error) failures.push(`Purchase page JSON-LD does not parse: ${schema.error}`);
 else if (schema.blocks !== 1 || schema.type !== "Product" || schema.currency !== "USD") failures.push(`Purchase page JSON-LD is malformed: ${JSON.stringify(schema)}`);
 else if (schema.price !== schema.visiblePrice) failures.push(`JSON-LD price ${schema.price} disagrees with the visible price ${schema.visiblePrice}`);
-else if (!schema.offerUrl?.includes("dealer.vanderhallusa.com")) failures.push("JSON-LD offer must point at the reservation system");
+// V17: the offer URL is the order page the visible buttons lead to, absolute as an offer URL has to be.
+else if (schema.offerUrl !== "https://vanderhall-website.vercel.app/brawley/order/") failures.push(`JSON-LD offer must point at the order page, found ${schema.offerUrl}`);
 if (schema.canonical !== `${base}/brawley/gts/`.replace("127.0.0.1:4173", "vanderhall-website.vercel.app").replace("http://", "https://")) {
   report.interactions.schema.canonicalNote = "canonical is absolute to production, which is correct when verifying locally";
 }
@@ -915,7 +922,7 @@ const REVEAL_SELECTOR = [
 ].join(", ");
 
 report.motion.coverage = {};
-for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/carmel/", "/venice/", "/santarosa/launch-edition/", "/concepts/", "/concepts/indio/", "/owners/", "/dealers/", "/contact/", "/experience/", "/blog/", articleRoutes[0], "/careers/", "/careers/assembly-technician/", "/safety/", "/privacy/", "/recommend-dealer/", "/dealer-inquiry/"]) {
+for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/brawley/order/", "/carmel/", "/venice/", "/santarosa/launch-edition/", "/concepts/", "/concepts/indio/", "/owners/", "/dealers/", "/contact/", "/experience/", "/blog/", articleRoutes[0], "/careers/", "/careers/assembly-technician/", "/safety/", noticeRoutes[0], "/privacy/", "/recommend-dealer/", "/dealer-inquiry/"]) {
   await motionPage.goto(`${base}${route}`, { waitUntil: "networkidle" });
   await motionPage.waitForTimeout(400);
   const shape = await motionPage.evaluate(async (revealSelector) => {
@@ -940,8 +947,10 @@ for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/carmel/"
   report.motion.coverage[route] = shape;
   // V15: a route whose every reveal candidate already sits in the first viewport has nothing it
   // could honestly animate, and requiring motion there would mean padding the page to create it.
-  // The safety portal state and the shortened careers pages are the ones that legitimately fit;
-  // every route with a candidate below the fold is still required to move.
+  // The shortened careers pages are the ones that legitimately fit; every route with a candidate
+  // below the fold is still required to move. V17: /safety/ leaves that group. It publishes three
+  // notice cards again, so it has candidates below the fold and is held to the rule like any other
+  // record index.
   if (shape.belowFoldCandidates > 0 && shape.markedCount === 0) failures.push(`${route} marks nothing for reveal, so it has no scroll motion at all`);
   if (shape.markedCount > 0 && shape.hiddenBefore === 0) failures.push(`${route} marked ${shape.markedCount} elements but hid none of them, so nothing can be seen to arrive`);
   if (shape.aboveFold.length) failures.push(`${route}: ${shape.aboveFold.length} already-visible blocks were marked, which re-hides content the visitor is reading: ${shape.aboveFold.join(" / ")}`);
@@ -1460,7 +1469,8 @@ if (report.noJs.backLinks !== 1) failures.push(`No-JS /brawley/ must offer one w
 await noJsPage.goto(`${base}/brawley/gts/`, { waitUntil: "load" });
 report.noJs.gts = await noJsPage.evaluate(() => {
   const frame = document.querySelector(".walkaround__frame");
-  const reserve = [...document.querySelectorAll("a")].find((anchor) => anchor.href.includes("dealer.vanderhallusa.com"));
+  // V17: the order path is this site's own page, so the link to look for is internal now.
+  const reserve = [...document.querySelectorAll("a")].find((anchor) => anchor.getAttribute("href") === "/brawley/order/");
   const text = document.body.innerText;
   return {
     frameLoaded: Boolean(frame?.naturalWidth),
@@ -1567,8 +1577,9 @@ for (const [route, blockSelector, posterSelector] of AMBIENT_PLACEMENTS) {
 // resolves and Playwright eventually reports the promise as garbage collected. Every evaluate below
 // is synchronous; the waiting happens on this side.
 // REVEAL_SELECTOR is defined above the motion coverage suite, which now shares it.
-// V15: /safety/ leaves this sample. Its portal state fits in one viewport, so there is nothing to
-// scroll past and the measurement would prove nothing; an article route takes its long-form place.
+// V15: /safety/ left this sample when its portal state fit in one viewport and there was nothing to
+// scroll past; an article route took its long-form place. V17 gives /safety/ three notice cards again,
+// but the article route stays: it is still the longer scroll and the sample is about length, not topic.
 for (const route of ["/", "/vehicles/", "/brawley/", "/concepts/", "/owners/", "/blog/", articleRoutes[1], "/santarosa/launch-edition/"]) {
   await noJsPage.goto(`${base}${route}`, { waitUntil: "load" });
   const before = await noJsPage.evaluate((selector) => {
@@ -1679,7 +1690,7 @@ if (report.noJs.vehiclesHref !== "/vehicles/") failures.push("No-JS Vehicles nav
 // V13: without JavaScript the Contact form shows every step and every branch, with nothing disabled, which is
 // exactly what this audit asserts. /dealers/ leaves the list because its only form is the locator's search,
 // which ships hidden.
-for (const route of ["/contact/", "/recommend-dealer/", "/dealer-inquiry/"]) {
+for (const route of ["/contact/", "/recommend-dealer/", "/dealer-inquiry/", "/brawley/order/"]) {
   await noJsPage.goto(`${base}${route}`, { waitUntil: "load" });
   const formAudit = await noJsPage.locator("[data-site-form]").last().evaluate((form) => {
     const controls = [...form.querySelectorAll("input:not([type=hidden]), select, textarea")];
@@ -1692,7 +1703,7 @@ await noJsContext.close();
 
 // V13: /dealers/ carries no submission form, and /contact/ is exercised by its own suite above, because a
 // three-step form cannot be completed by walking a flat list of required controls.
-for (const route of ["/recommend-dealer/", "/dealer-inquiry/"]) {
+for (const route of ["/recommend-dealer/", "/dealer-inquiry/", "/brawley/order/"]) {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   const form = page.locator("[data-site-form]").last();
@@ -2694,15 +2705,21 @@ if (careers.detail.applyNote !== "Applications for this role are not open yet.")
 if (careers.detail.forms !== 0) failures.push("A prototype job page must collect no applicant data");
 if (careers.detail.schemaBlocks !== 0) failures.push("A fictional job record must emit no JobPosting schema");
 
-// safetyStates. V15-D-V15-7: the portal state. No notice records, no absence claim in either
-// direction, the official portal as the primary action, and a way to Contact beside it.
+// safetyStates. V17-B: the real notices. Three cards, newest first, each opening a detail page; still
+// no absence claim in either direction; the official portal still reachable, because these records are
+// a transcription and the portal is the live document.
+//
+// The V15 assertion that no card exists and the ban on the live notices' subject words are both gone.
+// They existed to keep a FICTIONAL recall off this page, and what is here now is the real thing.
 report.safetyStates = await (async () => {
   await page.goto(`${base}/safety/`, { waitUntil: "networkidle" });
   return await page.evaluate(() => ({
     h1: document.querySelector("h1").textContent,
-    cards: document.querySelectorAll(".record-card--notice, .record-card").length,
+    cards: document.querySelectorAll(".record-card--notice").length,
+    ids: [...document.querySelectorAll(".record-card--notice")].map((card) => card.querySelector("dd")?.textContent.trim()),
+    linkedCards: [...document.querySelectorAll(".record-card--notice")].filter((card) => card.querySelector('a[href^="/safety/sn-"]')).length,
     forbiddenClaim: /no active recalls|no current notices|no notices/i.test(document.body.innerText),
-    liveSubjects: ["accelerator", "tie-rod", "rear-steer", "electrical shock"].filter((subject) => document.body.innerText.toLowerCase().includes(subject)),
+    republished: document.body.innerText.includes("Republished from Vanderhall's official safety notices portal, read on"),
     portalAction: [...document.querySelectorAll("a.button")].filter((anchor) => (anchor.getAttribute("href") || "").includes("portal.vanderhallusa.com")).length,
     contactAction: [...document.querySelectorAll(".page a")].filter((anchor) => anchor.getAttribute("href") === "/contact/").length,
     sampleLanguage: /\bsample\b/i.test(document.body.innerText),
@@ -2711,13 +2728,40 @@ report.safetyStates = await (async () => {
 })();
 const safety = report.safetyStates;
 if (safety.h1 !== "Safety notices") failures.push(`The safety page h1 is ${safety.h1}`);
-if (safety.cards !== 0) failures.push(`/safety/ must publish no notice records in the portal state, found ${safety.cards}`);
+if (safety.cards !== 3) failures.push(`/safety/ must publish the three real notices, found ${safety.cards}`);
+if (JSON.stringify(safety.ids) !== JSON.stringify(["SN-00003", "SN-00001", "SN-00002"])) failures.push(`/safety/ lists notices out of posted order: ${safety.ids.join(", ")}`);
+if (safety.linkedCards !== 3) failures.push(`/safety/ must open a detail page from every card, found ${safety.linkedCards}`);
 if (safety.forbiddenClaim) failures.push("/safety/ must not claim an absence of notices: only the authoritative system can determine that");
-if (safety.liveSubjects.length) failures.push(`/safety/ appears to adapt live notices: ${safety.liveSubjects.join(", ")}`);
-if (safety.portalAction === 0) failures.push("/safety/ must lead with the official portal action");
+if (!safety.republished) failures.push("/safety/ must say where its notices were republished from and when");
+if (safety.portalAction === 0) failures.push("/safety/ must keep the official portal reachable");
 if (safety.contactAction === 0) failures.push("/safety/ must offer a way to Contact");
 if (safety.sampleLanguage) failures.push("/safety/ still carries retired sample language");
 if (safety.schemaBlocks !== 0) failures.push("/safety/ must emit no structured data");
+
+// safetyNoticeDetail. What a visitor under stress has to be able to do on a recall page: read the
+// facts without opening anything, read the notice itself, reach the authoritative copy, and reach a
+// human. And what the page must not do: ask them for anything.
+report.safetyNoticeDetail = {};
+for (const [route, sourceUrl] of [["/safety/sn-00003/", "https://portal.vanderhallusa.com/safety_notices/3"], ["/safety/sn-00001/", "https://portal.vanderhallusa.com/safety_notices/1"], ["/safety/sn-00002/", "https://portal.vanderhallusa.com/safety_notices/2"]]) {
+  await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  const shape = await page.evaluate((expectedSource) => ({
+    headings: document.querySelectorAll("h1").length,
+    facts: document.querySelectorAll(".notice-facts--detail dt").length,
+    proseBlocks: document.querySelectorAll(".prose > *").length,
+    sourceLink: [...document.querySelectorAll("a")].filter((anchor) => anchor.getAttribute("href") === expectedSource).length,
+    republished: document.body.innerText.includes("Republished from Vanderhall's official safety notices portal, read on"),
+    forms: document.querySelectorAll("[data-site-form]").length,
+    backHref: document.querySelector(".back-nav a")?.getAttribute("href"),
+  }), sourceUrl);
+  report.safetyNoticeDetail[route] = shape;
+  if (shape.headings !== 1) failures.push(`${route}: expected one title, found ${shape.headings}`);
+  if (shape.facts < 6) failures.push(`${route}: the notice facts are incomplete, found ${shape.facts}`);
+  if (shape.proseBlocks < 5) failures.push(`${route}: the notice body did not render, found ${shape.proseBlocks} blocks`);
+  if (!shape.sourceLink) failures.push(`${route}: must link to its portal copy at ${sourceUrl}`);
+  if (!shape.republished) failures.push(`${route}: must say where it was republished from and when`);
+  if (shape.forms) failures.push(`${route}: a safety notice must collect nothing`);
+  if (shape.backHref !== "/safety/") failures.push(`${route}: the way back must lead to /safety/, found ${shape.backHref}`);
+}
 
 // privacyDocument. The reading experience changed and the copy did not.
 report.privacyDocument = {};

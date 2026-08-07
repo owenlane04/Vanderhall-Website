@@ -490,7 +490,11 @@ const VENICE_SPECS = [
 const brawleyGts = {
   name: "Brawley GTS",
   descriptor: "Quad-motor electric off-road UTV. Hand-built in Provo, Utah.",
-  reserveUrl: "https://dealer.vanderhallusa.com/reserve/index/brawley",
+  // V17-D-V17-3, Owen on 2026-08-07. The order path is this site's own page now, rebuilt from the
+  // legacy reservation form. The external system at dealer.vanderhallusa.com/reserve/index/brawley
+  // is still live and is still where the form will post once John wires it; INTEGRATION.md holds
+  // the field map. Until then this button leads to a form that states plainly that it sends nothing.
+  orderUrl: "/brawley/order/",
   price: { label: "MSRP", value: "$49,950" },
   delivery: "Now delivering in select regions.",
   angles: WALKAROUND_ANGLES,

@@ -13,6 +13,10 @@ export const FORM_ENDPOINTS = Object.freeze({
   "recommend-dealer": null,
   "international-dealer-inquiry": null,
   "santarosa-launch-interest": null,
+  // V17. The Brawley order form. Its field names are the legacy reservation form's own, read from
+  // dealer.vanderhallusa.com/reserve/index/brawley on 2026-08-07 without submitting anything, so
+  // connecting it is a destination change rather than a mapping exercise. INTEGRATION.md carries the map.
+  "brawley-order": null,
 });
 
 // The one direct-inquiry address, declared once so the footer cannot drift between pages. It is a
@@ -38,6 +42,86 @@ export const US_REGIONS = Object.freeze([
   ["AS", "American Samoa"], ["GU", "Guam"], ["MP", "Northern Mariana Islands"], ["PR", "Puerto Rico"],
   ["VI", "US Virgin Islands"], ["AA", "Armed Forces Americas"], ["AE", "Armed Forces Europe"],
   ["AP", "Armed Forces Pacific"],
+]);
+
+// V17. The Brawley order form's country list, and deliberately not the one below it.
+//
+// The legacy reservation form submits ISO 3166 alpha-2 codes under `customer_country`, so the codes are
+// the wiring contract and the values here match it exactly. The names are display only, which is what
+// makes the two edits below safe: `COUNTRIES` submits names and belongs to the international dealer
+// inquiry, a different form with a different backend, and merging the two lists would change what that
+// form sends.
+//
+// The legacy select was a raw CLDR dump of 266 options. Twenty are gone: the duplicate United States,
+// an option labelled "Unknown or Invalid Region", and eighteen states that have not existed for years,
+// among them East Germany, the Union of Soviet Socialist Republics, North Vietnam, the Netherlands
+// Antilles, Serbia and Montenegro, the Panama Canal Zone and the Neutral Zone. Four names are current
+// rather than the source's: Czechia, North Macedonia, Eswatini, Myanmar. Nothing else was touched, and
+// no code changed, so a submission still means to the old backend exactly what it meant before.
+// United States leads the list as it did on the legacy page; the rest stay alphabetical.
+export const ORDER_COUNTRIES = Object.freeze([
+  ["US", "United States"], ["AF", "Afghanistan"], ["AL", "Albania"], ["DZ", "Algeria"],
+  ["AS", "American Samoa"], ["AD", "Andorra"], ["AO", "Angola"], ["AI", "Anguilla"],
+  ["AQ", "Antarctica"], ["AG", "Antigua and Barbuda"], ["AR", "Argentina"], ["AM", "Armenia"],
+  ["AW", "Aruba"], ["AU", "Australia"], ["AT", "Austria"], ["AZ", "Azerbaijan"],
+  ["BS", "Bahamas"], ["BH", "Bahrain"], ["BD", "Bangladesh"], ["BB", "Barbados"],
+  ["BY", "Belarus"], ["BE", "Belgium"], ["BZ", "Belize"], ["BJ", "Benin"],
+  ["BM", "Bermuda"], ["BT", "Bhutan"], ["BO", "Bolivia"], ["BA", "Bosnia and Herzegovina"],
+  ["BW", "Botswana"], ["BV", "Bouvet Island"], ["BR", "Brazil"], ["IO", "British Indian Ocean Territory"],
+  ["VG", "British Virgin Islands"], ["BN", "Brunei"], ["BG", "Bulgaria"], ["BF", "Burkina Faso"],
+  ["BI", "Burundi"], ["KH", "Cambodia"], ["CM", "Cameroon"], ["CA", "Canada"],
+  ["CV", "Cape Verde"], ["KY", "Cayman Islands"], ["CF", "Central African Republic"], ["TD", "Chad"],
+  ["CL", "Chile"], ["CN", "China"], ["CX", "Christmas Island"], ["CC", "Cocos (Keeling) Islands"],
+  ["CO", "Colombia"], ["KM", "Comoros"], ["CG", "Congo - Brazzaville"], ["CD", "Congo - Kinshasa"],
+  ["CK", "Cook Islands"], ["CR", "Costa Rica"], ["HR", "Croatia"], ["CU", "Cuba"],
+  ["CY", "Cyprus"], ["CZ", "Czechia"], ["CI", "Côte d’Ivoire"], ["DK", "Denmark"],
+  ["DJ", "Djibouti"], ["DM", "Dominica"], ["DO", "Dominican Republic"], ["EC", "Ecuador"],
+  ["EG", "Egypt"], ["SV", "El Salvador"], ["GQ", "Equatorial Guinea"], ["ER", "Eritrea"],
+  ["EE", "Estonia"], ["SZ", "Eswatini"], ["ET", "Ethiopia"], ["FK", "Falkland Islands"],
+  ["FO", "Faroe Islands"], ["FJ", "Fiji"], ["FI", "Finland"], ["FR", "France"],
+  ["GF", "French Guiana"], ["PF", "French Polynesia"], ["TF", "French Southern Territories"], ["GA", "Gabon"],
+  ["GM", "Gambia"], ["GE", "Georgia"], ["DE", "Germany"], ["GH", "Ghana"],
+  ["GI", "Gibraltar"], ["GR", "Greece"], ["GL", "Greenland"], ["GD", "Grenada"],
+  ["GP", "Guadeloupe"], ["GU", "Guam"], ["GT", "Guatemala"], ["GG", "Guernsey"],
+  ["GN", "Guinea"], ["GW", "Guinea-Bissau"], ["GY", "Guyana"], ["HT", "Haiti"],
+  ["HM", "Heard Island and McDonald Islands"], ["HN", "Honduras"], ["HK", "Hong Kong SAR China"], ["HU", "Hungary"],
+  ["IS", "Iceland"], ["IN", "India"], ["ID", "Indonesia"], ["IR", "Iran"],
+  ["IQ", "Iraq"], ["IE", "Ireland"], ["IM", "Isle of Man"], ["IL", "Israel"],
+  ["IT", "Italy"], ["JM", "Jamaica"], ["JP", "Japan"], ["JE", "Jersey"],
+  ["JO", "Jordan"], ["KZ", "Kazakhstan"], ["KE", "Kenya"], ["KI", "Kiribati"],
+  ["KW", "Kuwait"], ["KG", "Kyrgyzstan"], ["LA", "Laos"], ["LV", "Latvia"],
+  ["LB", "Lebanon"], ["LS", "Lesotho"], ["LR", "Liberia"], ["LY", "Libya"],
+  ["LI", "Liechtenstein"], ["LT", "Lithuania"], ["LU", "Luxembourg"], ["MO", "Macau SAR China"],
+  ["MG", "Madagascar"], ["MW", "Malawi"], ["MY", "Malaysia"], ["MV", "Maldives"],
+  ["ML", "Mali"], ["MT", "Malta"], ["MH", "Marshall Islands"], ["MQ", "Martinique"],
+  ["MR", "Mauritania"], ["MU", "Mauritius"], ["YT", "Mayotte"], ["MX", "Mexico"],
+  ["FM", "Micronesia"], ["MD", "Moldova"], ["MC", "Monaco"], ["MN", "Mongolia"],
+  ["ME", "Montenegro"], ["MS", "Montserrat"], ["MA", "Morocco"], ["MZ", "Mozambique"],
+  ["MM", "Myanmar"], ["NA", "Namibia"], ["NR", "Nauru"], ["NP", "Nepal"],
+  ["NL", "Netherlands"], ["NC", "New Caledonia"], ["NZ", "New Zealand"], ["NI", "Nicaragua"],
+  ["NE", "Niger"], ["NG", "Nigeria"], ["NU", "Niue"], ["NF", "Norfolk Island"],
+  ["KP", "North Korea"], ["MK", "North Macedonia"], ["MP", "Northern Mariana Islands"], ["NO", "Norway"],
+  ["OM", "Oman"], ["PK", "Pakistan"], ["PW", "Palau"], ["PS", "Palestinian Territories"],
+  ["PA", "Panama"], ["PG", "Papua New Guinea"], ["PY", "Paraguay"], ["PE", "Peru"],
+  ["PH", "Philippines"], ["PN", "Pitcairn Islands"], ["PL", "Poland"], ["PT", "Portugal"],
+  ["PR", "Puerto Rico"], ["QA", "Qatar"], ["RO", "Romania"], ["RU", "Russia"],
+  ["RW", "Rwanda"], ["RE", "Réunion"], ["BL", "Saint Barthélemy"], ["SH", "Saint Helena"],
+  ["KN", "Saint Kitts and Nevis"], ["LC", "Saint Lucia"], ["MF", "Saint Martin"], ["PM", "Saint Pierre and Miquelon"],
+  ["VC", "Saint Vincent and the Grenadines"], ["WS", "Samoa"], ["SM", "San Marino"], ["SA", "Saudi Arabia"],
+  ["SN", "Senegal"], ["RS", "Serbia"], ["SC", "Seychelles"], ["SL", "Sierra Leone"],
+  ["SG", "Singapore"], ["SK", "Slovakia"], ["SI", "Slovenia"], ["SB", "Solomon Islands"],
+  ["SO", "Somalia"], ["ZA", "South Africa"], ["GS", "South Georgia and the South Sandwich Islands"], ["KR", "South Korea"],
+  ["ES", "Spain"], ["LK", "Sri Lanka"], ["SD", "Sudan"], ["SR", "Suriname"],
+  ["SJ", "Svalbard and Jan Mayen"], ["SE", "Sweden"], ["CH", "Switzerland"], ["SY", "Syria"],
+  ["ST", "São Tomé and Príncipe"], ["TW", "Taiwan"], ["TJ", "Tajikistan"], ["TZ", "Tanzania"],
+  ["TH", "Thailand"], ["TL", "Timor-Leste"], ["TG", "Togo"], ["TK", "Tokelau"],
+  ["TO", "Tonga"], ["TT", "Trinidad and Tobago"], ["TN", "Tunisia"], ["TR", "Turkey"],
+  ["TM", "Turkmenistan"], ["TC", "Turks and Caicos Islands"], ["TV", "Tuvalu"], ["UM", "U.S. Minor Outlying Islands"],
+  ["VI", "U.S. Virgin Islands"], ["UG", "Uganda"], ["UA", "Ukraine"], ["AE", "United Arab Emirates"],
+  ["GB", "United Kingdom"], ["UY", "Uruguay"], ["UZ", "Uzbekistan"], ["VU", "Vanuatu"],
+  ["VA", "Vatican City"], ["VE", "Venezuela"], ["VN", "Vietnam"], ["WF", "Wallis and Futuna"],
+  ["EH", "Western Sahara"], ["YE", "Yemen"], ["ZM", "Zambia"], ["ZW", "Zimbabwe"],
+  ["AX", "Åland Islands"],
 ]);
 
 export const COUNTRIES = Object.freeze([

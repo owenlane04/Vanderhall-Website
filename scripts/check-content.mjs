@@ -31,9 +31,17 @@ const textExtensions = new Set([".html", ".css", ".js", ".mjs", ".json", ".txt"]
 const textFiles = files.filter((path) => textExtensions.has(extname(path)));
 const failures = [];
 
+// V17-D-V17-6. The em-dash rule is a house style rule, and a house style rule does not get to edit a
+// recall notice. Two of Vanderhall's three published notices contain em dashes inside CPSC's and
+// Vanderhall's own sentences, and those notices are republished verbatim. The exemption is scoped to
+// the record file and the notice detail pages and reaches nothing else: the safety index renders only
+// the card summaries, which contain none, so it is still held to the rule like every other page.
+const VERBATIM_NOTICE_FILES = [/\/src\/data\/safety\.mjs$/, /\/safety\/sn-[^/]+\/index\.html$/];
+const isVerbatimNotice = (relative) => VERBATIM_NOTICE_FILES.some((pattern) => pattern.test(relative));
+
 for (const path of textFiles) {
   const text = await readFile(path, "utf8");
-  if (text.includes("\u2014")) failures.push(`${path.replace(root, "")}: contains an em dash`);
+  if (text.includes("\u2014") && !isVerbatimNotice(path.replace(root, ""))) failures.push(`${path.replace(root, "")}: contains an em dash`);
   if (extname(path) === ".html") {
     const h1Count = (text.match(/<h1(?:\s|>)/g) || []).length;
     if (h1Count !== 1) failures.push(`${path.replace(root, "")}: expected one h1, found ${h1Count}`);
@@ -200,7 +208,8 @@ const formCount = (id) => (combinedHtml.match(new RegExp(`data-form-id="${id}"`,
 // V13-G. Four forms, one each, and the retired one must be gone entirely. The count on `request-info` is the
 // assertion that matters most: a zero here is what proves the old single-step lead schema is not quietly
 // still identifying the new support form.
-for (const id of ["contact", "recommend-dealer", "international-dealer-inquiry", "santarosa-launch-interest"]) {
+// V17 adds the fifth: the Brawley order form, one page, one instance.
+for (const id of ["contact", "recommend-dealer", "international-dealer-inquiry", "santarosa-launch-interest", "brawley-order"]) {
   if (formCount(id) !== 1) failures.push(`Expected one ${id} form, found ${formCount(id)}`);
 }
 if (formCount("request-info") !== 0) failures.push(`The retired request-info form identity survives on ${formCount("request-info")} pages`);
@@ -210,7 +219,7 @@ if (combinedHtml.includes('id="request-info"')) failures.push("The retired #requ
 // components.mjs, so a key could be added, renamed, or given a live destination with nothing noticing. The
 // list here is written out rather than derived, for the reason every other independent expectation in this
 // file is: an expectation read from the thing it checks agrees with a mistake in it.
-const EXPECTED_ENDPOINT_KEYS = ["contact", "recommend-dealer", "international-dealer-inquiry", "santarosa-launch-interest"];
+const EXPECTED_ENDPOINT_KEYS = ["contact", "recommend-dealer", "international-dealer-inquiry", "santarosa-launch-interest", "brawley-order"];
 const endpointKeys = Object.keys(FORM_ENDPOINTS).sort();
 if (JSON.stringify(endpointKeys) !== JSON.stringify([...EXPECTED_ENDPOINT_KEYS].sort())) {
   failures.push(`The form endpoint map must hold exactly ${EXPECTED_ENDPOINT_KEYS.join(", ")}, found ${endpointKeys.join(", ")}`);
@@ -588,11 +597,22 @@ for (const [route, html] of [["/vehicles/", vehiclesHtml]]) {
 // vanderhallusa.com. Anywhere else, a dollar amount still means something unverified escaped.
 const GTS_PATH = "/brawley/gts/index.html";
 const GTS_AMOUNTS = ["$49,950", "$0", "$750", "$1,050"];
+// V17-D-V17-7. Two republished safety notices quote dollar figures, and both are quoted recall text
+// rather than a Vanderhall offer: SN-00003 states the vehicles sold "for about $50,000", and CPSC's own
+// boilerplate cites "$1 trillion" in annual incident cost, whose "$1" the pattern above matches. The
+// exception is written out per page and per amount, so a price cannot reach a notice page by accident
+// and no other page gains an inch: the order page itself still fails on any dollar sign at all.
+const VERBATIM_AMOUNTS = {
+  "/safety/sn-00003/index.html": ["$50,000", "$1"],
+  "/safety/sn-00001/index.html": ["$1"],
+};
 const gtsHtml = pageBySuffix(GTS_PATH);
 for (const page of builtPages) {
+  const relative = page.path.replace(root, "");
   const isGts = page.path.endsWith(GTS_PATH);
+  const allowed = isGts ? GTS_AMOUNTS : (VERBATIM_AMOUNTS[relative] || []);
   const amounts = [...page.text.matchAll(/\$[\d,]+/g)].map((match) => match[0]);
-  const unexpected = amounts.filter((amount) => !isGts || !GTS_AMOUNTS.includes(amount));
+  const unexpected = amounts.filter((amount) => !allowed.includes(amount));
   if (unexpected.length) failures.push(`${page.path.replace(root, "")}: unapproved price ${[...new Set(unexpected)].join(", ")}`);
   if (!isGts && /class="price\b|\bMSRP\b/.test(page.text)) failures.push(`${page.path.replace(root, "")}: a price block appears where no price is approved`);
 }
@@ -618,11 +638,15 @@ if (!gtsHtml.includes("data-walkaround-live")) failures.push("/brawley/gts/ view
 if (!/data-walkaround-controls hidden/.test(gtsHtml)) failures.push("/brawley/gts/ viewer controls must ship hidden for the no-JavaScript state");
 if ((gtsHtml.match(/class="swatch[^"]*"[^>]*disabled/g) || []).length !== 9) failures.push("/brawley/gts/ swatches must ship disabled for the no-JavaScript state");
 if ((gtsHtml.match(/fetchpriority="high"/g) || []).length !== 1) failures.push("/brawley/gts/ must promote exactly one frame to high priority");
-const RESERVE_URL = "https://dealer.vanderhallusa.com/reserve/index/brawley";
-const reserveLinks = (gtsHtml.match(new RegExp(`href="${RESERVE_URL}"`, "g")) || []).length;
+// V17-D-V17-3: the order path is this site's own page. The external reservation system is still live
+// and is still where the form will post once John wires it, but it appears in INTEGRATION.md and in no
+// delivered file, so the second assertion here is absence.
+const ORDER_URL = "/brawley/order/";
+const orderLinks = (gtsHtml.match(new RegExp(`href="${ORDER_URL}"`, "g")) || []).length;
 // V12-A: two, not three. The third was the retired model bar's action, and it was the third time the
 // same URL appeared on one page. The two that remain are the opening block and the ORDER section.
-if (reserveLinks !== 2) failures.push(`/brawley/gts/ must carry two reservation links, found ${reserveLinks}`);
+if (orderLinks !== 2) failures.push(`/brawley/gts/ must carry two order links, found ${orderLinks}`);
+if (combinedHtml.includes("dealer.vanderhallusa.com/reserve")) failures.push("The external reservation URL was replaced by /brawley/order/ and must not ship");
 for (const required of [
   "Manufacturer's Suggested Retail Price. Excludes options; taxes; title; registration; delivery, processing and handling fee; dealer charges.",
   "Features and specifications are estimated and subject to change without notice.",
@@ -758,6 +782,7 @@ const BACK_TARGETS = {
   "/santarosa/index.html": "/vehicles/",
   "/brawley/index.html": "/vehicles/",
   "/brawley/gts/index.html": "/brawley/",
+  "/brawley/order/index.html": "/brawley/",
   "/privacy/index.html": "/",
   // V13. Experience is a child of Home, Blog a child of Experience, each article a child of Blog. The Launch
   // Edition nests under Santarosa rather than under Vehicles, because it is a campaign about one model.
@@ -804,7 +829,7 @@ else {
   const product = gtsSchemas[0];
   if (product["@type"] !== "Product") failures.push("/brawley/gts/ JSON-LD must describe a Product");
   if (product.offers?.price !== "49950" || product.offers?.priceCurrency !== "USD") failures.push(`/brawley/gts/ JSON-LD price must match the published price, found ${product.offers?.price} ${product.offers?.priceCurrency}`);
-  if (product.offers?.url !== "https://dealer.vanderhallusa.com/reserve/index/brawley") failures.push("/brawley/gts/ JSON-LD offer must point at the reservation system");
+  if (product.offers?.url !== "https://vanderhall-website.vercel.app/brawley/order/") failures.push("/brawley/gts/ JSON-LD offer must point at the order page the buttons lead to");
   if (!product.image?.endsWith(".webp")) failures.push("/brawley/gts/ JSON-LD image must be a delivered WebP frame");
 }
 const homeSchemas = schemaOf(homeHtml);
@@ -970,16 +995,19 @@ const sitemap = await readFile(resolve(root, "sitemap.xml"), "utf8");
 // The full route list, written out. V13 adds twelve entries and keeps every existing one, including both past
 // models: their routes and their owner manuals stay valid, which is exactly what Q-V13-9 preserved.
 const SITEMAP_ROUTES = [
-  "vehicles", "venice", "carmel", "santarosa", "brawley", "brawley/gts", "santarosa/launch-edition",
+  "vehicles", "venice", "carmel", "santarosa", "brawley", "brawley/gts", "brawley/order", "santarosa/launch-edition",
   "concepts", "concepts/indio", "concepts/coachella", "concepts/brawley-r", "concepts/santarosa-r",
   "concepts/speedster", "concepts/yuma", "concepts/yuma-defense", "concepts/laduna", "concepts/balboa",
   "experience", "blog",
   // V15, folding in V14: the two real Vanderhall articles replace the two sample routes, and the
-  // fictional safety notice routes are retired with the safety page's portal state.
+  // fictional safety notice routes are retired with the safety page's portal state. V17 lists the three
+  // real notice routes below, which is a different thing: those records exist.
   "blog/what-is-a-side-by-side-experience-the-future-with-the-vanderhall-brawley",
   "blog/electric-off-road-vehicles-the-future-of-adventure-driving",
   "owners", "dealers", "contact", "careers", "careers/assembly-technician",
-  "careers/customer-experience-specialist", "safety", "recommend-dealer", "dealer-inquiry", "privacy",
+  // V17: the three real notice routes, named by the portal's own notice ids.
+  "careers/customer-experience-specialist", "safety", "safety/sn-00003", "safety/sn-00001", "safety/sn-00002",
+  "recommend-dealer", "dealer-inquiry", "privacy",
 ];
 for (const route of SITEMAP_ROUTES) {
   if (!sitemap.includes(`<loc>https://vanderhall-website.vercel.app/${route}/</loc>`)) failures.push(`sitemap.xml is missing /${route}/`);
@@ -1293,6 +1321,8 @@ else {
 // concept detail pages keep theirs, and are excluded by name because CONCEPT says something the
 // wordmark title does not.
 const MARKED_HEADERS = ["/vehicles/index.html", "/concepts/index.html", "/dealers/index.html", "/recommend-dealer/index.html", "/dealer-inquiry/index.html", "/owners/index.html", "/privacy/index.html",
+  // V17: the order page takes Contact's tight form header, and a notice detail takes the record header.
+  "/brawley/order/index.html", "/safety/sn-00003/index.html",
   // V13's new page types take the same header treatment, which is most of what makes them read as part of the
   // same site rather than as pages added later.
   "/contact/index.html", "/experience/index.html", "/blog/index.html", "/careers/index.html", "/safety/index.html",
@@ -1476,7 +1506,9 @@ const blockerIds = PRODUCTION_BLOCKERS.map((blocker) => blocker.id);
 // V15: article-records is resolved (the fictional fixtures are gone, replaced by the two real
 // articles) and article-claim-review takes its place, holding the gate until Vanderhall reviews the
 // migrated copy's claims.
-for (const required of ["dealer-records", "contact-endpoint", "launch-interest-endpoint", "article-claim-review", "career-records", "safety-records", "privacy-copy", "brawley-trademark-clause", "brawley-film"]) {
+// V17 adds brawley-order-endpoint. The order form is now the site's only order path, so an unwired
+// endpoint is a heavier blocker than it was for any earlier form.
+for (const required of ["dealer-records", "contact-endpoint", "launch-interest-endpoint", "brawley-order-endpoint", "article-claim-review", "career-records", "safety-records", "privacy-copy", "brawley-trademark-clause", "brawley-film"]) {
   if (!blockerIds.includes(required)) failures.push(`The production blocker list is missing ${required}`);
 }
 for (const blocker of PRODUCTION_BLOCKERS) {
@@ -1500,23 +1532,56 @@ for (const [name, text] of DELIVERED_TEXT) {
     if (text.includes(token)) failures.push(`${name}: scaffolding language reaches delivered output: ${token}`);
   }
 }
-// V15-D-V15-7: the safety page is a portal page. With the markers retired, an unlabelled fictional
-// recall notice would be the one thing on this site that could hurt someone if believed, so the page
-// publishes no notice at all: it directs visitors to the official portal and makes no claim of
-// absence in either direction. The record list returns when the real safety source is connected.
+// V17-B. The safety page publishes records again, and this time they are Vanderhall's real notices.
+//
+// Three V15 assertions are gone from here: the ban on notice cards, the ban on notice detail pages, and
+// the ban on the words accelerator, tie-rod, rear-steer and electrical shock. All three existed to stop
+// a FICTIONAL recall reaching a visitor, and none of them describes a rule about real ones. What
+// replaces them is stricter in the direction that still matters: every published notice is written out
+// below by id, in posted order, each with the portal URL it was transcribed from, and the fictional
+// fixture file has to stay deleted.
+//
+// What survives V15 unchanged: the portal stays reachable, because these records are a snapshot and the
+// portal is the live document, and the page still never claims an absence of notices in either
+// direction.
 const safetyHtml = pageBySuffix("/safety/index.html");
-if (safetyHtml.includes("record-card")) failures.push("/safety/ must publish no notice records until the real safety source is connected");
 for (const claim of ["no active recalls", "No active recalls", "no current notices", "No notices"]) {
   if (safetyHtml.includes(claim)) failures.push(`/safety/ must not claim an absence of notices: ${claim}`);
 }
-const safetyDetailPages = builtPages.filter((page) => /\/safety\/[^/]+\/index\.html$/.test(page.path.replace(root, "")));
-if (safetyDetailPages.length) failures.push(`No safety notice detail page may be built while the source is fictional, found ${safetyDetailPages.map((page) => page.path.replace(root, "")).join(", ")}`);
-// The live notices on Vanderhall's portal must not have been adapted as content here.
-for (const subject of ["accelerator", "tie-rod", "tie rod", "rear-steer", "rear steer", "electrical shock"]) {
-  if (safetyHtml.toLowerCase().includes(subject)) failures.push(`/safety/ appears to adapt the live ${subject} notice`);
-}
 // The external portal stays reachable from the safety page while parity is unverified. Q-V13-10.
 if (!safetyHtml.includes("https://portal.vanderhallusa.com/safety_notices")) failures.push("/safety/ must keep the official portal reachable");
+// The three real notices, written out rather than derived from the data that produced the page.
+const SAFETY_NOTICE_SOURCES = [
+  ["SN-00003", "/safety/sn-00003/index.html", "https://portal.vanderhallusa.com/safety_notices/3"],
+  ["SN-00001", "/safety/sn-00001/index.html", "https://portal.vanderhallusa.com/safety_notices/1"],
+  ["SN-00002", "/safety/sn-00002/index.html", "https://portal.vanderhallusa.com/safety_notices/2"],
+];
+const noticeCards = (safetyHtml.match(/class="record-card record-card--notice"/g) || []).length;
+if (noticeCards !== SAFETY_NOTICE_SOURCES.length) failures.push(`/safety/ must publish ${SAFETY_NOTICE_SOURCES.length} notice cards, found ${noticeCards}`);
+// Newest first, asserted against the real posted dates rather than against the sort that produced them.
+let lastIndex = -1;
+for (const [id] of SAFETY_NOTICE_SOURCES) {
+  const at = safetyHtml.indexOf(id);
+  if (at === -1) { failures.push(`/safety/ does not list ${id}`); continue; }
+  if (at < lastIndex) failures.push(`/safety/ lists ${id} out of posted order, newest first`);
+  lastIndex = at;
+}
+const safetyDetailPages = builtPages.filter((page) => /\/safety\/[^/]+\/index\.html$/.test(page.path.replace(root, "")));
+if (safetyDetailPages.length !== SAFETY_NOTICE_SOURCES.length) failures.push(`Expected ${SAFETY_NOTICE_SOURCES.length} safety notice detail pages, found ${safetyDetailPages.length}`);
+// A republished notice cites the copy it came from, and collects nothing. A safety page with a form on
+// it is a safety page that has become a lead source.
+const REPUBLICATION_LINE = "Republished from Vanderhall's official safety notices portal, read on";
+if (!safetyHtml.includes(REPUBLICATION_LINE)) failures.push("/safety/ must say where its notices were republished from and when");
+for (const [id, relative, sourceUrl] of SAFETY_NOTICE_SOURCES) {
+  const html = pageBySuffix(relative);
+  if (!html) { failures.push(`${relative}: notice ${id} has no built page`); continue; }
+  if (!html.includes(`href="${sourceUrl}"`)) failures.push(`${relative}: must link to the portal copy at ${sourceUrl}`);
+  if (!html.includes(REPUBLICATION_LINE)) failures.push(`${relative}: must say where it was republished from and when`);
+  if (html.includes("data-site-form")) failures.push(`${relative}: a safety notice must collect nothing`);
+}
+// The fictional fixtures are deleted, not parked beside the real records. Restoring that file has to be
+// a decision somebody makes on purpose.
+if (existsSync(resolve(root, "src/data/mock/safety.mjs"))) failures.push("The fictional safety fixtures are back in src/data/mock/safety.mjs and must not be");
 // Careers must not have copied the live postings.
 const careersHtml = pageBySuffix("/careers/index.html");
 for (const posting of ["Paralegal", "Welding Operator"]) {
@@ -1529,22 +1594,28 @@ for (const relative of ["/careers/assembly-technician/index.html", "/careers/cus
   if (html.includes("data-site-form")) failures.push(`${relative}: a prototype job page must collect no applicant data`);
 }
 
-// The noindex, on exactly the routes whose records are fictional and on no others. Both directions, because a
-// noindex on the homepage would be as wrong as its absence on /safety/.
+// The noindex, on exactly the routes that should not be found in a search result, and on no others. Both
+// directions, because a noindex on the homepage would be as wrong as its absence on /dealers/.
 // V15: /experience/ and /blog/ leave the set with their fictional records. The two articles are
 // real, previously published Vanderhall editorial, so keeping them out of an index would hide real
 // content to protect nothing.
+// V17-D-V17-9: the safety routes stay, and for a different reason than the rest of this set now that
+// their records are real. These are static transcriptions of time-sensitive documents, and nothing here
+// learns that Vanderhall has revised one. A stale indexed recall is the single page on this site where
+// being out of date has a safety cost, so the portal keeps the search presence until the live source is
+// connected. The three notice details join the index page. The order page is not in the set: it carries
+// no records and behaves like Contact.
 const NOINDEX_EXPECTED = new Set([
   "/dealers/index.html",
   "/careers/index.html", "/careers/assembly-technician/index.html", "/careers/customer-experience-specialist/index.html",
-  "/safety/index.html",
+  "/safety/index.html", "/safety/sn-00003/index.html", "/safety/sn-00001/index.html", "/safety/sn-00002/index.html",
   "/santarosa/launch-edition/index.html",
 ]);
 for (const page of builtPages) {
   const relative = page.path.replace(root, "");
   const noindexed = page.text.includes('<meta name="robots" content="noindex, follow">');
-  if (NOINDEX_EXPECTED.has(relative) && !noindexed) failures.push(`${relative}: a route carrying fictional records must not be indexable`);
-  if (!NOINDEX_EXPECTED.has(relative) && noindexed) failures.push(`${relative}: this route carries no fictional record and must stay indexable`);
+  if (NOINDEX_EXPECTED.has(relative) && !noindexed) failures.push(`${relative}: this route defers to an authoritative source and must not be indexable`);
+  if (!NOINDEX_EXPECTED.has(relative) && noindexed) failures.push(`${relative}: this route is authoritative here and must stay indexable`);
 }
 // robots.txt still allows crawling, deliberately: a Disallow rule would stop a crawler before it could read
 // the noindex above, which is the classic way to leave a page indexed while believing it is hidden.

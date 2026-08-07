@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { currentModels, models, pastModels } from "./data/models.mjs";
-import { COUNTRIES, FORM_ENDPOINTS, INQUIRY_EMAIL, US_REGIONS } from "./data/forms.mjs";
+import { COUNTRIES, FORM_ENDPOINTS, INQUIRY_EMAIL, ORDER_COUNTRIES, US_REGIONS } from "./data/forms.mjs";
 import { FOOTNOTE_SYMBOLS, footnoteText } from "./data/footnotes.mjs";
 import { IS_PROTOTYPE } from "./data/prototype.mjs";
 import { CONTACT_CATEGORIES, CONTACT_TIMEFRAMES } from "./data/mock/contact.mjs";
@@ -419,6 +419,8 @@ const requiredMark = `<span aria-hidden="true"> *</span><span class="sr-only"> r
 const label = (id, text, required = false) => `<label for="${id}">${text}${required ? requiredMark : ""}</label>`;
 const error = (id) => `<span class="field__error" id="${id}-error"></span>`;
 const countryOptions = `<option value="">Select a country</option>${COUNTRIES.map((country) => `<option value="${escapeHtml(country)}">${escapeHtml(country)}</option>`).join("")}`;
+// The order form's own options, carrying the legacy ISO codes as values. See ORDER_COUNTRIES.
+const orderCountryOptions = `<option value="">Select a country</option>${ORDER_COUNTRIES.map(([code, name]) => `<option value="${code}">${escapeHtml(name)}</option>`).join("")}`;
 
 const integrationFields = (formId, submitLabel) => `
   <div class="honeypot" aria-hidden="true"><label>Company<input name="honeypot" tabindex="-1" autocomplete="off"></label></div>
@@ -556,6 +558,29 @@ export const launchInterestForm = (id = "santarosa-launch-interest-form") => `${
     <div class="field">${label(`${id}-email`, "Email", true)}<input id="${id}-email" name="email" type="email" autocomplete="email" inputmode="email" required aria-required="true">${error(`${id}-email`)}</div>
   </div>
   ${integrationFields("santarosa-launch-interest", "Register your interest")}
+</form>`;
+
+// V17. The Brawley order form, rebuilt from the legacy reservation form at
+// dealer.vanderhallusa.com/reserve/index/brawley, read on 2026-08-07 without submitting anything.
+//
+// Same five fields, same order, same `name` attributes, so connecting this to the existing backend is a
+// destination change and not a mapping exercise. Two things about the legacy form are deliberately not
+// reproduced. It had no submit button: the country select carried an onchange that submitted the page,
+// which fails WCAG 3.2.2 and surprises anyone arrowing through a list of 245 options. And its inputs
+// were all type="text" with no labels, laid out in a table; here they are labelled fields with the right
+// input types, so a phone keyboard opens the right keypad and a password manager can fill a name.
+//
+// Flat and single-step on purpose. The three-step island in site.js activates on the contact form alone,
+// so this form needs no script beyond the validation every form on the site already shares.
+export const brawleyOrderForm = (id = "brawley-order-form") => `${formOpen(id, "brawley-order")}
+  <div class="form-grid form-grid--pairs">
+    <div class="field">${label(`${id}-first`, "First name", true)}<input id="${id}-first" name="customer_first_name" autocomplete="given-name" required aria-required="true">${error(`${id}-first`)}</div>
+    <div class="field">${label(`${id}-last`, "Last name", true)}<input id="${id}-last" name="customer_last_name" autocomplete="family-name" required aria-required="true">${error(`${id}-last`)}</div>
+  </div>
+  <div class="field">${label(`${id}-email`, "Email address", true)}<input id="${id}-email" name="customer_email" type="email" inputmode="email" autocomplete="email" required aria-required="true">${error(`${id}-email`)}</div>
+  <div class="field">${label(`${id}-phone`, "Phone number", true)}<input id="${id}-phone" name="customer_phone" type="tel" inputmode="tel" autocomplete="tel" required aria-required="true">${error(`${id}-phone`)}</div>
+  <div class="field">${label(`${id}-country`, "Country", true)}<select id="${id}-country" name="customer_country" autocomplete="country" required aria-required="true">${orderCountryOptions}</select>${error(`${id}-country`)}</div>
+  ${integrationFields("brawley-order", "Submit order")}
 </form>`;
 
 export const recommendDealerForm = (id = "recommend-dealer-form") => `${formOpen(id, "recommend-dealer")}
@@ -764,9 +789,10 @@ export const organizationSchema = () => jsonLd({
   ],
 });
 
-// The price, the currency, and every figure below are the approved values, and the reservation URL
-// is the same one the page's own buttons use. Availability is InStock because Vanderhall's own page
-// says the vehicle is now delivering; the regional caveat stays in the visible copy.
+// The price, the currency, and every figure below are the approved values, and the offer URL is the
+// same order page the page's own buttons use, absolute as an offer URL has to be. Availability is
+// InStock because Vanderhall's own page says the vehicle is now delivering; the regional caveat stays
+// in the visible copy.
 export const productSchema = (model) => {
   const gts = model.gts;
   const frame = gts.paint.find((option) => option.slug === gts.defaultPaint).frames[0].split(",").at(-1).trim().split(/\s+/)[0];
@@ -782,7 +808,7 @@ export const productSchema = (model) => {
     manufacturer: { "@id": `${SITE_URL}/#organization` },
     offers: {
       "@type": "Offer",
-      url: gts.reserveUrl,
+      url: `${SITE_URL}${gts.orderUrl}`,
       priceCurrency: "USD",
       price: gts.price.value.replace(/[$,]/g, ""),
       availability: "https://schema.org/InStock",

@@ -18,7 +18,7 @@
 import { MOCK_DEALERS, DEALER_FILTERS } from "./mock/dealers.mjs";
 import { ARTICLES, FEATURED_ARTICLE_ID } from "./articles.mjs";
 import { MOCK_JOBS, EQUAL_OPPORTUNITY_STATEMENT } from "./mock/careers.mjs";
-import { MOCK_SAFETY_NOTICES, SAFETY_PORTAL_URL } from "./mock/safety.mjs";
+import { SAFETY_NOTICES, SAFETY_PORTAL_URL, SAFETY_RETRIEVED_AT } from "./safety.mjs";
 import { santarosaLaunchCampaign, brawleyDeliveryStatus, CAMPAIGN_PHASES } from "./mock/campaign.mjs";
 import { privacySections, PRIVACY_SOURCE_LINE } from "./privacy.mjs";
 import { IS_PROTOTYPE } from "./prototype.mjs";
@@ -119,16 +119,22 @@ export const getEqualOpportunityStatement = () => EQUAL_OPPORTUNITY_STATEMENT;
 // ---------------------------------------------------------------------------------------------
 // Safety
 // ---------------------------------------------------------------------------------------------
-export const getSafetyNotices = () => MOCK_SAFETY_NOTICES
-  .map((notice) => required(notice, "Safety notice", ["id", "slug", "title", "status", "postedAt", "hazardSummary", "remedySummary"]))
+// V17: the real notices, transcribed from Vanderhall's portal. `sourceUrl` joins the required set,
+// which it could not be while the records were fictional and carried none: a republished safety
+// notice that does not cite the copy it was taken from is not something this site should be able to
+// build.
+export const getSafetyNotices = () => SAFETY_NOTICES
+  .map((notice) => required(notice, "Safety notice", ["id", "slug", "title", "status", "postedAt", "hazardSummary", "remedySummary", "sourceUrl"]))
   .slice()
   .sort((a, b) => (a.postedAt < b.postedAt ? 1 : -1));
 
 export const getSafetyNotice = (slug) => getSafetyNotices().find((notice) => notice.slug === slug) || null;
 export const getSafetyNoticeRoutes = () => getSafetyNotices().filter((notice) => notice.bodyBlocks?.length);
 export const hasSafetyNoticeRoute = (slug) => getSafetyNoticeRoutes().some((notice) => notice.slug === slug);
-// Kept reachable until John verifies production data parity and working detail routes. Q-V13-10.
+// The portal stays the authoritative copy, and the page says so. These records are a snapshot taken on
+// the date below, not a feed: nothing here learns about a revision or a fourth notice. Q-V13-10.
 export const getSafetyFallbackUrl = () => SAFETY_PORTAL_URL;
+export const getSafetyRetrievedAt = () => SAFETY_RETRIEVED_AT;
 
 // ---------------------------------------------------------------------------------------------
 // Privacy

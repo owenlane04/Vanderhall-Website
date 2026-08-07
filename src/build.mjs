@@ -13,6 +13,7 @@ import {
   backLink,
   blogPostingSchema,
   BRAND,
+  brawleyOrderForm,
   buttonLink,
   campaignBand,
   conceptCard,
@@ -44,6 +45,7 @@ import {
   prose,
   recommendDealerForm,
   relatedPosts,
+  safetyCard,
   sectionHeading,
   shell,
   sizeOf,
@@ -67,6 +69,9 @@ import {
   getPosts,
   getPrivacyPolicy,
   getSafetyFallbackUrl,
+  getSafetyNoticeRoutes,
+  getSafetyNotices,
+  getSafetyRetrievedAt,
   getSantarosaLaunchCampaign,
 } from "./data/adapters.mjs";
 
@@ -117,6 +122,9 @@ const PARENTS = {
   carmel: { label: "All vehicles", href: "/vehicles/" },
   venice: { label: "All vehicles", href: "/vehicles/" },
   "brawley/gts": { label: "Brawley", href: "/brawley/" },
+  // V17. The order page nests under the model, not under the GTS page it is usually reached from:
+  // the back link follows the URL, so a visitor who arrived from a search result gets the same way out.
+  "brawley/order": { label: "Brawley", href: "/brawley/" },
   "santarosa/launch-edition": { label: "Santarosa", href: "/santarosa/" },
   concept: { label: "All concepts", href: "/concepts/" },
   "recommend-dealer": { label: "Dealers", href: "/dealers/" },
@@ -178,7 +186,7 @@ const modelPage = (model) => {
 const brawleyGtsPage = (model) => {
   const gts = model.gts;
   const scope = footnoteScope();
-  const actions = (variant) => `<div class="cluster">${buttonLink("Order yours now", gts.reserveUrl, variant)}${textLink("Contact", `/contact/?category=product-information&amp;model=${model.slug}`)}</div>`;
+  const actions = (variant) => `<div class="cluster">${buttonLink("Order yours now", gts.orderUrl, variant)}${textLink("Contact", `/contact/?category=product-information&amp;model=${model.slug}`)}</div>`;
   const scene = {
     src: `/assets/images/brawley/lifestyle/${gts.scene.name}-1280.webp`,
     srcset: [640, 800, 960, 1280].map((width) => `/assets/images/brawley/lifestyle/${gts.scene.name}-${width}.webp ${width}w`).join(", "),
@@ -367,6 +375,29 @@ const contactPage = () => {
   return shell({ title: "Contact Us", description: "Contact Vanderhall about a dealer, a model, or support for a vehicle you own.", path: "/contact", body });
 };
 
+// V17-A. The Brawley order page, rebuilt from Vanderhall's legacy reservation form.
+//
+// It takes Contact's header treatment rather than the other two form pages': this is the page a buyer
+// lands on from the GTS button, and V16-A already decided that a form which is the whole point of a page
+// should sit close to its title. The subheading stays, because the legacy page's one sentence is the only
+// thing telling a visitor what happens next.
+//
+// No price on this page. The legacy order page carried none, and the GTS page holds the only approved
+// figures on the site, so the two links below the form lead there and to Contact rather than restating
+// anything. Nothing here promises a delivery date, a build slot, or a deposit.
+const brawleyOrderPage = () => {
+  const body = `<div class="page">
+    ${pageHeader("Order yours now.", "Thank you for your interest in the Brawley. Provide the information below to start your order.", "form-shell page-header--tight", PARENTS["brawley/order"])}
+    <section class="section--tight form-shell form-stack">
+      ${brawleyOrderForm()}
+      ${/* Each link closes its own sentence, so the inline arrows land at a full stop rather than
+            mid-clause. Two short sentences beat one that wraps three times on a phone. */""}
+      <p class="form-note">Specifications and colors are on ${textLink("the Brawley GTS", "/brawley/gts/")}. With a question about an order, ${textLink("contact Vanderhall", "/contact/?category=product-information&amp;model=brawley")}.</p>
+    </section>
+  </div>`;
+  return shell({ title: "Order your Brawley", description: "Start a Brawley order with Vanderhall.", path: "/brawley/order", body });
+};
+
 const recommendDealerPage = () => {
   const body = `<div class="page">${pageHeader("Recommend a dealer", "Share a dealer candidate with Vanderhall.", "form-shell", PARENTS["recommend-dealer"])}<section class="section--tight form-shell">${recommendDealerForm()}</section></div>`;
   return shell({ title: "Recommend a dealer", description: "Recommend a local dealer to Vanderhall.", path: "/recommend-dealer", body });
@@ -465,25 +496,80 @@ const careerPage = (job) => {
 };
 
 // ---------------------------------------------------------------------------------------------
-// V13. Safety notices. V15-D-V15-7: the portal state.
+// V13. Safety notices. V17-B: the real ones.
 // ---------------------------------------------------------------------------------------------
-// With the visible sample markers retired sitewide, the three fictional notices could not stay: an
-// unlabelled fictional recall notice is the one thing on this site that could hurt someone if it
-// were believed, and V13's own rules forbid both adapting a real notice and claiming "no active
-// recalls" (real live notices exist for these vehicles). So the page publishes no notice at all and
-// directs visitors to the official portal, which was already its authoritative fallback. It makes
-// no claim of absence: the copy says where notices are published, not that none exist. The notice
-// list, the cards, and the detail template return unchanged when John connects the real safety
-// source; the `safety-records` blocker stays open and INTEGRATION.md documents the return path.
+// V15 emptied this page because the only notices the site had were fictional, and an unlabelled fake
+// recall is the one thing here that could hurt someone if it were believed. V17 fills it back in with
+// Vanderhall's three real notices, transcribed from the portal on 2026-08-07 and held in
+// src/data/safety.mjs. The fictional fixtures are deleted, not archived.
+//
+// Two things survive from the portal state and are not decoration. The portal button stays first in the
+// copy, because these records are a snapshot and the portal is the live document. And the page still
+// makes no claim of absence in either direction: it says what it holds and when it was read, not that
+// there are no other notices.
+const safetyRepublication = (retrievedAt) => `Republished from Vanderhall's official safety notices portal, read on ${formatDate(retrievedAt)}. The portal is the authoritative copy.`;
+
 const safetyPage = () => {
+  const notices = getSafetyNotices();
+  const routed = new Set(getSafetyNoticeRoutes().map((notice) => notice.slug));
+  const retrievedAt = getSafetyRetrievedAt();
   const body = `<div class="page">
     ${pageHeader("Safety notices", "Safety and recall information for Vanderhall vehicles.", "", PARENTS.safety)}
     <section class="section--tight narrow stack">
-      <p class="lede">Vanderhall publishes safety notices and recall information through the official portal below. Check it for current notices affecting your vehicle, and contact your dealer with any safety question.</p>
+      <p class="lede">The notices below affect Vanderhall vehicles. Read the one that names your model and year, then contact your dealer with any safety question.</p>
+      <p class="record-legal">${escapeHtml(safetyRepublication(retrievedAt))}</p>
       <div class="cluster">${buttonLink("Search the safety notices portal", getSafetyFallbackUrl())}${buttonLink("Contact Us", "/contact/", "secondary")}</div>
+    </section>
+    <section class="section--tight">
+      ${notices.length
+        ? `<div class="record-list">${notices.map((notice) => safetyCard(notice, { linkable: routed.has(notice.slug) })).join("")}</div>`
+        : emptyState("No notice is available from the connected source.")}
     </section>
   </div>`;
   return shell({ title: "Safety notices", description: "Safety and recall information for Vanderhall vehicles.", path: "/safety", body });
+};
+
+// The detail page. V15 deleted the V13 template along with the fictional records, so this is written
+// against the same record contract rather than restored from it.
+//
+// The facts sit above the body the way the portal puts them there, and the body is the notice's own
+// prose through the allowlisted block model: no source HTML is accepted, every string is escaped, and
+// nothing here can render markup a data file supplied. The page collects nothing, links back to the
+// portal copy at both ends, and prints the date it was read, because a visitor reading a recall is
+// entitled to know how old the copy in front of them is.
+const safetyNoticePage = (notice) => {
+  const retrievedAt = getSafetyRetrievedAt();
+  const documents = notice.documents?.length
+    ? `<section class="section--tight narrow"><h2>Documents</h2><ul class="link-list">${notice.documents.map((document) => `<li><a href="${escapeHtml(document.href)}">${escapeHtml(document.label)}</a></li>`).join("")}</ul></section>`
+    : "";
+  const body = `<div class="page">
+    <header class="page-header page-header--marked">
+      ${backLink(PARENTS.notice)}
+      <div class="record-head record-head--notice">
+        <h1>${escapeHtml(notice.title)}</h1>
+      </div>
+    </header>
+    <section class="section--tight narrow">
+      <dl class="notice-facts notice-facts--detail">
+        <dt>Notice</dt><dd>${escapeHtml(notice.id)}</dd>
+        <dt>Posted</dt><dd><time datetime="${notice.postedAt}">${escapeHtml(formatDate(notice.postedAt))}</time></dd>
+        ${notice.revisedAt ? `<dt>Revised</dt><dd><time datetime="${notice.revisedAt}">${escapeHtml(formatDate(notice.revisedAt))}</time></dd>` : ""}
+        <dt>Type</dt><dd>${escapeHtml(notice.status)}</dd>
+        <dt>Affected</dt><dd>${notice.affectedProducts.map((product) => escapeHtml(product)).join(", ")}</dd>
+        <dt>Hazard</dt><dd>${escapeHtml(notice.hazardSummary)}</dd>
+        <dt>Remedy</dt><dd>${escapeHtml(notice.remedySummary)}</dd>
+        ${notice.consumerAction ? `<dt>What to do</dt><dd>${escapeHtml(notice.consumerAction)}</dd>` : ""}
+        ${notice.contact ? `<dt>Contact</dt><dd>${escapeHtml(notice.contact)}</dd>` : ""}
+      </dl>
+    </section>
+    <section class="section--tight narrow">${prose(notice.bodyBlocks)}</section>
+    ${documents}
+    <section class="section--tight narrow stack">
+      <p class="record-legal">${escapeHtml(safetyRepublication(retrievedAt))}</p>
+      <div class="cluster">${buttonLink("Read this notice on the portal", notice.sourceUrl)}${buttonLink("Contact Us", "/contact/", "secondary")}</div>
+    </section>
+  </div>`;
+  return shell({ title: notice.title, description: notice.hazardSummary, path: `/safety/${notice.slug}`, body });
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -658,12 +744,14 @@ const ownersPage = () => {
 
 const postRoutes = getPostRoutes();
 const jobRoutes = getJobRoutes();
+const noticeRoutes = getSafetyNoticeRoutes();
 
 const routes = [
   "",
   "vehicles",
   ...models.map((model) => model.slug),
   "brawley/gts",
+  "brawley/order",
   "santarosa/launch-edition",
   "concepts",
   ...concepts.map((concept) => `concepts/${concept.slug}`),
@@ -676,6 +764,7 @@ const routes = [
   "careers",
   ...jobRoutes.map((job) => `careers/${job.slug}`),
   "safety",
+  ...noticeRoutes.map((notice) => `safety/${notice.slug}`),
   "recommend-dealer",
   "dealer-inquiry",
   "privacy",
@@ -694,6 +783,7 @@ const pages = new Map([
   ["careers/index.html", careersPage()],
   ...jobRoutes.map((job) => [`careers/${job.slug}/index.html`, careerPage(job)]),
   ["safety/index.html", safetyPage()],
+  ...noticeRoutes.map((notice) => [`safety/${notice.slug}/index.html`, safetyNoticePage(notice)]),
   ["owners/index.html", ownersPage()],
   ["recommend-dealer/index.html", recommendDealerPage()],
   ["dealer-inquiry/index.html", dealerInquiryPage()],
@@ -702,6 +792,7 @@ const pages = new Map([
   ["404.html", notFoundPage()],
   ...models.map((model) => [`${model.slug}/index.html`, modelPage(model)]),
   ["brawley/gts/index.html", brawleyGtsPage(modelBySlug.brawley)],
+  ["brawley/order/index.html", brawleyOrderPage()],
   ["santarosa/launch-edition/index.html", launchEditionPage()],
 ]);
 
