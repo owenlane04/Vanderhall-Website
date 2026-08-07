@@ -605,7 +605,7 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 }
 
 @media (min-width: 1024px) {
-  .footer-links { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .footer-links { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .brand img { height: 1.75rem; }
   .desktop-nav { display: flex; }
   .menu-button { display: none; }
@@ -963,24 +963,23 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 /* The sample marker on mock operational content. Deliberately not styled as a warning: red is reserved
    for genuine safety severity and form errors, so this is a hairline-bordered block in the quiet
    surface with a caps tag, which reads as a label rather than an alarm. */
-.sample-note { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-2) var(--s-3); max-width: var(--w-text); border: var(--hairline) solid var(--line); border-left: 2px solid var(--accent); border-radius: var(--r-1); padding: var(--s-4); color: var(--text-secondary); font-size: var(--fs-body-sm); }
-/* A sample note followed by the thing it describes needs the gap, and only then: where it is the only child
-   of its own section the section's padding already provides one, and a margin there would double it. */
-.sample-note:not(:last-child) { margin-bottom: var(--sf-s); }
-.sample-note__tag, .sample-tag { color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); line-height: var(--lh-caps); text-transform: uppercase; white-space: nowrap; }
-.sample-tag { border: var(--hairline) solid var(--line-strong); border-radius: var(--r-pill); padding: var(--s-1) var(--s-3); }
-
-/* The homepage status band. One hairline boundary, concise type, and no urgency: the two items sit on
-   the page's own rhythm rather than in a coloured strip. */
+/* V15-F: the .sample-note and .sample-tag rules are retired with the markers they styled. */
 /* p and h have zero margin sitewide, so a paragraph followed by an action needs the gap declared rather than
    inherited. Used where a short block is text-then-button: the past-model inventory note and the Launch
    Edition's opening. */
 .stack { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-5); }
 .stack p { max-width: var(--w-text); }
 
-.campaign-band { display: grid; grid-template-columns: 1fr; gap: var(--sf-s); border-block: var(--hairline) solid var(--line); }
-.campaign-band__item { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-1); min-width: 0; }
-.campaign-band__label { color: var(--text-primary); font-size: var(--fs-body-lg); font-weight: var(--wt-medium); }
+/* V15-B. The campaign band closes the homepage: the site's one silver field, full bleed, with the two
+   operational statements centered on it. Its color scope lives in tokens.css beside .page--studio,
+   for the same mechanical reason that scope exists at all; this file carries only the layout. */
+.campaign-band {
+  margin-top: var(--sf-l);
+  padding-block: var(--sf-l);
+}
+.campaign-band__inner { display: grid; grid-template-columns: 1fr; gap: var(--sf-m); width: min(92vw, var(--w-content)); margin-inline: auto; }
+.campaign-band__item { display: flex; flex-direction: column; align-items: center; gap: var(--s-2); min-width: 0; text-align: center; }
+.campaign-band__label { color: var(--text-primary); font-size: var(--fs-title); font-weight: var(--wt-medium); letter-spacing: -0.01em; }
 
 /* Past models on /vehicles/. Quieter than a vehicle section by construction: two compact cards in a
    grid rather than two full-bleed alternating rows. */
@@ -993,7 +992,6 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 .past-card__title a { text-decoration: none; }
 .past-card__title a:hover { text-decoration: underline; text-underline-offset: var(--s-2); }
 .past-card p { max-width: var(--w-text); font-size: var(--fs-body-sm); }
-.lineup-past { margin-top: var(--sf-m); }
 
 /* The past-model gallery. The concept gallery's shape: a photograph at the content width with its
    caption beneath, stacked. No frame, no carousel, no controls. */
@@ -1030,7 +1028,7 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 .post-card__media img, .post-card__media a { display: block; width: 100%; height: 100%; }
 .post-card__media img { object-fit: cover; transition: transform var(--dur-4) var(--ease-out); }
 .post-card__body { display: flex; min-width: 0; flex-direction: column; gap: var(--s-2); }
-.post-card__category { color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); line-height: var(--lh-caps); text-transform: uppercase; }
+/* V15: the per-card category kicker is retired; the feed presents every story the same way. */
 .post-card__title { font-size: var(--fs-display-s); }
 .post-card__link { text-decoration: none; }
 .post-card__link:hover { text-decoration: underline; text-underline-offset: var(--s-2); }
@@ -1038,7 +1036,6 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 .post-card__pending { color: var(--text-tertiary); font-size: var(--fs-caption); }
 .post-meta { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4); color: var(--text-tertiary); font-size: var(--fs-caption); }
 .post-meta__author { color: var(--text-secondary); }
-.article-header__category { color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); text-transform: uppercase; }
 .article-header__standfirst { max-width: var(--w-text); font-size: var(--fs-body-lg); }
 .article-hero { margin: 0; }
 .article-hero img { width: 100%; height: auto; border-radius: var(--r-2); }
@@ -1054,7 +1051,7 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 .record-card__title a { text-decoration: none; }
 .record-card__title a:hover { text-decoration: underline; text-underline-offset: var(--s-2); }
 .record-card__summary { max-width: var(--w-text); }
-.record-card__meta, .record-card__pending { color: var(--text-tertiary); font-size: var(--fs-caption); }
+.record-card__meta { color: var(--text-tertiary); font-size: var(--fs-caption); }
 .record-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3) var(--s-5); }
 .record-section + .record-section { margin-top: var(--sf-m); }
 .record-section h2 { margin-bottom: var(--s-4); font-size: var(--fs-display-s); }
@@ -1132,9 +1129,19 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 .locator__no-results { display: flex; flex-direction: column; gap: var(--s-4); border: var(--hairline) solid var(--line); border-radius: var(--r-2); padding: var(--card-pad); }
 .locator__map { position: relative; min-height: 20rem; overflow: hidden; border: var(--hairline) solid var(--line); border-radius: var(--r-2); background: var(--surface-1); }
 .locator__canvas { position: absolute; inset: 0; }
-.locator__map-fallback { position: absolute; inset: 0; display: grid; place-items: center; padding: var(--card-pad); }
+.locator__map-fallback { position: absolute; inset: 0; display: grid; place-items: center; }
 .locator__map-fallback[hidden] { display: none; }
-.locator__map-message { max-width: 36ch; color: var(--text-tertiary); font-size: var(--fs-body-sm); text-align: center; }
+/* V15-E. The illustrative map. Letterboxed (meet), never cropped: a projection that slices its edges
+   off is a map that can lose Phoenix on a wide pane. The letterbox is invisible because the pane's
+   own surface is the map's only background. */
+.locator__map-art { width: 100%; height: 100%; display: block; }
+.map-lines { fill: none; stroke: var(--ink-24); stroke-width: 1; }
+.map-pin__halo { fill: transparent; stroke: var(--ink-24); stroke-width: 1; transition: stroke var(--dur-2) var(--ease-out), fill var(--dur-2) var(--ease-out); }
+.map-pin__dot { fill: var(--accent); }
+.map-pin__label { fill: var(--text-secondary); font-size: 16px; font-weight: var(--wt-medium); }
+.map-pin.is-dimmed { opacity: 0.25; }
+.map-pin.is-selected .map-pin__halo { stroke: var(--accent); fill: color-mix(in srgb, var(--accent) 14%, transparent); }
+.map-pin.is-selected .map-pin__label { fill: var(--text-primary); }
 
 .dealer-card { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-3); border-top: var(--hairline) solid var(--line); padding-block: var(--sf-s); }
 .dealer-card:last-of-type { border-bottom: var(--hairline) solid var(--line); }
@@ -1161,7 +1168,8 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 }
 
 @media (min-width: 768px) {
-  .campaign-band { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sf-m); }
+  .campaign-band__inner { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .campaign-band__item + .campaign-band__item { border-left: var(--hairline) solid var(--line-strong); }
   .launch-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .locator__search { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto; align-items: end; }
 }
@@ -1172,11 +1180,18 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
      featured without a second type scale. */
   .post-card--featured { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--sf-m); align-items: center; }
   .post-card--featured .post-card__title { font-size: var(--fs-display-m); }
+  /* V15. A lone supporting story takes the featured split's shape, mirrored and a step quieter,
+     because one card in the three-column grid read as two-thirds of empty page. */
+  .post-card--wide { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: var(--sf-m); align-items: center; }
+  .post-card--wide .post-card__media { order: 2; }
+  .post-card--wide .post-card__title { font-size: var(--fs-display-s); }
   /* Roughly two fifths to three fifths, which is the proportion section 4.1 asks for, and the map is
-     sticky so it stays with the list a visitor is scrolling. */
-  .locator[data-map="google"] .locator__panes { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: var(--sf-m); align-items: start; }
-  .locator[data-map="google"] .locator__list { max-height: 42rem; overflow-y: auto; }
-  .locator[data-map="google"] .locator__map { position: sticky; top: calc(var(--header-h) + var(--s-4)); min-height: 34rem; }
+     sticky so it stays with the list a visitor is scrolling. V15-E: the two-pane layout no longer
+     depends on a Google key, because the no-key state carries the illustrative map now rather than a
+     one-line note. */
+  .locator .locator__panes { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: var(--sf-m); align-items: start; }
+  .locator .locator__list { max-height: 42rem; overflow-y: auto; }
+  .locator .locator__map { position: sticky; top: calc(var(--header-h) + var(--s-4)); min-height: 34rem; }
   .policy-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 3fr); gap: var(--sf-l); align-items: start; }
   .policy-toc { position: sticky; top: calc(var(--header-h) + var(--s-5)); }
   .policy-toc__mobile { display: none; }
@@ -1186,11 +1201,6 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 
 /* Below 1024px the two panes become one, and the mode switch decides which is shown. Driven by a data
    attribute rather than by a class on each pane, so one write to the container moves both. */
-/* No key, no two-pane layout. The list takes the whole column and the fallback panel becomes a short note
-   under it rather than a large empty box beside it. The panel stays, because it is what carries the honest
-   message and what the Map view shows on a phone. */
-.locator[data-map="none"] .locator__map { min-height: 9rem; }
-
 @media (max-width: 1023px) {
   .locator__panes[data-mode="list"] .locator__map { display: none; }
   .locator__panes[data-mode="map"] .locator__list { display: none; }

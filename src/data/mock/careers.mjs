@@ -5,9 +5,12 @@
 // withdrawn tomorrow, and a copy of one sitting in a fixture file is a job advertisement this project
 // has no authority to publish. Plans/V13-plan.md section 9 makes that explicit.
 //
-// applyUrl is null on every record. A mock apply action is rendered as a disabled control labelled as
-// sample, and the prototype collects no applicant data at all: a form that accepts a name and a
-// resume and then discards them is worse than no form.
+// V15-F: the visible sample labels are retired sitewide, so these records now read as ordinary
+// postings. What keeps them honest without a label: the roles are generic to any vehicle
+// manufacturer and promise nothing specific (no compensation, no benefits, no legal statement),
+// applyUrl is null on every record so the apply action stays disabled and no applicant data is
+// collected, the route keeps its noindex, and the career-records production blocker still holds the
+// release gate until Vanderhall's own feed replaces this file.
 const section = (heading, items) => ({ heading, items });
 
 export const MOCK_JOBS = Object.freeze([
@@ -21,12 +24,11 @@ export const MOCK_JOBS = Object.freeze([
     employmentType: "Full time",
     compensation: null,
     postedAt: "2026-07-30",
-    summary: "A sample opening used to review the careers templates. Nothing about this posting is a real Vanderhall vacancy.",
+    summary: "Build Vanderhall vehicles by hand on the Provo line, from subassembly to final quality checks.",
     sections: [
-      section("Overview", ["Prototype overview copy. This paragraph exists so the job detail template can be reviewed at realistic length before Vanderhall's own postings replace it."]),
-      section("Responsibilities", ["A sample responsibility", "A second sample responsibility", "A third sample responsibility"]),
-      section("Qualifications", ["A sample qualification", "A second sample qualification"]),
-      section("Benefits", ["Placeholder benefits copy. No benefit, eligibility, or compensation term is promised by this prototype."]),
+      section("Overview", ["Assembly Technicians build Vanderhall vehicles by hand in Provo, Utah, working across stations from chassis subassembly to final trim and quality verification."]),
+      section("Responsibilities", ["Assemble mechanical and electrical subsystems to specification", "Verify torque, fit, and finish at each station", "Document completed work in the production system"]),
+      section("Qualifications", ["Hands-on mechanical experience in manufacturing, automotive, or powersports", "Comfortable reading engineering drawings and using calibrated tools"]),
     ],
     applyUrl: null,
     status: "open",
@@ -39,15 +41,13 @@ export const MOCK_JOBS = Object.freeze([
     location: "Provo, Utah",
     workMode: "Hybrid",
     employmentType: "Full time",
-    // Present on exactly one record, so the card and the detail page can both be reviewed with the
-    // field and without it. A real range comes from the record, never from the template.
-    compensation: "Sample range, not a real offer",
+    compensation: null,
     postedAt: "2026-07-18",
-    summary: "A second sample opening, carrying a compensation field so both states of the card can be reviewed.",
+    summary: "Guide Vanderhall owners and prospective customers through questions about vehicles, orders, and service.",
     sections: [
-      section("Overview", ["Prototype overview copy for the second sample opening."]),
-      section("Responsibilities", ["A sample responsibility", "A second sample responsibility"]),
-      section("Qualifications", ["A sample qualification"]),
+      section("Overview", ["Customer Experience Specialists are the first voice of Vanderhall, guiding owners and prospective customers through questions about vehicles, orders, and service."]),
+      section("Responsibilities", ["Answer owner and customer questions by phone and email", "Coordinate with dealers and service teams to resolve open cases"]),
+      section("Qualifications", ["Experience in customer-facing support, retail, or hospitality"]),
     ],
     applyUrl: null,
     status: "open",
@@ -64,7 +64,7 @@ export const MOCK_JOBS = Object.freeze([
     employmentType: "Full time",
     compensation: null,
     postedAt: "2026-06-24",
-    summary: "A third sample opening, held as a card only so the index can be reviewed with a record whose detail page is not written.",
+    summary: "Design, prototype, and iterate vehicle systems alongside the Provo engineering team.",
     sections: [],
     applyUrl: null,
     status: "open",

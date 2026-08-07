@@ -20,13 +20,16 @@ npm run build:production  # production mode, expected to fail today
 `src/data/prototype.mjs` is open, and prints the whole list with its owner. That is the release gate. It also
 runs a stale-date check on the two campaign statements described in section 6.
 
-In prototype mode the build additionally:
+In prototype mode the build additionally adds `<meta name="robots" content="noindex, follow">` to the
+routes whose records are fictional (`/dealers/`, `/careers/` and its detail pages, `/safety/`, and
+`/santarosa/launch-edition/`). `robots.txt` still allows crawling, deliberately: a `Disallow` rule would
+stop a crawler before it could read the tag.
 
-- renders a visible `Sample content` marker on every page carrying fictional records;
-- adds `<meta name="robots" content="noindex, follow">` to the six routes whose records are fictional
-  (`/dealers/`, `/experience/`, `/blog/`, `/careers/`, `/safety/`, `/santarosa/launch-edition/`, and their
-  detail pages). `robots.txt` still allows crawling, deliberately: a `Disallow` rule would stop a crawler
-  before it could read the tag.
+V15 removed the visible `Sample content` markers sitewide on Owen's instruction, so **the page no longer
+tells a visitor which records are fictional**. The honesty contract is now carried entirely by this
+document, the production gate, the noindex above, and fixtures that are provably fictional by construction
+(reserved 555-01xx numbers, example.com hosts). `/experience/` and `/blog/` left the noindex set because
+their records are now the two real, previously published Vanderhall articles.
 
 ## 1. The data boundary
 
@@ -114,7 +117,9 @@ VHW_GOOGLE_MAP_ID=...     # map ID for Advanced Markers
 
 ### `contact-endpoint` (John)
 
-`FORM_ENDPOINTS.contact` is `null`, and `site.js` refuses to send when it is. The page says so in visible copy.
+`FORM_ENDPOINTS.contact` is `null`, and `site.js` refuses to send when it is. V15 removed the pre-submit
+"not connected" note; on submit the visitor sees one true sentence directing them to the inquiry address,
+and nothing is transmitted or stored.
 
 The form is `id="contact-form"`, `data-form-id="contact"`. Field names are semantic and API-neutral. The
 legacy identifiers, inspected on the legacy dealer host on 2026-08-06 **without submitting a request**, map
@@ -178,14 +183,30 @@ changes the claim.
 The page publishes no price, deposit, refundability term, delivery guarantee, allocation promise, or
 Product/Offer schema, because none was supplied.
 
-### `article-records` (Content owner)
+### `article-claim-review` (Vanderhall content/legal)
 
-`src/data/mock/articles.mjs` holds **three sample articles**, two with bodies. They deliberately say nothing
-about a vehicle: no specification, availability, price, range, competitor, market, or safety claim. The two
-legacy Brawley posts are **not** carried over in any form; their bodies contain unreviewed technical and
-market claims.
+The `article-records` blocker is resolved: `src/data/articles.mjs` now holds the **two real Vanderhall
+articles** migrated from vanderhallusa.com on Owen's instruction (the side-by-side explainer of 2025-11-12
+and the electric off-road piece of 2025-10-25), published source-faithfully under their original dates with
+their original featured images (archived with hashes in `Assets/Blog/README.md`). A CMS replaces only
+`getPosts()`/`getPost()`/`getPostRoutes()` in the adapter; the same IDs and slugs carry over.
 
-Record contract:
+What this blocker holds open is a **content and legal review of the migrated copy**, because it states
+claims the current product pages deliberately do not:
+
+- "Up to 140 miles" of range, in both articles. V13 removed that figure from every product surface as
+  unverified.
+- "Dual electric motors generate 404 horsepower", which conflicts with the site's own quad-motor
+  description (the other article says four motors).
+- 35-inch tires versus the published 18-inch wheels row, cabin dimensions, eCrab/eCrawl/eSteer operation up
+  to 15 mph, charging-network practicality, competitor comparisons, delivery in UT/AZ/MT/WY, and broad
+  maintenance/sustainability statements.
+
+The automated claim ban still proves the banned figures appear nowhere outside these two named editorial
+routes and never in Product JSON-LD. The articles are dated editorial, not the source of truth for the
+specification table; review before treating them as current marketing.
+
+Record contract (unchanged):
 
 ```js
 {
@@ -194,9 +215,9 @@ Record contract:
 }
 ```
 
-`BlogPosting` structured data may be emitted **only** once real records replace these. Mock records emit no
-schema, which the zero-JSON-LD rule in `check-content.mjs` enforces for every route except the homepage and
-the purchase page.
+Each article route emits `BlogPosting` JSON-LD with its real title, dates, author, description, URL, and
+image, asserted by `check-content.mjs`. Paragraphs and list items may carry allowlisted inline segments
+(plain text, safe links, strong, emphasis); raw CMS HTML is still rejected.
 
 ### `career-records` (Content owner)
 
@@ -204,8 +225,11 @@ the purchase page.
 and Welding Operator postings are deliberately not copied: they are current operational records that may be
 filled or withdrawn, and `check-content.mjs` fails if either title appears.
 
-`applyUrl` is `null` on every record, so the apply action renders disabled and labelled as sample. **The
-prototype collects no applicant data at all** and must not start doing so before a real destination exists.
+`applyUrl` is `null` on every record, so the apply action renders disabled with "Applications for this
+role are not open yet." **The prototype collects no applicant data at all** and must not start doing so
+before a real destination exists. V15 removed the visible sample labels, so these three fictional openings
+now read as ordinary postings; their visible copy is deliberately generic to any vehicle manufacturer and
+promises no compensation, benefit, or legal term. Replacing them with the real feed is what closes this row.
 
 `EQUAL_OPPORTUNITY_STATEMENT` is `null`. It is a legal statement, so Vanderhall supplies the sentence rather
 than this project drafting one; the detail template prints it only when it exists.
@@ -214,20 +238,22 @@ than this project drafting one; the detail template prints it only when it exist
 
 ### `safety-records` (Vanderhall safety)
 
-`src/data/mock/safety.mjs` holds **three fictional notices**. This is the strictest fixture file in the build:
+V15 changed this page's shape. With the visible sample markers retired sitewide, an **unlabelled fictional
+recall notice is the one thing on this site that could hurt someone if it were believed**, so `/safety/`
+now publishes no notice at all: it is a portal page that directs visitors to the official safety notices
+portal and to Contact. It makes no claim of absence in either direction, because only the authoritative
+system can make that determination, and real live notices exist.
 
-- Every record says `Sample notice` on the page and states in its own body that it describes no hazard.
-- Subjects are deliberately uninformative. A sample notice should be useless as safety information.
-- Vanderhall's live accelerator, tie-rod, rear-steer, and electrical-shock notices are **not** adapted,
-  paraphrased, or used as templates. `check-content.mjs` fails on any of those subject words.
-- The index does **not** say "no active recalls". It says no notices are available from the connected source,
-  because only the authoritative system can make that determination.
+The three fictional records remain in `src/data/mock/safety.mjs` and the card, list, and detail templates
+remain in the codebase, unreferenced. Connecting the real safety source through
+`getSafetyNotices()`/`getSafetyNoticeRoutes()` and rendering the list again is what closes this row. The
+old fixture rules still stand for that work: Vanderhall's live accelerator, tie-rod, rear-steer, and
+electrical-shock notices are **not** adapted as placeholders (`check-content.mjs` fails on those subject
+words), and the contract needs a **freshness timestamp**, a stable notice ID, a status, **revision
+handling**, and a source URL.
 
-Production must fetch from or be generated from the authoritative safety system. The contract needs a
-**freshness timestamp**, a stable notice ID, a status, **revision handling**, and a source URL.
-
-The official portal (`https://portal.vanderhallusa.com/safety_notices`) stays linked from `/safety/` and from
-each notice as a clearly labelled fallback until parity and working detail routes are verified. (Q-V13-10)
+The official portal (`https://portal.vanderhallusa.com/safety_notices`) is the page's primary action until
+parity and working detail routes are verified. (Q-V13-10)
 
 ### `privacy-copy` (Vanderhall legal)
 
@@ -235,8 +261,9 @@ each notice as a clearly labelled fallback until parity and working detail route
 redesigns the reading experience around it and changes not one word.
 
 Several passages describe the old WordPress site: Google AdSense, cookies, a shopping cart, and card payments
-this site does not have. The page states in visible copy that its structure is a prototype and that approved
-legal copy is required before publication.
+this site does not have. V15 removed the visible prototype label, so nothing on the page itself warns that
+the copy is stale; this row and the production gate are the only remaining record of that, which makes
+supplying current approved copy more urgent, not less.
 
 `effectiveAt` and `updatedAt` are `null` because Vanderhall's page publishes neither, and inventing a policy
 date would be a legal claim. The header prints each only when the record carries one.

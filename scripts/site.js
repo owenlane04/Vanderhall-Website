@@ -366,10 +366,10 @@ document.querySelectorAll("[data-marquee]").forEach((band) => {
   }, { threshold: steps }).observe(band);
 });
 
-// Ambient video. V10 shipped three loops; V11-A left one; the V13 film replaces it and does not
-// loop: it plays once from the 25-second action start and settles on its final frame, the close
-// front view, because Plans/V13-plan.md 7.7 prefers a hold over an obvious loop jump back to the
-// action. It is silent, and it carries no src attribute in the markup, only data-src. That is the
+// Ambient video. V10 shipped three loops; V11-A left one; the V13 film replaced it; and V15-A loops
+// the film, per Owen on 2026-08-06: "make sure that it never stops." The cut from the 59.5-second
+// close front view back to the 25-second rock ledge is accepted as the cost of continuous motion.
+// It is silent, and it carries no src attribute in the markup, only data-src. That is the
 // load gate rather than a convention: a visitor who is not eligible for video, or who has no
 // JavaScript, cannot request a byte of it, because there is nothing for the parser to fetch. This
 // file itself runs after the load event, so no video can compete with the poster, the stylesheet or
@@ -442,14 +442,14 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches
       label();
     });
 
-    // A finished film stays finished. play() on an ended element seeks back to the start, so without
-    // this guard, scrolling away and back or switching tabs would replay the film from the action
-    // start, and "one play followed by a hold" would quietly become a loop with extra steps. Only
-    // the visitor's own press of the control restarts it.
+    // V15-A: the film loops, so there is no finished state to protect and the V13 "a finished film
+    // stays finished" guards are gone. Scrolling away and tab-switching still pause it (a film
+    // nobody can see should not spend battery); returning resumes it unless the visitor pressed
+    // Pause, and the loop attribute keeps it moving for as long as the page is open.
     new IntersectionObserver((entries) => {
       for (const entry of entries) {
         inView = entry.isIntersecting;
-        if (inView && !chosenPause && !video.ended && document.visibilityState === "visible") play();
+        if (inView && !chosenPause && document.visibilityState === "visible") play();
         else if (!inView) stop();
       }
       // rootMargin gives a below-fold block a moment to fetch before it arrives, so it is moving by
@@ -458,7 +458,7 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches
 
     document.addEventListener("visibilitychange", () => {
       if (document.visibilityState !== "visible") stop();
-      else if (inView && !chosenPause && !video.ended) play();
+      else if (inView && !chosenPause) play();
     });
   });
 }
@@ -520,7 +520,9 @@ document.querySelectorAll("[data-site-form]").forEach((form) => {
     summary.hidden = true;
     const status = form.querySelector(".form-status");
     if (!form.dataset.endpoint) {
-      status.textContent = "This form is not connected yet. Your information was not sent.";
+      // V15-F: one true sentence, with no scaffolding language. The form has no endpoint, so nothing
+      // was transmitted; saying anything softer would be pretending a message was delivered.
+      status.textContent = "Online submissions are not open yet. Email inquiry@vanderhall.com and the team will follow up.";
       status.focus();
       return;
     }
@@ -687,6 +689,9 @@ document.querySelectorAll("[data-locator]").forEach((locator) => {
   let selected = null;
   let map = null;
   let markers = new Map();
+  // V15-E: the illustrative map's pins, one per dealer, delivered in the fallback panel's SVG. They
+  // follow the list's filtering and selection so the drawing never disagrees with the cards.
+  const pins = new Map([...locator.querySelectorAll("[data-dealer-pin]")].map((pin) => [pin.dataset.dealerPin, pin]));
 
   // Great-circle distance, in miles. The mock adapter computes it here from the record's own coordinates; a
   // production adapter may return results pre-sorted and this becomes a display of what it sent.
@@ -739,6 +744,7 @@ document.querySelectorAll("[data-locator]").forEach((locator) => {
     }
     count.textContent = `${visible.length} ${visible.length === 1 ? "dealer" : "dealers"}`;
     noResults.hidden = visible.length > 0;
+    for (const [slug, pin] of pins) pin.classList.toggle("is-dimmed", !visibleSlugs.has(slug));
     if (map) fitMarkers(visible);
     return visible;
   };
@@ -751,6 +757,7 @@ document.querySelectorAll("[data-locator]").forEach((locator) => {
       card.scrollIntoView({ block: "nearest", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
       card.focus({ preventScroll: true });
     }
+    for (const [key, pin] of pins) pin.classList.toggle("is-selected", key === slug);
     const marker = markers.get(slug);
     if (marker && map) {
       // Panned to, never continuously re-zoomed: moving the camera every time focus passes through the list

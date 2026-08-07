@@ -7,11 +7,11 @@ import { heroFilm } from "./data/video.mjs";
 import { INQUIRY_EMAIL } from "./data/forms.mjs";
 import { assertProductionReady, IS_PROTOTYPE, PRODUCTION_BLOCKERS } from "./data/prototype.mjs";
 import { campaignReviewFailures, campaignStatement } from "./data/mock/campaign.mjs";
-import { CONTACT_PROTOTYPE_RESULT } from "./data/mock/contact.mjs";
 import {
   applyAction,
   articleHeader,
   backLink,
+  blogPostingSchema,
   BRAND,
   buttonLink,
   campaignBand,
@@ -44,10 +44,6 @@ import {
   prose,
   recommendDealerForm,
   relatedPosts,
-  safetyCard,
-  sampleNote,
-  sampleNoticeTag,
-  sampleTag,
   sectionHeading,
   shell,
   sizeOf,
@@ -71,8 +67,6 @@ import {
   getPosts,
   getPrivacyPolicy,
   getSafetyFallbackUrl,
-  getSafetyNoticeRoutes,
-  getSafetyNotices,
   getSantarosaLaunchCampaign,
 } from "./data/adapters.mjs";
 
@@ -148,8 +142,10 @@ const modelPage = (model) => {
   const secondary = model.slug === "santarosa"
     ? buttonLink("View Launch Edition", "/santarosa/launch-edition/", "ghost-inverse")
     : "";
+  // V15-H, Owen on 2026-08-06, on the Brawley hero's "electric · 4x4": "Take that away. We don't
+  // need a ton of little text." The powertrain eyebrow is gone from all four model heroes; the
+  // descriptor sentence directly below the name already says it in real words.
   const heroContent = `${backLink(PARENTS[model.slug])}
-      ${eyebrow(`${model.powertrain.fuel} · ${model.powertrain.layout}`)}
       ${modelHeadline(model.name, { level: 1, pastModel: model.pastModel })}
       <p class="hero__descriptor">${model.descriptor}</p>
       <div class="hero__actions">${buttonLink(cta.label, cta.href, "inverse")}${secondary}</div>`;
@@ -193,7 +189,8 @@ const brawleyGtsPage = (model) => {
         ${backLink(PARENTS["brawley/gts"])}
         <div class="gts-open__row">
           <div class="gts-open__intro">
-            ${eyebrow("ELECTRIC OFF-ROAD UTV")}
+            ${/* V15-H: the ELECTRIC OFF-ROAD UTV eyebrow repeated the descriptor directly beneath the
+                  name, which is the same duplication V10 retired from the pageHeader eyebrows. */""}
             <h1>${gts.name}</h1>
             <p class="gts-open__descriptor">${gts.descriptor}</p>
           </div>
@@ -257,23 +254,26 @@ const homePage = () => {
         content: heroContent,
         video: heroFilm,
       })}
-    ${/* V13-E. Two operational statements directly after the hero and before the lineup, Brawley first.
-          Both are read from the campaign data, so this band and the Launch Edition page can never disagree
-          about which phase the campaign is in. */
-      campaignBand(getBrawleyDeliveryStatus(), getSantarosaLaunchCampaign())}
     <section class="section" id="vehicles">
       ${sectionHeading("VEHICLES", "The Vanderhall lineup.")}
-      ${/* V13-D. Current models only, per Q-V13-9. Carmel and Venice keep their routes, their footer links,
-            their sitemap entries and their owner manuals; what they lose is equal billing in the lineup, and
-            one quiet link below carries a visitor who wants them. */""}
-      <div class="vehicle-scroll">${currentModels.map((model, index) => vehicleSection(model, { index, copy: model.summary, scope })).join("")}</div>
-      <p class="lineup-past">${textLink("Past models", "/vehicles/#past-models")}</p>
+      ${/* V15-C, Owen on 2026-08-06: all four models on the homepage, current first, and the two past
+            models carry the Past model tag beside the name (vehicleSection reads the record's own
+            pastModel flag). Each past model shows only its descriptive summary sentence: a gallery
+            model publishes no figure, so nothing here can disagree with the inverse
+            HISTORICAL_SPECS rule. The V13 "Past models" link below the lineup is retired with the
+            absence it compensated for. */""}
+      <div class="vehicle-scroll">${[...currentModels, ...pastModels].map((model, index) => vehicleSection(model, { index, copy: model.summary, scope })).join("")}</div>
       ${scope.notes()}
     </section>
     <section class="section split split--media-first">
       <div class="split__body">${sectionHeading(null, "Concepts")}<p>Nine Vanderhall concept vehicles. They are not offered for sale.</p><div class="cluster">${buttonLink("View concepts", "/concepts/", "secondary")}</div></div>
       <a class="split__media" href="/concepts/"><img src="${indio.hero.src}" srcset="${indio.hero.srcset}" width="${sizeOf(indio.hero.src).width}" height="${sizeOf(indio.hero.src).height}" sizes="(min-width: 768px) 45vw, 92vw" alt="${indio.hero.alt}" loading="lazy" decoding="async"></a>
     </section>
+    ${/* V15-B. The campaign band closes the page: the two operational statements, centered on the
+          site's one silver field, after everything the visitor came to see. Both statements still read
+          from the campaign data, so this band and the Launch Edition page can never disagree about
+          which phase the campaign is in. */
+      campaignBand(getBrawleyDeliveryStatus(), getSantarosaLaunchCampaign())}
   </div>`;
   return shell({ title: "Home", description: "Vanderhall builds handcrafted electric UTVs, side-by-sides, and three-wheeled autocycles.", path: "/", body, schema: organizationSchema() });
 };
@@ -344,7 +344,6 @@ const dealersPage = () => {
   const body = `<div class="page">
     ${pageHeader("Find a Vanderhall dealer.", "Search by city or postal code to find dealers and services near you.", "", PARENTS.dealers)}
     <section class="section--tight">
-      ${sampleNote("Sample content. These six dealers are fictional records for layout review, with reserved telephone numbers and example.com websites. Vanderhall's own dealer data replaces them before launch.")}
       ${dealerLocator(dealers, getDealerFilters(), MAP_ENV)}
     </section>
   </div>`;
@@ -357,7 +356,6 @@ const contactPage = () => {
     ${pageHeader("Contact Vanderhall.", "Choose a request type and tell us how we can help. Your answers will guide your request to the right team.", "form-shell", PARENTS.contact)}
     <section class="section--tight form-shell form-stack">
       ${contactForm()}
-      <p class="form-note">${escapeHtml(CONTACT_PROTOTYPE_RESULT)}</p>
       <p class="form-note">Prefer email? Write to <a href="mailto:${INQUIRY_EMAIL}">${INQUIRY_EMAIL}</a>.</p>
     </section>
   </div>`;
@@ -382,7 +380,6 @@ const experiencePage = () => {
   const byId = new Map(posts.map((post) => [post.id, post]));
   const body = `<div class="page">
     ${pageHeader("The Vanderhall experience.", "Stories, updates, and moments from the world of Vanderhall.", "", PARENTS.experience)}
-    <section class="section--tight">${sampleNote()}</section>
     ${experienceModules(getExperienceModules(), { byId })}
   </div>`;
   return shell({ title: "Experience", description: "Stories, updates, and moments from the world of Vanderhall.", path: "/experience", body });
@@ -393,10 +390,11 @@ const blogPage = () => {
   const [featured, ...rest] = posts;
   const body = `<div class="page">
     ${pageHeader("Blog", "News, stories, and updates from Vanderhall.", "", PARENTS.blog)}
-    <section class="section--tight">${sampleNote()}</section>
     ${featured
       ? `<section class="section--tight">${postCard(featured, { featured: true, level: 2, linkable: Boolean(featured.bodyBlocks?.length) })}</section>
-        ${rest.length ? `<section class="section"><div class="card-grid card-grid--posts">${rest.map((post) => postCard(post, { level: 2, linkable: Boolean(post.bodyBlocks?.length) })).join("")}</div></section>` : ""}`
+        ${rest.length === 1
+          ? `<section class="section--tight">${postCard(rest[0], { wide: true, level: 2, linkable: Boolean(rest[0].bodyBlocks?.length) })}</section>`
+          : rest.length ? `<section class="section"><div class="card-grid card-grid--posts">${rest.map((post) => postCard(post, { level: 2, linkable: Boolean(post.bodyBlocks?.length) })).join("")}</div></section>` : ""}`
       : `<section class="section">${emptyState("No stories have been published yet.")}</section>`}
   </div>`;
   return shell({ title: "Blog", description: "News, stories, and updates from Vanderhall.", path: "/blog", body });
@@ -406,7 +404,6 @@ const articlePage = (post) => {
   const related = (post.relatedSlugs || []).map((slug) => getPost(slug)).filter(Boolean).slice(0, 2);
   const body = `<div class="page">
     ${articleHeader(post, PARENTS.article)}
-    <section class="section--tight">${sampleNote()}</section>
     ${post.hero ? `<section class="section--tight"><figure class="article-hero"><img src="${post.hero.src}" srcset="${post.hero.srcset}" width="${sizeOf(post.hero.src).width}" height="${sizeOf(post.hero.src).height}" sizes="(min-width: 1280px) 1200px, 92vw" alt="${escapeHtml(post.hero.alt)}" loading="eager" fetchpriority="high" decoding="async"></figure></section>` : ""}
     <section class="section--tight narrow">${prose(post.bodyBlocks)}</section>
     ${relatedPosts(related)}
@@ -415,7 +412,7 @@ const articlePage = (post) => {
       <div class="cluster">${buttonLink("Contact Us", "/contact/", "secondary")}${buttonLink("Explore vehicles", "/vehicles/", "secondary")}</div>
     </section>
   </div>`;
-  return shell({ title: post.title, description: post.seo?.description || post.excerpt, path: `/blog/${post.slug}`, body });
+  return shell({ title: post.title, description: post.seo?.description || post.excerpt, path: `/blog/${post.slug}`, body, schema: blogPostingSchema(post) });
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -426,7 +423,6 @@ const careersPage = () => {
   const routed = new Set(getJobRoutes().map((job) => job.slug));
   const body = `<div class="page">
     ${pageHeader("Careers", "Explore current opportunities with Vanderhall.", "", PARENTS.careers)}
-    <section class="section--tight">${sampleNote("Sample content. These three openings are fictional records for layout review and are not Vanderhall vacancies. The real careers feed replaces them before launch.")}</section>
     <section class="section">
       ${jobs.length
         ? `<div class="record-list">${jobs.map((job) => jobCard(job, { linkable: routed.has(job.slug) })).join("")}</div>`
@@ -443,12 +439,10 @@ const careerPage = (job) => {
       ${backLink(PARENTS.career)}
       <div class="record-head">
         <h1>${escapeHtml(job.title)}</h1>
-        ${sampleTag()}
       </div>
       <p>${escapeHtml(job.summary)}</p>
     </header>
     <section class="section--tight narrow">
-      ${sampleNote("Sample content. This posting is a fictional record for layout review and is not a Vanderhall vacancy.")}
       <ul class="fact-row fact-row--detail">
         <li>${escapeHtml(job.department)}</li>
         <li>${escapeHtml(job.location)}</li>
@@ -466,54 +460,25 @@ const careerPage = (job) => {
 };
 
 // ---------------------------------------------------------------------------------------------
-// V13. Safety notices.
+// V13. Safety notices. V15-D-V15-7: the portal state.
 // ---------------------------------------------------------------------------------------------
+// With the visible sample markers retired sitewide, the three fictional notices could not stay: an
+// unlabelled fictional recall notice is the one thing on this site that could hurt someone if it
+// were believed, and V13's own rules forbid both adapting a real notice and claiming "no active
+// recalls" (real live notices exist for these vehicles). So the page publishes no notice at all and
+// directs visitors to the official portal, which was already its authoritative fallback. It makes
+// no claim of absence: the copy says where notices are published, not that none exist. The notice
+// list, the cards, and the detail template return unchanged when John connects the real safety
+// source; the `safety-records` blocker stays open and INTEGRATION.md documents the return path.
 const safetyPage = () => {
-  const notices = getSafetyNotices();
-  const routed = new Set(getSafetyNoticeRoutes().map((notice) => notice.slug));
   const body = `<div class="page">
-    ${pageHeader("Safety notices", "Review safety notices and supporting information from Vanderhall's authoritative safety source.", "", PARENTS.safety)}
-    <section class="section--tight">
-      ${sampleNote("Sample content. Every notice below is fictional and describes no hazard. Vanderhall's authoritative safety source is not connected yet, so use the official portal for real notices.")}
-      <p class="record-fallback">${textLink("Vanderhall safety notices portal", getSafetyFallbackUrl())}</p>
-    </section>
-    <section class="section">
-      ${notices.length
-        ? `<div class="record-list">${notices.map((notice) => safetyCard(notice, { linkable: routed.has(notice.slug) })).join("")}</div>`
-        : emptyState("No notices are available from the connected source.")}
+    ${pageHeader("Safety notices", "Safety and recall information for Vanderhall vehicles.", "", PARENTS.safety)}
+    <section class="section--tight narrow stack">
+      <p class="lede">Vanderhall publishes safety notices and recall information through the official portal below. Check it for current notices affecting your vehicle, and contact your dealer with any safety question.</p>
+      <div class="cluster">${buttonLink("Search the safety notices portal", getSafetyFallbackUrl())}${buttonLink("Contact Us", "/contact/", "secondary")}</div>
     </section>
   </div>`;
-  return shell({ title: "Safety notices", description: "Vanderhall safety notices and supporting information.", path: "/safety", body });
-};
-
-const safetyNoticePage = (notice) => {
-  const body = `<div class="page">
-    <header class="page-header page-header--marked">
-      ${backLink(PARENTS.notice)}
-      <div class="record-head">
-        <h1>${escapeHtml(notice.title)}</h1>
-        ${sampleNoticeTag()}
-      </div>
-      <p>${escapeHtml(notice.hazardSummary)}</p>
-    </header>
-    <section class="section--tight narrow">
-      ${sampleNote("Sample content. This notice is fictional, describes no hazard, and must not be acted on. Use the official Vanderhall safety portal for real notices.")}
-      <dl class="notice-facts notice-facts--detail">
-        <dt>Notice</dt><dd>${escapeHtml(notice.id)}</dd>
-        <dt>Status</dt><dd>${escapeHtml(notice.status)}</dd>
-        <dt>Posted</dt><dd><time datetime="${notice.postedAt}">${escapeHtml(formatDate(notice.postedAt))}</time></dd>
-        ${notice.revisedAt ? `<dt>Revised</dt><dd><time datetime="${notice.revisedAt}">${escapeHtml(formatDate(notice.revisedAt))}</time></dd>` : ""}
-        <dt>Affected</dt><dd>${notice.affectedProducts.map((product) => escapeHtml(product)).join(", ")}</dd>
-        <dt>Remedy</dt><dd>${escapeHtml(notice.remedySummary)}</dd>
-        <dt>What to do</dt><dd>${escapeHtml(notice.consumerAction)}</dd>
-      </dl>
-    </section>
-    <section class="section--tight narrow">${prose(notice.bodyBlocks)}</section>
-    <section class="section--tight narrow">
-      <p class="record-fallback">${textLink("Vanderhall safety notices portal", getSafetyFallbackUrl())}</p>
-    </section>
-  </div>`;
-  return shell({ title: notice.title, description: `${notice.title}. Sample Vanderhall safety notice used for layout review.`, path: `/safety/${notice.slug}`, body });
+  return shell({ title: "Safety notices", description: "Safety and recall information for Vanderhall vehicles.", path: "/safety", body });
 };
 
 // ---------------------------------------------------------------------------------------------
@@ -541,11 +506,9 @@ const launchEditionPage = () => {
           strongest. */""}
     ${hero({ src: santarosa.images.hero, srcset: santarosa.images.heroSrcset, tallSrcset: santarosa.images.heroTallSrcset, alt: santarosa.images.heroAlt, focal: santarosa.images.focal, content: heroContent })}
     <section class="section--tight narrow stack">
-      ${/* The marker here says something different from the one on /dealers/ and /careers/, and the difference
-            is the point: no record on this page is fictional. Every fact came from Owen's boss on 2026-08-06.
-            What is unapproved is the wording around them, the consent language, and the campaign state, so the
-            note says that rather than claiming the vehicle is a sample. */
-        sampleNote("Prototype copy. The Launch Edition facts on this page are real; the wording, the consent language, and the campaign state are pending approval, and the registration form is not connected.")}
+      ${/* V15-F: the Prototype copy marker is gone with the rest of the scaffolding language. Every
+            fact on this page came from Owen's boss on 2026-08-06; the wording, consent language, and
+            campaign state are still pending approval, and the launch-copy blocker holds the gate. */""}
       <p class="lede">A new chapter is about to begin.</p>
       <p>The Santarosa Launch Edition will be limited to just ${campaign.totalUnits} individually numbered vehicles. Each will be built with exclusive features available only on this inaugural edition.</p>
     </section>
@@ -575,7 +538,9 @@ const launchEditionPage = () => {
             reservation destination exists. */""}
       <p class="launch-state">${escapeHtml(statement.label)}</p>
       ${launchInterestForm()}
-      <p class="form-note">This registration is not connected yet, so nothing you enter is sent, stored, or forwarded. Registering does not create a reservation, assign a number, hold a build slot, or guarantee availability.</p>
+      ${/* V15-F: the "not connected" sentence is gone with the rest of the scaffolding language. The
+            one fact a registrant must not misread stays, because it is true of the real campaign too. */""}
+      <p class="form-note">Registering your interest does not create a reservation, assign a number, hold a build slot, or guarantee availability.</p>
     </section>
     <section class="section--tight narrow">
       <div class="disclosures">
@@ -610,12 +575,9 @@ const privacyPage = () => {
     </section>`).join("");
   const body = `<div class="page">
     ${policyHeader(policy, PARENTS.privacy)}
-    <section class="section--tight narrow">
-      ${/* The label is the honest state of this page. Vanderhall's own text is reproduced verbatim, and
-            several passages of it describe the old WordPress site: advertising, cookies, a cart, and card
-            payments this site does not have. A polished layout does not approve stale copy. */""}
-      <p class="sample-note"><span class="sample-note__tag">Prototype</span>Prototype policy structure. Approved legal copy is required before publication.</p>
-    </section>
+    ${/* V15-F: the visible Prototype label is gone with the rest of the scaffolding language. The
+          text below is still Vanderhall's own verbatim policy, stale rather than fabricated, and the
+          privacy-copy production blocker still holds the release gate until legal replaces it. */""}
     <section class="section--tight policy-layout">
       ${policyContents(policy)}
       <div class="policy">${sections}</div>
@@ -701,7 +663,6 @@ const ownersPage = () => {
 
 const postRoutes = getPostRoutes();
 const jobRoutes = getJobRoutes();
-const noticeRoutes = getSafetyNoticeRoutes();
 
 const routes = [
   "",
@@ -720,7 +681,6 @@ const routes = [
   "careers",
   ...jobRoutes.map((job) => `careers/${job.slug}`),
   "safety",
-  ...noticeRoutes.map((notice) => `safety/${notice.slug}`),
   "recommend-dealer",
   "dealer-inquiry",
   "privacy",
@@ -739,7 +699,6 @@ const pages = new Map([
   ["careers/index.html", careersPage()],
   ...jobRoutes.map((job) => [`careers/${job.slug}/index.html`, careerPage(job)]),
   ["safety/index.html", safetyPage()],
-  ...noticeRoutes.map((notice) => [`safety/${notice.slug}/index.html`, safetyNoticePage(notice)]),
   ["owners/index.html", ownersPage()],
   ["recommend-dealer/index.html", recommendDealerPage()],
   ["dealer-inquiry/index.html", dealerInquiryPage()],
@@ -775,4 +734,4 @@ await writeFile(resolve(websiteRoot, "site.webmanifest"), JSON.stringify({ name:
 await writeFile(resolve(websiteRoot, "sitemap.xml"), `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${routes.map((route) => `<url><loc>https://vanderhall-website.vercel.app/${route ? `${route}/` : ""}</loc></url>`).join("")}</urlset>`);
 
 console.log(`Built ${pages.size} HTML pages across ${routes.length} routes in ${IS_PROTOTYPE ? "prototype" : "production"} mode.`);
-if (IS_PROTOTYPE) console.log(`Prototype mode: ${PRODUCTION_BLOCKERS.length} production blockers open, and the six mock-data routes carry a noindex. See INTEGRATION.md.`);
+if (IS_PROTOTYPE) console.log(`Prototype mode: ${PRODUCTION_BLOCKERS.length} production blockers open, and the mock-data routes carry a noindex. See INTEGRATION.md.`);

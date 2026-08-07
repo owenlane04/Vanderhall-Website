@@ -70,4 +70,3 @@ export const CONTACT_TIMEFRAMES = Object.freeze(["Ready now", "1 to 3 months", "
 // never throws, which is what section 6.3 requires of a stale link.
 export const CONTACT_CATEGORY_VALUES = Object.freeze(CONTACT_CATEGORIES.map((category) => category.value));
 
-export const CONTACT_PROTOTYPE_RESULT = "This is a design preview. Your information was not sent.";

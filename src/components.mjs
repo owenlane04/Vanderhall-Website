@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { currentModels, models, pastModels } from "./data/models.mjs";
 import { COUNTRIES, FORM_ENDPOINTS, INQUIRY_EMAIL, US_REGIONS } from "./data/forms.mjs";
 import { FOOTNOTE_SYMBOLS, footnoteText } from "./data/footnotes.mjs";
-import { IS_PROTOTYPE, SAMPLE_LABEL, SAMPLE_NOTICE_LABEL, SAMPLE_SENTENCE } from "./data/prototype.mjs";
+import { IS_PROTOTYPE } from "./data/prototype.mjs";
 import { CONTACT_CATEGORIES, CONTACT_TIMEFRAMES } from "./data/mock/contact.mjs";
 import { campaignStatement } from "./data/mock/campaign.mjs";
 import { formatDate } from "./data/adapters.mjs";
@@ -81,14 +81,12 @@ export const footnoteScope = () => {
   return { mark, notes, get used() { return order.length; } };
 };
 
-// The visible sample marker on mock operational content. Rendered from the prototype flag rather than
-// hard-coded, so a production build drops it in the same edit that clears the blocker.
-export const sampleNote = (sentence = SAMPLE_SENTENCE) => (IS_PROTOTYPE
-  ? `<p class="sample-note"><span class="sample-note__tag">${escapeHtml(SAMPLE_LABEL)}</span>${escapeHtml(sentence)}</p>`
-  : "");
-
-export const sampleTag = (label = SAMPLE_LABEL) => (IS_PROTOTYPE ? `<span class="sample-tag">${escapeHtml(label)}</span>` : "");
-export const sampleNoticeTag = () => sampleTag(SAMPLE_NOTICE_LABEL);
+// V15-F: the visible sample markers are retired sitewide on Owen's instruction. The honesty they
+// carried now rests entirely on the other two layers, which do not print: the production gate in
+// src/data/prototype.mjs still refuses a production build while any blocker is open, and the
+// remaining fixtures stay provably fictional by construction (reserved 555-01xx numbers,
+// example.com hosts). check-content asserts the marker classes and their sentences appear in zero
+// delivered files, the inverse of the V13 rule.
 
 export const buttonLink = (label, href, variant = "primary") => `<a class="button button--${variant}" href="${href}">${escapeHtml(label)}</a>`;
 
@@ -374,7 +372,7 @@ const videoSources = ({ webm, mp4 }) => `<source data-src="${webm}" type="video/
 const videoToggle = (className) => `<button class="${className}" type="button" data-ambient-toggle hidden>Pause</button>`;
 
 export const hero = ({ src, srcset, tallSrcset, alt, focal, align = "", content, width = 1920, height = 823, video = null }) => `<section class="hero bleed${align === "end" ? " hero--content-end" : ""}" style="--hero-focal:${focal}"${video ? " data-ambient" : ""}>
-    <div class="hero__media"><picture>${tallSrcset ? `<source media="(max-width: 767px)" srcset="${tallSrcset}" sizes="100vw">` : ""}<img class="hero__image" src="${src}" srcset="${srcset}" sizes="100vw" width="${width}" height="${height}" alt="${escapeHtml(alt)}" loading="eager" fetchpriority="high" decoding="async"></picture>${video ? `<video class="hero__video" muted playsinline preload="none" tabindex="-1" aria-hidden="true" data-ambient-video>${videoSources(video)}</video>` : ""}</div>
+    <div class="hero__media"><picture>${tallSrcset ? `<source media="(max-width: 767px)" srcset="${tallSrcset}" sizes="100vw">` : ""}<img class="hero__image" src="${src}" srcset="${srcset}" sizes="100vw" width="${width}" height="${height}" alt="${escapeHtml(alt)}" loading="eager" fetchpriority="high" decoding="async"></picture>${video ? `<video class="hero__video" muted playsinline loop preload="none" tabindex="-1" aria-hidden="true" data-ambient-video>${videoSources(video)}</video>` : ""}</div>
     <div class="hero__scrim" aria-hidden="true"></div>
     <div class="hero__content">${content}</div>
     ${video ? `<div class="hero__bar">${videoToggle("hero__toggle")}</div>` : ""}
@@ -427,8 +425,10 @@ const integrationFields = (formId, submitLabel) => `
   <input type="hidden" name="form_id" value="${formId}">
   <input type="hidden" name="page" value="">
   <div class="form-submit-row"><button class="button button--primary" type="submit" data-submit-label="${submitLabel}">${submitLabel}</button></div>
-  <p class="form-status" tabindex="-1" aria-live="polite"></p>
-  <p class="form-note">This form is not connected yet, so nothing you enter here is sent.</p>`;
+  ${/* V15-F: the pre-submit "not connected" note is gone. The form still transmits nothing; on
+        submit, site.js answers with one true sentence directing the visitor to the inquiry address,
+        so nobody's message silently disappears and nothing pretends to have sent. */""}
+  <p class="form-status" tabindex="-1" aria-live="polite"></p>`;
 
 const formOpen = (id, formId) => `<form class="lead-form" id="${id}" novalidate data-site-form data-form-id="${formId}" data-endpoint="${FORM_ENDPOINTS[formId] || ""}">
   <p class="form-key">Fields marked * are required.</p>
@@ -710,8 +710,9 @@ export const LEGAL_LINKS = [
 //    for, which is a tradeoff he made knowingly.
 export const footer = () => `<footer class="site-footer">
   <div class="footer-links">
-    <div><h2>Vehicles</h2>${models.map((model) => `<a href="/${model.slug}/">${model.name}</a>`).join("")}<a href="/concepts/">Concepts</a></div>
-    <div><h2>Experience</h2><a href="/experience/">Experience</a><a href="/blog/">Blog</a></div>
+    ${/* V15-G, Owen on 2026-08-06: four columns exactly. Experience folds into the Vehicles column
+          under Concepts, and Blog leaves the footer entirely because the blog is part of Experience. */""}
+    <div><h2>Vehicles</h2>${models.map((model) => `<a href="/${model.slug}/">${model.name}</a>`).join("")}<a href="/concepts/">Concepts</a><a href="/experience/">Experience</a></div>
     <div><h2>Owners</h2><a href="/owners/">Owner manuals</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a>${APP_LINKS.map(([label, href]) => `<a href="${href}">${escapeHtml(label)}</a>`).join("")}</div>
     <div><h2>Connect</h2><a href="/dealers/">Dealers</a><a href="/contact/">Contact</a><a class="footer-email" href="mailto:${INQUIRY_EMAIL}">${escapeHtml(INQUIRY_EMAIL)}</a><a href="/recommend-dealer/">Recommend a dealer</a><a href="/dealer-inquiry/">Become a dealer</a></div>
     <div class="footer-follow"><h2>Follow</h2>${SOCIAL_LINKS.map(([label, href]) => `<a href="${href}" aria-label="${BRAND} on ${escapeHtml(label)}">${escapeHtml(label)}</a>`).join("")}</div>
@@ -793,6 +794,23 @@ export const productSchema = (model) => {
   });
 };
 
+// V15, folding in V14. BlogPosting markup for the two migrated articles. Every value restates
+// visible page text or the record's own provenance: real title, real dates, real author, and the
+// article's delivered hero image. The publisher is the Organization node the homepage declares.
+export const blogPostingSchema = (post) => jsonLd({
+  "@context": "https://schema.org",
+  "@type": "BlogPosting",
+  headline: post.title,
+  description: post.seo?.description || post.excerpt,
+  url: `${SITE_URL}/blog/${post.slug}/`,
+  mainEntityOfPage: `${SITE_URL}/blog/${post.slug}/`,
+  datePublished: post.publishedAt,
+  ...(post.updatedAt ? { dateModified: post.updatedAt } : {}),
+  author: { "@type": "Organization", name: post.author },
+  publisher: { "@id": `${SITE_URL}/#organization` },
+  ...(post.hero ? { image: `${SITE_URL}${post.hero.src}` } : {}),
+});
+
 // mainClass carries the V11-E studio scope, and it goes on <main> rather than on .page for one
 // mechanical reason: .page is capped at --w-page and centred, so a white field declared there would
 // leave dark bands down both sides of a 1600px viewport. main is full width. The header and the
@@ -810,7 +828,9 @@ export const productSchema = (model) => {
 // Vanderhall's own text, stale rather than fabricated. robots.txt still allows crawling everywhere, because a
 // Disallow rule would stop a crawler before it could read the tag, which is the classic way to leave a page
 // indexed while believing it is hidden.
-const NOINDEX_ROUTES = ["/dealers", "/experience", "/blog", "/careers", "/safety", "/santarosa/launch-edition"];
+// V15: /experience and /blog leave the list. Their records are now the two real, previously
+// published Vanderhall articles, so there is nothing fictional left to keep out of an index.
+const NOINDEX_ROUTES = ["/dealers", "/careers", "/safety", "/santarosa/launch-edition"];
 const isNoindex = (path) => IS_PROTOTYPE && NOINDEX_ROUTES.some((route) => path === route || path.startsWith(`${route}/`));
 
 export const shell = ({ title, description, path, body, schema = "", mainClass = "" }) => `<!doctype html>
@@ -853,11 +873,27 @@ export const shell = ({ title, description, path, body, schema = "", mainClass =
 // It throws on an unknown type for the same reason the privacy renderer does: a body that silently drops a
 // block is a document that lost a paragraph without telling anybody, and a body that passes a CMS field
 // through as HTML is an injection. Nothing here accepts markup. Every string is escaped.
+//
+// V15, folding in V14: paragraphs and list items may carry inline segments so the two migrated
+// Vanderhall articles keep their links and emphasis without this model ever accepting source HTML.
+// A segment is a plain string, or {text, href} for a link, or {text, strong} / {text, emphasis}.
+// An href must be a site-internal path or https, and anything else throws rather than renders.
+const inlineSegment = (segment) => {
+  if (typeof segment === "string") return escapeHtml(segment);
+  if (segment?.href !== undefined) {
+    if (!/^(\/|https:\/\/)/.test(segment.href)) throw new Error(`Refusing an inline link href: ${segment.href}`);
+    return `<a href="${escapeHtml(segment.href)}">${escapeHtml(segment.text)}</a>`;
+  }
+  if (segment?.strong) return `<strong>${escapeHtml(segment.text)}</strong>`;
+  if (segment?.emphasis) return `<em>${escapeHtml(segment.text)}</em>`;
+  throw new Error(`Unknown inline segment shape: ${JSON.stringify(segment)}`);
+};
+const inlineText = (block) => (block.segments ? block.segments.map(inlineSegment).join("") : escapeHtml(block.text));
 const BODY_BLOCKS = {
-  p: (block) => `<p>${escapeHtml(block.text)}</p>`,
+  p: (block) => `<p>${inlineText(block)}</p>`,
   h2: (block) => `<h2>${escapeHtml(block.text)}</h2>`,
   h3: (block) => `<h3>${escapeHtml(block.text)}</h3>`,
-  ul: (block) => `<ul>${block.items.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul>`,
+  ul: (block) => `<ul>${block.items.map((item) => `<li>${Array.isArray(item) ? item.map(inlineSegment).join("") : escapeHtml(item)}</li>`).join("")}</ul>`,
   quote: (block) => `<blockquote class="prose__quote"><p>${escapeHtml(block.text)}</p>${block.attribution ? `<footer>${escapeHtml(block.attribution)}</footer>` : ""}</blockquote>`,
   image: (block) => {
     const { width, height } = sizeOf(block.src);
@@ -892,13 +928,17 @@ const postImage = (image, { sizes, eager = false }) => {
 // A card whose record has no article body links nowhere and says so, rather than offering a link into an
 // empty page. That state is not a defect to design around: it is the ordinary condition of a real archive
 // with a story in progress, and the index has to look finished with one in it.
-export const postCard = (post, { featured = false, level = 3, linkable = true } = {}) => {
+export const postCard = (post, { featured = false, wide = false, level = 3, linkable = true } = {}) => {
   const href = `/blog/${post.slug}/`;
   const title = linkable ? `<a class="post-card__link" href="${href}">${escapeHtml(post.title)}</a>` : escapeHtml(post.title);
-  return `<article class="post-card${featured ? " post-card--featured" : ""}">
-    ${post.hero ? `<div class="post-card__media">${linkable ? `<a href="${href}" tabindex="-1" aria-hidden="true">${postImage(post.hero, { sizes: featured ? "(min-width: 1024px) 60vw, 92vw" : "(min-width: 1024px) 30vw, 92vw", eager: featured })}</a>` : postImage(post.hero, { sizes: "(min-width: 1024px) 30vw, 92vw" })}</div>` : ""}
+  // V15: `wide` is the supporting story's treatment when it stands alone. A single card in the
+  // three-column grid read as two-thirds of empty page, so a lone follow-up story takes the featured
+  // split's shape, mirrored, at a quieter type size. Three or more stories take the grid as before.
+  return `<article class="post-card${featured ? " post-card--featured" : ""}${wide ? " post-card--wide" : ""}">
+    ${post.hero ? `<div class="post-card__media">${linkable ? `<a href="${href}" tabindex="-1" aria-hidden="true">${postImage(post.hero, { sizes: featured || wide ? "(min-width: 1024px) 60vw, 92vw" : "(min-width: 1024px) 30vw, 92vw", eager: featured })}</a>` : postImage(post.hero, { sizes: "(min-width: 1024px) 30vw, 92vw" })}</div>` : ""}
     <div class="post-card__body">
-      <p class="post-card__category">${escapeHtml(post.category)}</p>
+      ${/* V15: no category kicker. Owen's direction is one feed where every story presents the same
+            way, so the record keeps its category for future filtering and the card stops printing it. */""}
       <h${level} class="post-card__title">${title}</h${level}>
       <p class="post-card__excerpt">${escapeHtml(post.excerpt)}</p>
       ${postMeta(post)}
@@ -909,7 +949,8 @@ export const postCard = (post, { featured = false, level = 3, linkable = true } 
 
 export const articleHeader = (post, back) => `<header class="page-header page-header--marked article-header">
   ${backLink(back)}
-  <p class="article-header__category">${escapeHtml(post.category)}</p>
+  ${/* V15: the category kicker is gone here for the same reason it left the cards. The title, the
+        standfirst, and the meta line say everything the label said. */""}
   <h1>${escapeHtml(post.title)}</h1>
   <p class="article-header__standfirst">${escapeHtml(post.standfirst)}</p>
   ${postMeta(post)}
@@ -938,11 +979,17 @@ export const experienceModules = (modules, { byId }) => modules.map((module) => 
     if (!post) throw new Error(`Experience blog module references an unknown post: ${id}`);
     return post;
   });
+  // V15: the BLOG eyebrow is gone (the feed is one surface, not a category) and the heading takes
+  // the marked treatment instead. The archive button renders only when the module carries one,
+  // which V15 does not; see D-V15-3 in Plans/V15-plan.md.
+  const supporting = recent.length === 1
+    ? postCard(recent[0], { wide: true, level: 3, linkable: Boolean(recent[0].bodyBlocks?.length) })
+    : (recent.length ? `<div class="card-grid card-grid--posts">${recent.map((post) => postCard(post, { level: 3, linkable: Boolean(post.bodyBlocks?.length) })).join("")}</div>` : "");
   return `<section class="section experience-module">
-    ${sectionHeading("BLOG", module.heading)}
+    ${sectionHeading(null, module.heading)}
     ${postCard(featured, { featured: true, level: 3, linkable: Boolean(featured.bodyBlocks?.length) })}
-    ${recent.length ? `<div class="card-grid card-grid--posts">${recent.map((post) => postCard(post, { level: 3, linkable: Boolean(post.bodyBlocks?.length) })).join("")}</div>` : ""}
-    <div class="cluster">${buttonLink(module.archive.label, module.archive.href, "secondary")}</div>
+    ${supporting}
+    ${module.archive ? `<div class="cluster">${buttonLink(module.archive.label, module.archive.href, "secondary")}</div>` : ""}
   </section>`;
 }).join("");
 
@@ -963,12 +1010,13 @@ export const jobCard = (job, { linkable = true, level = 2 } = {}) => {
     <div class="record-card__head">
       ${/* h2 by default: on the index these are the first headings under the page title. */""}
       <h${level} class="record-card__title">${linkable ? `<a href="${href}">${escapeHtml(job.title)}</a>` : escapeHtml(job.title)}</h${level}>
-      ${sampleTag()}
     </div>
     ${jobFacts(job)}
     <p class="record-card__summary">${escapeHtml(job.summary)}</p>
     <p class="record-card__meta">Posted <time datetime="${job.postedAt}">${escapeHtml(formatDate(job.postedAt))}</time></p>
-    ${linkable ? textLink("View this role", href) : `<p class="record-card__pending">This posting has no detail page yet.</p>`}
+    ${/* V15-F: a card whose record has no detail page simply carries no action, rather than a
+          sentence explaining the archive's internals. */""}
+    ${linkable ? textLink("View this role", href) : ""}
   </article>`;
 };
 
@@ -977,7 +1025,7 @@ export const jobCard = (job, { linkable = true, level = 2 } = {}) => {
 // disabled button that says why, and the prototype has no upload, no fields, and no destination.
 export const applyAction = (job) => (job.applyUrl
   ? `<div class="cluster">${buttonLink("Apply for this role", job.applyUrl)}</div>`
-  : `<div class="cluster apply-disabled"><button class="button button--primary" type="button" disabled aria-describedby="apply-note">Apply for this role</button><p class="form-note" id="apply-note">Sample posting. There is no application destination yet, so this action is disabled and no applicant information is collected.</p></div>`);
+  : `<div class="cluster apply-disabled"><button class="button button--primary" type="button" disabled aria-describedby="apply-note">Apply for this role</button><p class="form-note" id="apply-note">Applications for this role are not open yet.</p></div>`);
 
 export const jobSections = (sections) => sections.map((section) => `<section class="record-section">
   <h2>${escapeHtml(section.heading)}</h2>
@@ -994,7 +1042,6 @@ export const safetyCard = (notice, { linkable = true, level = 2 } = {}) => {
   return `<article class="record-card record-card--notice">
     <div class="record-card__head">
       <h${level} class="record-card__title">${linkable ? `<a href="${href}">${escapeHtml(notice.title)}</a>` : escapeHtml(notice.title)}</h${level}>
-      ${sampleNoticeTag()}
     </div>
     <dl class="notice-facts">
       <dt>Notice</dt><dd>${escapeHtml(notice.id)}</dd>
@@ -1050,16 +1097,24 @@ export const policyContents = (policy) => {
 // ---------------------------------------------------------------------------------------------
 // Two operational statements, Brawley first in the DOM and on the screen, both read from the campaign data
 // rather than written into this component. There is no countdown, no flashing, no modal, and nothing to
-// dismiss: it is a hairline band of concise type that belongs to the page, not an alert bar bolted onto it.
+// dismiss.
+//
+// V15-B, Owen on 2026-08-06: the band leaves its position after the hero and closes the homepage
+// instead, centered, on a silver field. It is the one light-field band on the dark page, which is
+// what makes the two statements read as a considered close rather than a notice bar. The wiring is
+// unchanged: both statements come from the campaign records, so this band and the Launch Edition
+// page cannot disagree about the campaign's phase.
 export const campaignBand = (delivery, campaign) => {
   const santarosa = campaignStatement(campaign);
   const item = (label, action) => `<div class="campaign-band__item">
     <p class="campaign-band__label">${escapeHtml(label)}</p>
     ${textLink(action.label, action.href)}
   </div>`;
-  return `<section class="section--tight campaign-band" aria-label="Current availability">
-    ${item(delivery.label, delivery.action)}
-    ${item(santarosa.label, santarosa.action)}
+  return `<section class="bleed campaign-band" aria-label="Current availability">
+    <div class="campaign-band__inner">
+      ${item(delivery.label, delivery.action)}
+      ${item(santarosa.label, santarosa.action)}
+    </div>
   </section>`;
 };
 
@@ -1107,6 +1162,60 @@ const dealerCard = (dealer) => {
   </article>`;
 };
 
+// V15-E. The illustrative map: a build-time SVG drawn for this site, not a tile service and not an
+// imitation of one. Simplified western-state boundaries (straight-line borders drawn from their
+// defining parallels and meridians, a hand-simplified coastline), and one pin per dealer projected
+// from the record's real coordinates, so the pins are as honest as the list. It renders at first
+// paint in the no-key state and is what the Map view shows until John's Google key exists; with a
+// key, the Google canvas takes over and this panel is the failure fallback rather than a sentence.
+const MAP_BOUNDS = { latMin: 31, latMax: 49.5, lngMin: -125.5, lngMax: -101.5 };
+const MAP_SIZE = { width: 700, height: 700 };
+const mapPoint = (lat, lng) => ({
+  x: ((lng - MAP_BOUNDS.lngMin) / (MAP_BOUNDS.lngMax - MAP_BOUNDS.lngMin)) * MAP_SIZE.width,
+  y: ((MAP_BOUNDS.latMax - lat) / (MAP_BOUNDS.latMax - MAP_BOUNDS.latMin)) * MAP_SIZE.height,
+});
+
+// Each polyline is [lat, lng] vertices. The straight segments are the borders' actual defining
+// lines (the 37th, 42nd, 45th, and 49th parallels; the 104.05, 109.05, 111.05, 114.05, and 117.03
+// meridians); the coast and the two mountain borders are simplified by hand.
+const MAP_STATE_LINES = [
+  [[49, -123.2], [48.4, -124.7], [46.3, -124.1], [43.3, -124.4], [40.4, -124.4], [38.9, -123.7], [36.6, -121.9], [34.4, -119.7], [33.7, -118.2], [32.5, -117.1]],
+  [[32.5, -117.1], [32.7, -114.7], [31.3, -111.07], [31.3, -108.2], [31.78, -108.2], [31.78, -106.5]],
+  [[49, -123.2], [49, -101.5]],
+  [[42, -120], [39, -120], [35, -114.63]],
+  [[35, -114.63], [34.3, -114.14], [32.7, -114.7]],
+  [[35, -114.63], [36.1, -114.05], [42, -114.05]],
+  [[42, -124.4], [42, -111.05]],
+  [[37, -114.05], [37, -102.05]],
+  [[41, -109.05], [31.3, -109.05]],
+  [[45, -111.05], [41, -111.05], [41, -104.05], [45, -104.05], [45, -111.05]],
+  [[41, -109.05], [41, -102.05], [37, -102.05]],
+  [[42, -117.02], [44, -117.02], [45.9, -116.9], [46.4, -117.04], [49, -117.03]],
+  [[44.5, -111.05], [45.7, -112.9], [46.6, -114.4], [47.4, -115.7], [49, -116.05]],
+  [[42, -111.05], [44.5, -111.05]],
+  [[45, -104.05], [49, -104.05]],
+  [[46.2, -124.1], [45.7, -121.2], [46, -116.9]],
+];
+
+export const dealerMap = (dealers) => {
+  const lines = MAP_STATE_LINES.map((line) => `M${line.map(([lat, lng]) => {
+    const { x, y } = mapPoint(lat, lng);
+    return `${x.toFixed(1)} ${y.toFixed(1)}`;
+  }).join("L")}`).join("");
+  const pins = dealers.map((dealer) => {
+    const { x, y } = mapPoint(dealer.latitude, dealer.longitude);
+    return `<g class="map-pin" data-dealer-pin="${dealer.slug}" transform="translate(${x.toFixed(1)} ${y.toFixed(1)})">
+      <circle class="map-pin__halo" r="10"></circle>
+      <circle class="map-pin__dot" r="4"></circle>
+      <text class="map-pin__label" x="15" y="4">${escapeHtml(dealer.city)}</text>
+    </g>`;
+  }).join("");
+  return `<svg class="locator__map-art" viewBox="0 0 ${MAP_SIZE.width} ${MAP_SIZE.height}" role="img" aria-label="Illustrative map of the ${dealers.length} dealer locations. Full addresses and directions are in the dealer list." preserveAspectRatio="xMidYMid meet">
+    <path class="map-lines" d="${lines}"></path>
+    ${pins}
+  </svg>`;
+};
+
 export const dealerLocator = (dealers, filters, { mapKey = "", mapId = "" } = {}) => `<section class="locator" data-locator data-map="${mapKey ? "google" : "none"}"${mapKey ? ` data-map-key="${escapeHtml(mapKey)}"` : ""}${mapId ? ` data-map-id="${escapeHtml(mapId)}"` : ""}>
   <form class="locator__search" data-locator-search>
     <div class="field">
@@ -1143,11 +1252,11 @@ export const dealerLocator = (dealers, filters, { mapKey = "", mapId = "" } = {}
     </div>
     <div class="locator__map">
       <div class="locator__canvas" data-locator-canvas></div>
-      ${/* The honest fallback. It does not pretend to be a map that is still loading, and it does not
-            pretend to be a map at all: it says the map is unavailable and points at the list, which has
-            everything. This is what renders with no key, with a blocked SDK, and with no JavaScript. */""}
+      ${/* V15-E: the fallback is the illustrative map rather than a sentence. It renders with no key,
+            with a blocked SDK, and with no JavaScript, and it never pretends to be the live map: it is
+            a drawing of where the dealers are, and the list beside it carries everything else. */""}
       <div class="locator__map-fallback" data-locator-map-fallback>
-        <p class="locator__map-message">The map is unavailable right now. You can still search the dealer list and use its phone, website, and directions links.</p>
+        ${dealerMap(dealers)}
       </div>
     </div>
   </div>

@@ -540,6 +540,35 @@ for (const width of [32, 180, 192, 512]) { const output = resolve(brandRoot, wid
 await cp(resolve(brandRoot, "favicon-32.png"), resolve(brandRoot, "favicon.ico"));
 record(resolve(brandRoot, "favicon.ico"), logoPdf, "32px PNG fallback with ICO filename");
 
+// V15, folding in the V14 editorial migration. The two Vanderhall editorial featured images, archived
+// from the WordPress posts under Assets/Blog with their source URLs and SHA-256 hashes in that folder's
+// README. Delivered as supplied: resized rungs only, full frame, no crop, no extension, no retouching,
+// because an editorial photograph is a record of the post it illustrated rather than composable artwork.
+const editorialOutput = resolve(outputRoot, "v3/editorial");
+await mkdir(editorialOutput, { recursive: true });
+const EDITORIAL_IMAGES = [
+  ["what-is-a-side-by-side.png", "side-by-side-brawley", [480, 618]],
+  ["electric-off-road-vehicles.png", "electric-off-road", [480, 617]],
+];
+for (const [sourceName, outputBase, widths] of EDITORIAL_IMAGES) {
+  const input = resolve(assetsRoot, "Blog", sourceName);
+  const { width: sourceWidth, height: sourceHeight } = await sharp(input).metadata();
+  for (const width of widths) {
+    const output = resolve(editorialOutput, `${outputBase}-${width}.webp`);
+    const outputInfo = await sharp(input)
+      .resize({ width, withoutEnlargement: true })
+      .webp({ quality: 80, effort: 6, smartSubsample: true })
+      .toFile(output);
+    record(output, input, "editorial featured image, full frame resize", {
+      source_width: sourceWidth,
+      source_height: sourceHeight,
+      output_width: outputInfo.width,
+      output_height: outputInfo.height,
+      crop_window: "full frame",
+    });
+  }
+}
+
 const manualsOutput = resolve(websiteRoot, "assets/manuals");
 await rm(manualsOutput, { recursive: true, force: true });
 await mkdir(manualsOutput, { recursive: true });

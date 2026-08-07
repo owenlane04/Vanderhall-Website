@@ -3991,6 +3991,50 @@
     "verified_clean": "yes"
   },
   {
+    "delivered_file": "assets/images/v3/editorial/side-by-side-brawley-480.webp",
+    "source_path": "Assets/Blog/what-is-a-side-by-side.png",
+    "transform": "editorial featured image, full frame resize",
+    "verified_clean": "yes",
+    "source_width": 618,
+    "source_height": 447,
+    "output_width": 480,
+    "output_height": 347,
+    "crop_window": "full frame"
+  },
+  {
+    "delivered_file": "assets/images/v3/editorial/side-by-side-brawley-618.webp",
+    "source_path": "Assets/Blog/what-is-a-side-by-side.png",
+    "transform": "editorial featured image, full frame resize",
+    "verified_clean": "yes",
+    "source_width": 618,
+    "source_height": 447,
+    "output_width": 618,
+    "output_height": 447,
+    "crop_window": "full frame"
+  },
+  {
+    "delivered_file": "assets/images/v3/editorial/electric-off-road-480.webp",
+    "source_path": "Assets/Blog/electric-off-road-vehicles.png",
+    "transform": "editorial featured image, full frame resize",
+    "verified_clean": "yes",
+    "source_width": 617,
+    "source_height": 409,
+    "output_width": 480,
+    "output_height": 318,
+    "crop_window": "full frame"
+  },
+  {
+    "delivered_file": "assets/images/v3/editorial/electric-off-road-617.webp",
+    "source_path": "Assets/Blog/electric-off-road-vehicles.png",
+    "transform": "editorial featured image, full frame resize",
+    "verified_clean": "yes",
+    "source_width": 617,
+    "source_height": 409,
+    "output_width": 617,
+    "output_height": 409,
+    "crop_window": "full frame"
+  },
+  {
     "delivered_file": "assets/manuals/2017-vanderhall-venice-owners-manual.pdf",
     "source_path": "/Users/owenburton/Desktop/v3 materials/Manuals/Owner Manuals/2017-vanderhall-venice-owners-manual.pdf",
     "transform": "approved owner manual copy; normalized filename",

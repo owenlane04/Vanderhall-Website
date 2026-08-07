@@ -18,10 +18,11 @@ const conceptSlugs = ["indio", "coachella", "brawley-r", "santarosa-r", "speedst
 const conceptRoutes = conceptSlugs.map((slug) => `/concepts/${slug}/`);
 // V13 adds twelve routes. Every one of them joins this smoke pass, the axe array, and the reveal coverage
 // suite, because a route that is not in all three is a route nobody is checking.
-const articleRoutes = ["/blog/how-we-photograph-a-vehicle/", "/blog/notes-from-the-design-studio/"];
+// V15, folding in V14: the two real Vanderhall articles replace the sample routes, and the fictional
+// safety notice routes are retired with the safety page's portal state.
+const articleRoutes = ["/blog/what-is-a-side-by-side-experience-the-future-with-the-vanderhall-brawley/", "/blog/electric-off-road-vehicles-the-future-of-adventure-driving/"];
 const careerRoutes = ["/careers/assembly-technician/", "/careers/customer-experience-specialist/"];
-const noticeRoutes = ["/safety/placeholder-notice-a/", "/safety/placeholder-notice-b/"];
-const routes = ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/santarosa/", "/santarosa/launch-edition/", "/carmel/", "/venice/", "/concepts/", ...conceptRoutes, "/experience/", "/blog/", ...articleRoutes, "/dealers/", "/contact/", "/careers/", ...careerRoutes, "/safety/", ...noticeRoutes, "/recommend-dealer/", "/dealer-inquiry/", "/owners/", "/privacy/", "/404/"];
+const routes = ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/santarosa/", "/santarosa/launch-edition/", "/carmel/", "/venice/", "/concepts/", ...conceptRoutes, "/experience/", "/blog/", ...articleRoutes, "/dealers/", "/contact/", "/careers/", ...careerRoutes, "/safety/", "/recommend-dealer/", "/dealer-inquiry/", "/owners/", "/privacy/", "/404/"];
 
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 const page = await context.newPage();
@@ -107,7 +108,7 @@ await probeContext.close();
 // contrast pair on ten routes at once, so all ten are audited rather than the hub and one sample.
 // V13 adds the Experience hub, the Launch Edition, and every new index plus one representative detail of
 // each. The two past-model galleries stay in the list because their layout changed completely.
-for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/santarosa/", "/santarosa/launch-edition/", "/venice/", "/carmel/", "/recommend-dealer/", "/dealer-inquiry/", "/concepts/", ...conceptRoutes, "/owners/", "/dealers/", "/contact/", "/experience/", "/blog/", "/blog/how-we-photograph-a-vehicle/", "/careers/", "/careers/assembly-technician/", "/safety/", "/safety/placeholder-notice-a/", "/privacy/", "/404/"]) {
+for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/santarosa/", "/santarosa/launch-edition/", "/venice/", "/carmel/", "/recommend-dealer/", "/dealer-inquiry/", "/concepts/", ...conceptRoutes, "/owners/", "/dealers/", "/contact/", "/experience/", "/blog/", ...articleRoutes, "/careers/", "/careers/assembly-technician/", "/safety/", "/privacy/", "/404/"]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   await page.addScriptTag({ content: axe.source });
   const result = await page.evaluate(async () => axe.run(document, { resultTypes: ["violations"] }));
@@ -129,19 +130,22 @@ for (const route of ["/", "/venice/", "/carmel/", "/santarosa/", "/brawley/"]) {
   for (const width of [390, 768, 1280, 1440, 320]) {
     await page.setViewportSize({ width, height: width === 320 ? 720 : 900 });
     await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
-    const result = await page.locator(".hero").evaluate((hero) => {
+    const result = await page.locator(".hero").evaluate((hero, isHome) => {
       const heroRect = hero.getBoundingClientRect();
-      const selectors = [".eyebrow", "h1", ".hero__descriptor", ".hero__actions"];
+      // V15-H: the model heroes lost their powertrain eyebrow, so only the homepage still carries
+      // one, and a model hero that grew one back is its own failure below.
+      const selectors = isHome ? [".eyebrow", "h1", ".hero__descriptor", ".hero__actions"] : ["h1", ".hero__descriptor", ".hero__actions"];
       const contentVisible = selectors.every((selector) => {
         const node = hero.querySelector(selector);
         if (!node) return false;
         const rect = node.getBoundingClientRect();
         return rect.top >= heroRect.top - 1 && rect.bottom <= heroRect.bottom + 1 && rect.left >= -1 && rect.right <= innerWidth + 1;
       });
-      return { width: innerWidth, contentVisible, noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1, heroHeight: Math.round(heroRect.height) };
-    });
+      return { width: innerWidth, contentVisible, modelEyebrow: !isHome && Boolean(hero.querySelector(".eyebrow")), noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1, heroHeight: Math.round(heroRect.height) };
+    }, route === "/");
     report.heroes[route].push(result);
     if (!result.contentVisible || !result.noHorizontalScroll) failures.push(`Hero reflow failed for ${route} at ${width}px`);
+    if (result.modelEyebrow) failures.push(`${route} hero carries an eyebrow the V15-H cleanup removed, at ${width}px`);
   }
 }
 
@@ -257,7 +261,7 @@ for (const [route, expected, pairedGroups, tags, heroCta] of [
 report.interactions.backLinks = {};
 // One sample of each page type, clicked. V13 adds the four new hierarchies: Experience under Home, Blog under
 // Experience, an article under Blog, and the Launch Edition under Santarosa.
-for (const [route, parent] of [["/vehicles/", "/"], ["/venice/", "/vehicles/"], ["/brawley/gts/", "/brawley/"], ["/concepts/indio/", "/concepts/"], ["/recommend-dealer/", "/dealers/"], ["/owners/", "/"], ["/experience/", "/"], ["/blog/", "/experience/"], ["/blog/how-we-photograph-a-vehicle/", "/blog/"], ["/santarosa/launch-edition/", "/santarosa/"], ["/careers/assembly-technician/", "/careers/"], ["/safety/placeholder-notice-a/", "/safety/"]]) {
+for (const [route, parent] of [["/vehicles/", "/"], ["/venice/", "/vehicles/"], ["/brawley/gts/", "/brawley/"], ["/concepts/indio/", "/concepts/"], ["/recommend-dealer/", "/dealers/"], ["/owners/", "/"], ["/experience/", "/"], ["/blog/", "/experience/"], [articleRoutes[0], "/blog/"], ["/santarosa/launch-edition/", "/santarosa/"], ["/careers/assembly-technician/", "/careers/"], ["/safety/", "/"]]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   const link = page.locator(".back-nav a").first();
   const count = await page.locator(".back-nav").count();
@@ -541,7 +545,7 @@ await page.locator("#contact-form-customer-service-topic").selectOption("owner-d
 await contactForm.locator("[name='render_timestamp']").evaluate((input) => { input.value = String(Date.now() - 3000); });
 await contactForm.getByRole("button", { name: "Send request" }).click();
 const formStatus = await contactForm.locator(".form-status").innerText();
-report.interactions.formValidation = formStatus === "This form is not connected yet. Your information was not sent.";
+report.interactions.formValidation = formStatus === "Online submissions are not open yet. Email inquiry@vanderhall.com and the team will follow up.";
 report.interactions.contactFlow.posted = contactRequests.length;
 if (!report.interactions.formValidation) failures.push(`Contact form prototype result failed: ${formStatus}`);
 if (contactRequests.length) failures.push(`The prototype contact form transmitted ${contactRequests.length} requests`);
@@ -890,12 +894,32 @@ if (report.motion.marquee.afterSecondPress.playState !== "running" || report.mot
 // Which elements get marked depends on what sits below the fold at load, and that is deliberate: the
 // first viewport stays still. So the assertion is "something below the fold was marked, nothing above
 // it was", per route, rather than an exact count.
+// Mirrors REVEAL_SELECTORS in src/scripts/site.js. Two copies of this list rather than V11's three:
+// the CSS copy went with the scrubbed path in V12-C. It is duplicated here on purpose, because a check
+// that imported the list from the file it is checking would agree with a mistake in it. Hoisted above
+// the motion suite in V15, which now uses it to decide whether a route has anything below the fold to
+// reveal at all.
+const REVEAL_SELECTOR = [
+  ".vehicle-section__media", ".vehicle-section__body", ".photo-module__media", ".photo-module__body",
+  ".card-grid--concepts .card", ".concept-figure", ".split__media", ".split__body",
+  ".section-heading", ".spec-table", ".gts-figures", ".gts-scene", ".disclosures", ".resource-group",
+  ".photo-module__specs .spec-row", ".vehicle-section__row .vehicle-section__support",
+  ".policy__section", ".lede", ".spec-note", ".form-heading",
+  ".lead-form > .field", ".lead-form > .form-fieldset:not(.form-step)", ".lead-form > .form-submit-row",
+  ".campaign-band__item", ".past-card", ".photo-gallery__figure", ".post-card", ".record-card", ".record-section",
+  ".launch-highlights li", ".launch-fact", ".article-hero", ".prose", ".empty-state",
+].join(", ");
+
 report.motion.coverage = {};
-for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/carmel/", "/venice/", "/santarosa/launch-edition/", "/concepts/", "/concepts/indio/", "/owners/", "/dealers/", "/contact/", "/experience/", "/blog/", "/blog/how-we-photograph-a-vehicle/", "/careers/", "/careers/assembly-technician/", "/safety/", "/privacy/", "/recommend-dealer/", "/dealer-inquiry/"]) {
+for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/carmel/", "/venice/", "/santarosa/launch-edition/", "/concepts/", "/concepts/indio/", "/owners/", "/dealers/", "/contact/", "/experience/", "/blog/", articleRoutes[0], "/careers/", "/careers/assembly-technician/", "/safety/", "/privacy/", "/recommend-dealer/", "/dealer-inquiry/"]) {
   await motionPage.goto(`${base}${route}`, { waitUntil: "networkidle" });
   await motionPage.waitForTimeout(400);
-  const shape = await motionPage.evaluate(async () => {
+  const shape = await motionPage.evaluate(async (revealSelector) => {
     const marked = [...document.querySelectorAll("[data-reveal]")];
+    // Counted before anything scrolls: a candidate that sits below the fold at load is what the
+    // island should have marked, and a route with none has nothing it could honestly animate.
+    const belowFoldCandidates = [...document.querySelectorAll(revealSelector)]
+      .filter((node) => node.getBoundingClientRect().top >= innerHeight).length;
     const aboveFold = marked.filter((node) => node.getBoundingClientRect().top < innerHeight)
       .map((node) => `${node.className || node.tagName}: ${node.textContent.trim().slice(0, 30)}`);
     const hidden = marked.filter((node) => Number(getComputedStyle(node).opacity) < 0.99);
@@ -907,11 +931,15 @@ for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/carmel/"
     await new Promise((done) => setTimeout(done, 1500));
     const unresolved = marked.filter((node) => Number(getComputedStyle(node).opacity) < 0.99)
       .map((node) => `${node.className || node.tagName}`);
-    return { markedCount: marked.length, aboveFold, hiddenBefore: hidden.length, staggered, unresolved };
-  });
+    return { markedCount: marked.length, belowFoldCandidates, aboveFold, hiddenBefore: hidden.length, staggered, unresolved };
+  }, REVEAL_SELECTOR);
   report.motion.coverage[route] = shape;
-  if (shape.markedCount === 0) failures.push(`${route} marks nothing for reveal, so it has no scroll motion at all`);
-  if (shape.hiddenBefore === 0) failures.push(`${route} marked ${shape.markedCount} elements but hid none of them, so nothing can be seen to arrive`);
+  // V15: a route whose every reveal candidate already sits in the first viewport has nothing it
+  // could honestly animate, and requiring motion there would mean padding the page to create it.
+  // The safety portal state and the shortened careers pages are the ones that legitimately fit;
+  // every route with a candidate below the fold is still required to move.
+  if (shape.belowFoldCandidates > 0 && shape.markedCount === 0) failures.push(`${route} marks nothing for reveal, so it has no scroll motion at all`);
+  if (shape.markedCount > 0 && shape.hiddenBefore === 0) failures.push(`${route} marked ${shape.markedCount} elements but hid none of them, so nothing can be seen to arrive`);
   if (shape.aboveFold.length) failures.push(`${route}: ${shape.aboveFold.length} already-visible blocks were marked, which re-hides content the visitor is reading: ${shape.aboveFold.join(" / ")}`);
   if (shape.unresolved.length) failures.push(`${route}: ${shape.unresolved.length} revealed elements never resolved and are permanently invisible: ${shape.unresolved.join(", ")}`);
 }
@@ -1008,9 +1036,8 @@ for (const [route, blockSelector, posterSelector] of AMBIENT_PLACEMENTS) {
   if (videoSources.some((url) => url.endsWith(".mp4"))) failures.push(`${route}: Chrome fell through to the H.264 file: ${videoSources.join(", ")}`);
   if (!shape.painted || shape.videoOpacity < 0.99) failures.push(`${route}: the video never faded in over its poster: ${JSON.stringify(shape)}`);
   if (shape.paused) failures.push(`${route}: the ambient video is not playing`);
-  // The V13 film plays once and holds its final frame; a loop attribute here would jump from the
-  // close-front-view hold straight back to the action start.
-  if (!shape.muted || shape.loop) failures.push(`${route}: the ambient video must be muted and must not loop`);
+  // V15-A: the film loops, per Owen on 2026-08-06, so the attribute is required rather than banned.
+  if (!shape.muted || !shape.loop) failures.push(`${route}: the ambient video must be muted and must loop`);
   if (!shape.currentSrc.endsWith(".webm")) failures.push(`${route}: the playing source is ${shape.currentSrc}`);
   if (!shape.toggleVisible || shape.toggleLabel !== "Pause") failures.push(`${route}: the control must be revealed reading Pause once playback starts, got ${JSON.stringify(shape.toggleLabel)}`);
   if (!shape.posterStillThere) failures.push(`${route}: the poster was removed, so there is nothing under the video`);
@@ -1145,32 +1172,38 @@ if (!report.ambient.hiddenTab.pausedWhenHidden || !report.ambient.hiddenTab.resu
   failures.push(`Hidden-tab pause and resume failed: ${JSON.stringify(report.ambient.hiddenTab)}`);
 }
 
-// The settled-final state. The V13 film plays once and holds its close-front-view final frame, so a
-// finished film must stay finished through the two events that resume an unfinished one: scrolling
-// away and back, and the tab going hidden and visible. Seeked rather than waited out, because the
-// contract under test is the ended state, not the 34 seconds before it. Only the visitor's own press
-// of the control may start it again, and that press replays from the top.
-await offscreenPage.locator(".hero__video").evaluate((video) => {
+// V15-A: the loop. Owen on 2026-08-06: "make sure that it never stops." The contract under test is
+// that playback crosses the file's end and keeps going: the element carries the loop attribute, and
+// seeking to the last fraction of a second produces a video that is still playing a moment later,
+// with its clock wrapped back near the start and `ended` never set. Seeked rather than waited out,
+// because the contract is the wrap, not the 34 seconds before it.
+report.ambient.loop = await offscreenPage.locator(".hero__video").evaluate(async (video) => {
+  const hasLoopAttribute = video.hasAttribute("loop");
   video.currentTime = video.duration - 0.15;
-  return new Promise((done) => video.addEventListener("ended", done, { once: true }));
+  await new Promise((done) => setTimeout(done, 1200));
+  return {
+    hasLoopAttribute,
+    stillPlaying: !video.paused,
+    neverEnded: !video.ended,
+    wrapped: video.currentTime < 5,
+    stillPainted: document.querySelector(".hero").hasAttribute("data-painted"),
+    label: document.querySelector("[data-ambient-toggle]").textContent,
+  };
 });
+if (!report.ambient.loop.hasLoopAttribute) failures.push("The hero film must carry the loop attribute");
+if (!report.ambient.loop.stillPlaying || !report.ambient.loop.neverEnded || !report.ambient.loop.wrapped) {
+  failures.push(`The film did not loop across its end: ${JSON.stringify(report.ambient.loop)}`);
+}
+if (!report.ambient.loop.stillPainted) failures.push("The looping film dropped back to the poster at the wrap");
+if (report.ambient.loop.label !== "Pause") failures.push(`The control over a looping film must read Pause, got ${JSON.stringify(report.ambient.loop.label)}`);
+// And the loop survives the two housekeeping pauses: away and back must return a PLAYING film now,
+// which is the half of the V13 settled-state contract that inverts.
 await offscreenPage.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
 await offscreenPage.waitForTimeout(400);
 await offscreenPage.evaluate(() => scrollTo(0, 0));
 await offscreenPage.waitForTimeout(600);
-report.ambient.settled = await offscreenPage.locator(".hero__video").evaluate((video) => ({
-  endedAfterScrollReturn: video.ended,
-  stillPainted: document.querySelector(".hero").hasAttribute("data-painted"),
-  label: document.querySelector("[data-ambient-toggle]").textContent,
-}));
-if (!report.ambient.settled.endedAfterScrollReturn) failures.push("A finished film restarted itself after the visitor scrolled away and back");
-if (!report.ambient.settled.stillPainted) failures.push("The settled film dropped its final frame back to the poster");
-if (report.ambient.settled.label !== "Play") failures.push(`The control over a settled film must read Play, got ${JSON.stringify(report.ambient.settled.label)}`);
-await offscreenPage.locator("[data-ambient-toggle]").focus();
-await offscreenPage.locator("[data-ambient-toggle]").press("Enter");
-await offscreenPage.waitForTimeout(400);
-report.ambient.settled.replay = await offscreenPage.locator(".hero__video").evaluate((video) => ({ paused: video.paused, time: video.currentTime }));
-if (report.ambient.settled.replay.paused || report.ambient.settled.replay.time > 5) failures.push(`Pressing Play on a settled film must replay it from the top: ${JSON.stringify(report.ambient.settled.replay)}`);
+report.ambient.loop.playingAfterScrollReturn = await offscreenPage.locator(".hero__video").evaluate((video) => !video.paused);
+if (!report.ambient.loop.playingAfterScrollReturn) failures.push("The looping film did not resume after the visitor scrolled away and back");
 await offscreenPage.close();
 await videoContext.close();
 
@@ -1269,18 +1302,20 @@ for (const route of ["/", "/brawley/gts/", "/privacy/", "/concepts/indio/"]) {
       // The links a visitor can actually reach with a keyboard, which is the only test that matters
       // for a row of small text links.
       focusable: social.filter((anchor) => anchor.tabIndex >= 0).length,
-      // V13. Five columns, Experience joining the four; the manual library under Owners; and the visible
-      // inquiry address in Connect, read as rendered text rather than from the markup.
+      // V15-G. Four columns exactly: Vehicles, Owners, Connect, Follow. Experience sits in the
+      // Vehicles column under Concepts, and Blog has no footer entry at all.
       columns: [...document.querySelectorAll(".footer-links > div h2")].map((heading) => heading.textContent),
       ownerManuals: [...document.querySelectorAll(".footer-links a")].filter((anchor) => anchor.getAttribute("href") === "/owners/").map((anchor) => anchor.textContent),
       experience: hrefs(".footer-links a").filter((href) => href === "/experience/" || href === "/blog/"),
+      vehiclesColumn: hrefs(".footer-links > div:first-child a"),
     };
   });
   const footer = report.interactions.footer[route];
   if (footer.social.length !== 6) failures.push(`${route}: expected six social links in the footer, found ${footer.social.length}`);
-  if (JSON.stringify(footer.columns) !== JSON.stringify(["Vehicles", "Experience", "Owners", "Connect", "Follow"])) failures.push(`${route}: footer columns are ${footer.columns.join(", ")}`);
+  if (JSON.stringify(footer.columns) !== JSON.stringify(["Vehicles", "Owners", "Connect", "Follow"])) failures.push(`${route}: footer columns are ${footer.columns.join(", ")}`);
   if (JSON.stringify(footer.ownerManuals) !== JSON.stringify(["Owner manuals"])) failures.push(`${route}: the Owners column must lead with Owner manuals, found ${footer.ownerManuals.join(", ")}`);
-  if (JSON.stringify(footer.experience) !== JSON.stringify(["/experience/", "/blog/"])) failures.push(`${route}: the Experience column must carry Experience and Blog, found ${footer.experience.join(", ")}`);
+  if (JSON.stringify(footer.experience) !== JSON.stringify(["/experience/"])) failures.push(`${route}: Experience must appear once, in the Vehicles column, and Blog not at all; found ${footer.experience.join(", ")}`);
+  if (JSON.stringify(footer.vehiclesColumn.slice(-2)) !== JSON.stringify(["/concepts/", "/experience/"])) failures.push(`${route}: the Vehicles column must end Concepts then Experience, found ${footer.vehiclesColumn.join(", ")}`);
   // V13: the three legal destinations are internal routes now, not two external hosts.
   if (JSON.stringify(footer.legal) !== JSON.stringify(["/safety/", "/careers/", "/privacy/"])) failures.push(`${route}: the footer legal row must be the three internal routes, got ${footer.legal.join(", ")}`);
   if (footer.app.length !== 2) failures.push(`${route}: expected two app store links, found ${footer.app.length}`);
@@ -1527,20 +1562,10 @@ for (const [route, blockSelector, posterSelector] of AMBIENT_PLACEMENTS) {
 // context with javaScriptEnabled: false has no working timers, so an in-page `await setTimeout` never
 // resolves and Playwright eventually reports the promise as garbage collected. Every evaluate below
 // is synchronous; the waiting happens on this side.
-// Mirrors REVEAL_SELECTORS in src/scripts/site.js. Two copies of this list rather than V11's three:
-// the CSS copy went with the scrubbed path in V12-C. It is duplicated here on purpose, because a check
-// that imported the list from the file it is checking would agree with a mistake in it.
-const REVEAL_SELECTOR = [
-  ".vehicle-section__media", ".vehicle-section__body", ".photo-module__media", ".photo-module__body",
-  ".card-grid--concepts .card", ".concept-figure", ".split__media", ".split__body",
-  ".section-heading", ".spec-table", ".gts-figures", ".gts-scene", ".disclosures", ".resource-group",
-  ".photo-module__specs .spec-row", ".vehicle-section__row .vehicle-section__support",
-  ".policy__section", ".lede", ".spec-note", ".form-heading",
-  ".lead-form > .field", ".lead-form > .form-fieldset:not(.form-step)", ".lead-form > .form-submit-row",
-  ".campaign-band__item", ".past-card", ".photo-gallery__figure", ".post-card", ".record-card", ".record-section",
-  ".launch-highlights li", ".launch-fact", ".article-hero", ".prose", ".empty-state", ".sample-note",
-].join(", ");
-for (const route of ["/", "/vehicles/", "/brawley/", "/concepts/", "/owners/", "/blog/", "/safety/", "/santarosa/launch-edition/"]) {
+// REVEAL_SELECTOR is defined above the motion coverage suite, which now shares it.
+// V15: /safety/ leaves this sample. Its portal state fits in one viewport, so there is nothing to
+// scroll past and the measurement would prove nothing; an article route takes its long-form place.
+for (const route of ["/", "/vehicles/", "/brawley/", "/concepts/", "/owners/", "/blog/", articleRoutes[1], "/santarosa/launch-edition/"]) {
   await noJsPage.goto(`${base}${route}`, { waitUntil: "load" });
   const before = await noJsPage.evaluate((selector) => {
     document.documentElement.style.scrollBehavior = "auto";
@@ -1608,12 +1633,13 @@ report.noJs.locator = await noJsPage.evaluate(() => ({
   selectVisible: [...document.querySelectorAll("[data-dealer-select]")].filter((button) => button.checkVisibility()).length,
   phones: document.querySelectorAll('.dealer-card a[href^="tel:"]').length,
   directions: [...document.querySelectorAll(".dealer-card a")].filter((anchor) => anchor.href.includes("google.com/maps/dir")).length,
-  mapMessage: document.querySelector(".locator__map-message")?.checkVisibility(),
+  mapArt: document.querySelector(".locator__map-art")?.checkVisibility(),
+  mapPins: document.querySelectorAll("[data-dealer-pin]").length,
 }));
 const noJsLocator = report.noJs.locator;
 if (noJsLocator.cards !== 6 || noJsLocator.phones !== 6 || noJsLocator.directions !== 6) failures.push(`No-JS /dealers/ must render every dealer with its phone and directions: ${JSON.stringify(noJsLocator)}`);
 if (noJsLocator.searchVisible || noJsLocator.modesVisible || noJsLocator.selectVisible) failures.push(`No-JS /dealers/ shows controls it cannot drive: ${JSON.stringify(noJsLocator)}`);
-if (!noJsLocator.mapMessage) failures.push("No-JS /dealers/ must still say why the map is unavailable");
+if (!noJsLocator.mapArt || noJsLocator.mapPins !== 6) failures.push(`No-JS /dealers/ must still show the illustrative map with all six pins: ${JSON.stringify(noJsLocator)}`);
 
 // The policy page has to be complete without script, because it is a legal document.
 await noJsPage.goto(`${base}/privacy/`, { waitUntil: "load" });
@@ -1688,7 +1714,7 @@ for (const route of ["/recommend-dealer/", "/dealer-inquiry/"]) {
   const submit = form.getByRole("button", { name: /send request|submit inquiry|submit/i });
   await submit.focus();
   await page.keyboard.press("Enter");
-  const notConnected = await form.locator(".form-status").innerText() === "This form is not connected yet. Your information was not sent.";
+  const notConnected = await form.locator(".form-status").innerText() === "Online submissions are not open yet. Email inquiry@vanderhall.com and the team will follow up.";
   report.forms[route] = { summaryFocused, anchorFocused, keyboardCompletion: notConnected, controls: await form.locator("input, select, textarea").count(), fieldsets: await form.locator("fieldset").count() };
   if (!summaryFocused || !anchorFocused || !notConnected) failures.push(`Form keyboard or error-summary flow failed for ${route}`);
 }
@@ -2127,15 +2153,19 @@ for (const width of [1440, 390]) {
 await page.setViewportSize({ width: 1440, height: 1000 });
 
 // homepageCampaignStatus. Brawley first, both statements read from the campaign data, and no public Reserve
-// action while the phase is interest-open.
+// action while the phase is interest-open. V15-B: the band closes the page, centered, on the silver
+// field, so the placement, the alignment, and the recomputed light ramp are all measured.
 await page.goto(`${base}/`, { waitUntil: "networkidle" });
 report.homepageCampaignStatus = await page.evaluate(() => {
   const band = document.querySelector(".campaign-band");
   if (!band) return { found: false };
   const items = [...band.querySelectorAll(".campaign-band__item")];
-  const hero = document.querySelector(".hero").getBoundingClientRect();
   const lineup = document.querySelector("#vehicles").getBoundingClientRect();
+  const split = document.querySelector(".split--media-first").getBoundingClientRect();
   const bandRect = band.getBoundingClientRect();
+  const bandStyle = getComputedStyle(band);
+  const labelStyle = getComputedStyle(band.querySelector(".campaign-band__label"));
+  const firstItem = items[0].getBoundingClientRect();
   return {
     found: true,
     items: items.length,
@@ -2144,8 +2174,15 @@ report.homepageCampaignStatus = await page.evaluate(() => {
     actionLabels: items.map((item) => item.querySelector("a").textContent.trim()),
     // DOM order and visual order agree, which is what the mobile requirement reduces to.
     domOrder: items.map((item) => item.querySelector(".campaign-band__label").textContent.split(" ")[0]),
-    afterHero: bandRect.top >= hero.bottom - 2,
-    beforeLineup: bandRect.bottom <= lineup.top + 2,
+    afterLineup: bandRect.top >= lineup.bottom - 2,
+    afterSplit: bandRect.top >= split.bottom - 2,
+    lastOnPage: !band.nextElementSibling && band.closest(".page") && !band.closest(".page").nextElementSibling?.matches("section"),
+    // The silver field: a light background with dark ink, measured as computed values rather than
+    // trusted from the stylesheet, and full bleed at the viewport width.
+    lightField: bandStyle.backgroundImage.includes("linear-gradient"),
+    inkIsDark: labelStyle.color.match(/\d+/g).slice(0, 3).map(Number).every((channel) => channel < 64),
+    fullBleed: Math.round(bandRect.width) >= innerWidth - 1,
+    centered: getComputedStyle(items[0]).textAlign === "center" && Math.abs((firstItem.left + firstItem.width / 2) < innerWidth ? 0 : 1) === 0,
     h1: document.querySelector("h1").textContent,
     // No alert-bar behaviour: nothing to dismiss, no timer, no modal.
     dismissers: document.querySelectorAll(".campaign-band [data-dismiss], .campaign-band button").length,
@@ -2160,7 +2197,10 @@ else {
   if (campaign.labels[1] !== "Santarosa Launch Edition registration of interest is open.") failures.push(`The Santarosa status reads ${campaign.labels[1]}`);
   if (JSON.stringify(campaign.actions) !== JSON.stringify(["/brawley/", "/santarosa/launch-edition/"])) failures.push(`The status band actions are ${campaign.actions.join(", ")}`);
   if (campaign.actionLabels.some((label) => label.startsWith("Reserve"))) failures.push("The status band offers a Reserve action outside a verified public-reservation phase");
-  if (!campaign.afterHero || !campaign.beforeLineup) failures.push(`The status band must sit between the hero and the lineup: ${JSON.stringify(campaign)}`);
+  if (!campaign.afterLineup || !campaign.afterSplit) failures.push("The status band must close the homepage, after the lineup and the concepts split");
+  if (!campaign.lightField || !campaign.inkIsDark) failures.push(`The status band must render as dark ink on the silver field: ${JSON.stringify({ lightField: campaign.lightField, inkIsDark: campaign.inkIsDark })}`);
+  if (!campaign.fullBleed) failures.push("The status band must run the full viewport width");
+  if (!campaign.centered) failures.push("The status band items must be centered");
   if (campaign.h1 !== "Handcrafted electric vehicles.") failures.push(`The campaign band changed the homepage h1 to ${campaign.h1}`);
   if (campaign.dismissers !== 0) failures.push("The status band must carry no dismiss control or timer");
 }
@@ -2202,6 +2242,26 @@ if (grouping.cards !== 2 || JSON.stringify(grouping.imagesPerCard) !== JSON.stri
 if (grouping.pillsInGroup !== 0) failures.push("The past-model group must not repeat the status as a pill on each card");
 if (!(grouping.cardTitleSize < grouping.sectionTitleSize)) failures.push(`A past-model card's title (${grouping.cardTitleSize}px) must be quieter than a current section's (${grouping.sectionTitleSize}px)`);
 if (!grouping.groupAfterLineup) failures.push("The past-model group must follow the current lineup");
+
+// homepageLineup. V15-C: all four models on the homepage, current first, the two past models tagged
+// beside their names and the current two not, and no quiet past-models link left over.
+await page.goto(`${base}/`, { waitUntil: "networkidle" });
+report.homepageLineup = await page.evaluate(() => {
+  const sections = [...document.querySelectorAll(".vehicle-section")];
+  return {
+    count: sections.length,
+    order: sections.map((section) => section.querySelector("a[href]").getAttribute("href")),
+    tags: sections.map((section) => section.querySelectorAll(".model-tag").length),
+    tagsVisible: sections.map((section) => section.querySelector(".model-tag")?.checkVisibility() ?? null),
+    quietLink: [...document.querySelectorAll("a")].filter((anchor) => (anchor.getAttribute("href") || "").includes("#past-models")).length,
+  };
+});
+const homepageLineup = report.homepageLineup;
+if (homepageLineup.count !== 4) failures.push(`The homepage must present four vehicle sections, found ${homepageLineup.count}`);
+if (JSON.stringify(homepageLineup.order) !== JSON.stringify(["/brawley/", "/santarosa/", "/carmel/", "/venice/"])) failures.push(`The homepage lineup order is ${homepageLineup.order.join(", ")}`);
+if (JSON.stringify(homepageLineup.tags) !== JSON.stringify([0, 0, 1, 1])) failures.push(`The Past model tags must sit on exactly the two past models: ${JSON.stringify(homepageLineup.tags)}`);
+if (homepageLineup.tagsVisible.slice(2).some((visible) => visible !== true)) failures.push("A homepage Past model tag is not visible");
+if (homepageLineup.quietLink !== 0) failures.push("The retired quiet past-models link remains on the homepage");
 
 report.pastModelGalleries = {};
 for (const route of ["/carmel/", "/venice/"]) {
@@ -2378,21 +2438,51 @@ await page.waitForTimeout(200);
 report.dealerLocator.afterReset = await page.evaluate(() => [...document.querySelectorAll(".dealer-card")].filter((card) => !card.hidden).length);
 if (report.dealerLocator.afterReset !== 6) failures.push(`Clearing the search must restore all six dealers, found ${report.dealerLocator.afterReset}`);
 
-// dealerMapFailure. No key is configured in this build, so this is the live state rather than a simulation: the
-// panel says the map is unavailable, no Google script is requested, and nothing spins.
-report.dealerMapFailure = await page.evaluate(() => ({
+// dealerIllustrativeMap. No key is configured in this build, so this is the live state rather than a
+// simulation: the panel shows the illustrative SVG map with one pin per dealer, no Google script is
+// requested, and the list stays fully usable beside it. V15-E replaces the one-sentence fallback.
+report.dealerIllustrativeMap = await page.evaluate(() => ({
   fallbackVisible: !document.querySelector("[data-locator-map-fallback]").hidden,
-  message: document.querySelector(".locator__map-message")?.textContent.trim(),
+  artVisible: document.querySelector(".locator__map-art")?.checkVisibility(),
+  pins: document.querySelectorAll("[data-dealer-pin]").length,
+  labels: [...document.querySelectorAll(".map-pin__label")].map((node) => node.textContent),
+  accessibleName: document.querySelector(".locator__map-art")?.getAttribute("aria-label") || "",
   keyAttribute: document.querySelector("[data-locator]").getAttribute("data-map-key"),
   googleScripts: [...document.querySelectorAll("script")].filter((node) => (node.src || "").includes("maps.googleapis.com")).length,
   searchStillWorks: !document.querySelector("[data-locator-search]").hidden,
   cardsStillVisible: [...document.querySelectorAll(".dealer-card")].filter((card) => !card.hidden).length,
 }));
-const mapFailure = report.dealerMapFailure;
-if (!mapFailure.fallbackVisible || !mapFailure.message?.startsWith("The map is unavailable")) failures.push(`The map fallback must be visible and honest: ${JSON.stringify(mapFailure)}`);
+const mapFailure = report.dealerIllustrativeMap;
+if (!mapFailure.fallbackVisible || !mapFailure.artVisible) failures.push(`The illustrative map must be visible with no key: ${JSON.stringify({ fallbackVisible: mapFailure.fallbackVisible, artVisible: mapFailure.artVisible })}`);
+if (mapFailure.pins !== 6) failures.push(`The illustrative map must carry six pins, found ${mapFailure.pins}`);
+if (!mapFailure.accessibleName.startsWith("Illustrative map")) failures.push(`The map must name itself illustrative, found ${JSON.stringify(mapFailure.accessibleName)}`);
 if (mapFailure.keyAttribute) failures.push("A Google Maps key reached the rendered page");
 if (mapFailure.googleScripts !== 0) failures.push(`${mapFailure.googleScripts} Google Maps scripts were requested with no key configured`);
-if (!mapFailure.searchStillWorks || mapFailure.cardsStillVisible !== 6) failures.push("A missing map must leave the whole dealer list usable");
+if (!mapFailure.searchStillWorks || mapFailure.cardsStillVisible !== 6) failures.push("The illustrative map must leave the whole dealer list usable");
+// The pins follow the list. Show on map selects a pin; filtering dims the pins the list dropped.
+await page.locator("[data-dealer-select]").first().click();
+await page.waitForTimeout(200);
+report.dealerIllustrativeMap.selection = await page.evaluate(() => ({
+  selected: [...document.querySelectorAll(".map-pin.is-selected")].map((pin) => pin.dataset.dealerPin),
+  cardSelected: document.querySelector(".dealer-card.is-selected")?.dataset.dealer,
+}));
+const pinSelection = report.dealerIllustrativeMap.selection;
+if (pinSelection.selected.length !== 1 || pinSelection.selected[0] !== pinSelection.cardSelected) {
+  failures.push(`Show on map must highlight exactly the selected dealer's pin: ${JSON.stringify(pinSelection)}`);
+}
+await page.locator("[name='capability'][value='service']").check();
+await page.waitForTimeout(200);
+report.dealerIllustrativeMap.filteredPins = await page.evaluate(() => ({
+  visibleCards: [...document.querySelectorAll(".dealer-card")].filter((card) => !card.hidden).length,
+  dimmedPins: document.querySelectorAll(".map-pin.is-dimmed").length,
+  totalPins: document.querySelectorAll(".map-pin").length,
+}));
+const filteredPins = report.dealerIllustrativeMap.filteredPins;
+if (filteredPins.visibleCards + filteredPins.dimmedPins !== filteredPins.totalPins) {
+  failures.push(`Filtered-out dealers must dim their pins: ${JSON.stringify(filteredPins)}`);
+}
+await page.locator("[data-locator-reset]").click();
+await page.waitForTimeout(200);
 // And no location permission was ever requested. Asserted by overriding the API and proving it is never called.
 const permissionContext = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 await permissionContext.addInitScript(() => {
@@ -2445,7 +2535,8 @@ report.dealerMobileMode.backToList = await page.evaluate(() => document.querySel
 if (report.dealerMobileMode.backToList !== "list") failures.push("The mode switch did not return to the list");
 await page.setViewportSize({ width: 1440, height: 1000 });
 
-// experienceHub. One module, real content, and none of the event placeholders Q-V13-18 forbids.
+// experienceHub. One feed of real stories, no BLOG framing, no category kickers, no archive door,
+// and none of the event placeholders Q-V13-18 forbids.
 await page.goto(`${base}/experience/`, { waitUntil: "networkidle" });
 report.experienceHub = await page.evaluate(() => {
   const text = document.body.innerText;
@@ -2453,63 +2544,77 @@ report.experienceHub = await page.evaluate(() => {
     h1: document.querySelector("h1").textContent,
     modules: document.querySelectorAll(".experience-module").length,
     heading: document.querySelector(".experience-module h2")?.textContent,
+    blogEyebrow: [...document.querySelectorAll(".experience-module .eyebrow")].filter((node) => node.textContent === "BLOG").length,
+    kickers: document.querySelectorAll(".post-card__category").length,
     featured: document.querySelectorAll(".post-card--featured").length,
     cards: document.querySelectorAll(".post-card").length,
-    archive: [...document.querySelectorAll("a")].find((anchor) => anchor.textContent.includes("View all stories"))?.getAttribute("href"),
+    titles: [...document.querySelectorAll(".post-card__title")].map((node) => node.textContent.trim()),
+    linked: document.querySelectorAll(".post-card__link").length,
+    archive: [...document.querySelectorAll("a")].find((anchor) => anchor.textContent.includes("View all stories"))?.getAttribute("href") || null,
     eventHeadings: [...document.querySelectorAll("h2, h3")].filter((node) => /^events$/i.test(node.textContent.trim())).length,
     comingSoon: /coming soon/i.test(text),
     registration: [...document.querySelectorAll("button, a")].filter((node) => /register now|rsvp/i.test(node.textContent)).length,
     eventSchema: [...document.querySelectorAll('script[type="application/ld+json"]')].filter((node) => /"@type"\s*:\s*"Event/.test(node.textContent)).length,
-    schemaBlocks: document.querySelectorAll('script[type="application/ld+json"]').length,
-    sampleMarker: document.querySelectorAll(".sample-note").length,
+    sampleMarker: document.querySelectorAll(".sample-note, .sample-tag").length,
     navCurrent: document.querySelector('.desktop-nav a[aria-current="page"]')?.textContent,
   };
 });
 const hub = report.experienceHub;
 if (hub.h1 !== "The Vanderhall experience.") failures.push(`The Experience h1 is ${hub.h1}`);
-if (hub.modules !== 1 || hub.heading !== "Latest from Vanderhall.") failures.push(`The hub must launch with one Blog module: ${JSON.stringify(hub)}`);
-if (hub.featured !== 1 || hub.cards !== 3) failures.push(`The hub must lead with one featured story and two more, found ${hub.cards} cards`);
-if (hub.archive !== "/blog/") failures.push(`The archive action leads to ${hub.archive}`);
+if (hub.modules !== 1 || hub.heading !== "Latest from Vanderhall.") failures.push(`The hub must present one feed headed Latest from Vanderhall: ${JSON.stringify({ modules: hub.modules, heading: hub.heading })}`);
+if (hub.blogEyebrow !== 0) failures.push("The hub still carries the retired BLOG eyebrow");
+if (hub.kickers !== 0) failures.push("A hub card still prints its category kicker");
+if (hub.featured !== 1 || hub.cards !== 2 || hub.linked !== 2) failures.push(`The hub must present the two real stories, both linked, one featured: ${JSON.stringify({ featured: hub.featured, cards: hub.cards, linked: hub.linked })}`);
+if (!hub.titles[0]?.startsWith("What Is a Side-by-Side?")) failures.push(`The November article must lead the feed, found ${hub.titles[0]}`);
+if (hub.archive !== null) failures.push(`The retired archive action remains, leading to ${hub.archive}`);
 if (hub.eventHeadings || hub.comingSoon || hub.registration || hub.eventSchema) failures.push(`The hub renders event placeholders: ${JSON.stringify(hub)}`);
-if (hub.schemaBlocks !== 0) failures.push("A mock-record page must emit no structured data");
-if (hub.sampleMarker === 0) failures.push("The hub must mark its records as samples");
+if (hub.sampleMarker !== 0) failures.push("The hub still carries a retired sample marker");
 if (hub.navCurrent !== "Experience") failures.push(`Experience must be the current primary section, found ${hub.navCurrent}`);
 
-// editorialTemplates. The archive, the two article states, and no WordPress furniture.
+// editorialTemplates. The archive, the two real articles, and no WordPress furniture. V15, folding
+// in V14: complete migrated records under their original dates, safe inline links in the body, one
+// BlogPosting schema per article, and the other story as related reading.
 report.editorialTemplates = {};
 await page.goto(`${base}/blog/`, { waitUntil: "networkidle" });
 report.editorialTemplates["/blog/"] = await page.evaluate(() => ({
   cards: document.querySelectorAll(".post-card").length,
   linked: document.querySelectorAll(".post-card__link").length,
   pending: document.querySelectorAll(".post-card__pending").length,
-  // A record with no article links nowhere rather than to an empty page.
-  deadLinks: [...document.querySelectorAll(".post-card__link")].map((anchor) => anchor.getAttribute("href")).filter((href) => href.includes("what-to-expect")).length,
+  kickers: document.querySelectorAll(".post-card__category").length,
+  dates: [...document.querySelectorAll(".post-meta time")].map((node) => node.getAttribute("datetime")),
   furniture: ["Leave a comment", "Posted in", "Read more"].filter((token) => document.body.innerText.includes(token)),
 }));
 const archive = report.editorialTemplates["/blog/"];
-if (archive.cards !== 3 || archive.linked !== 2 || archive.pending !== 1) failures.push(`The archive must show three records with two articles: ${JSON.stringify(archive)}`);
-if (archive.deadLinks) failures.push("The archive links to an article that was never built");
+if (archive.cards !== 2 || archive.linked !== 2 || archive.pending !== 0) failures.push(`The archive must show the two migrated articles, both linked: ${JSON.stringify(archive)}`);
+if (archive.kickers !== 0) failures.push("An archive card still prints its category kicker");
+if (!archive.dates.includes("2025-11-12") || !archive.dates.includes("2025-10-25")) failures.push(`The archive must print the original publication dates, found ${archive.dates.join(", ")}`);
 if (archive.furniture.length) failures.push(`Legacy blog furniture remains: ${archive.furniture.join(", ")}`);
-for (const route of ["/blog/how-we-photograph-a-vehicle/", "/blog/notes-from-the-design-studio/"]) {
+for (const route of articleRoutes) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   const shape = await page.evaluate(() => ({
     standfirst: Boolean(document.querySelector(".article-header__standfirst")?.textContent.trim()),
-    author: Boolean(document.querySelector(".post-meta__author")?.textContent.trim()),
+    author: document.querySelector(".post-meta__author")?.textContent.trim(),
     published: document.querySelectorAll(".post-meta time").length,
+    hero: document.querySelector(".article-hero img")?.naturalWidth > 0,
     // Long-form copy takes the narrow measure, which is the rule the policy page already follows.
     measure: Math.round(document.querySelector(".prose p").getBoundingClientRect().width),
     blocks: document.querySelectorAll(".prose > *").length,
+    inlineLinks: [...document.querySelectorAll(".prose a")].map((anchor) => anchor.getAttribute("href")),
     related: document.querySelectorAll(".related .post-card").length,
     cta: [...document.querySelectorAll(".page a")].filter((anchor) => anchor.getAttribute("href") === "/contact/").length,
     unescaped: document.querySelector(".prose").innerHTML.includes("<script"),
+    blogPosting: [...document.querySelectorAll('script[type="application/ld+json"]')].filter((node) => /"@type"\s*:\s*"BlogPosting"/.test(node.textContent)).length,
   }));
   report.editorialTemplates[route] = shape;
-  if (!shape.standfirst || !shape.author || shape.published === 0) failures.push(`${route} article header is incomplete: ${JSON.stringify(shape)}`);
+  if (!shape.standfirst || shape.author !== "Vanderhall USA" || shape.published === 0) failures.push(`${route} article header is incomplete: ${JSON.stringify(shape)}`);
+  if (!shape.hero) failures.push(`${route} must render its source hero image`);
   if (shape.measure > 820) failures.push(`${route} sets its body to ${shape.measure}px, wider than the narrow measure`);
-  if (shape.blocks < 3) failures.push(`${route} rendered ${shape.blocks} body blocks`);
-  if (shape.related !== 2) failures.push(`${route} must end on two related stories, found ${shape.related}`);
+  if (shape.blocks < 10) failures.push(`${route} rendered ${shape.blocks} body blocks; the complete article did not arrive`);
+  if (!shape.inlineLinks.length || shape.inlineLinks.some((href) => !/^(\/|https:\/\/)/.test(href))) failures.push(`${route} inline links are missing or unsafe: ${shape.inlineLinks.join(", ")}`);
+  if (shape.related !== 1) failures.push(`${route} must end on the other story as related reading, found ${shape.related}`);
   if (shape.cta === 0) failures.push(`${route} must offer a way to contact Vanderhall`);
   if (shape.unescaped) failures.push(`${route} article body contains raw markup`);
+  if (shape.blogPosting !== 1) failures.push(`${route} must carry one BlogPosting schema, found ${shape.blogPosting}`);
 }
 
 // careersStates and safetyStates. Records, long titles, absent optional fields, and the disabled apply action.
@@ -2518,9 +2623,11 @@ report.careersStates = await (async () => {
   const index = await page.evaluate(() => ({
     cards: document.querySelectorAll(".record-card").length,
     linked: document.querySelectorAll(".record-card__title a").length,
-    withCompensation: [...document.querySelectorAll(".record-card")].filter((card) => card.querySelectorAll(".fact-row li").length === 5).length,
-    withoutCompensation: [...document.querySelectorAll(".record-card")].filter((card) => card.querySelectorAll(".fact-row li").length === 4).length,
-    sampleTags: document.querySelectorAll(".sample-tag").length,
+    // V15-F: no compensation renders anywhere (no fixture invents a range any more), no sample tags,
+    // and the word Sample appears nowhere on the page.
+    factCounts: [...document.querySelectorAll(".record-card")].map((card) => card.querySelectorAll(".fact-row li").length),
+    sampleTags: document.querySelectorAll(".sample-tag, .sample-note").length,
+    saysSample: /\bsample\b/i.test(document.body.innerText),
     livePostings: ["Paralegal", "Welding Operator"].filter((title) => document.body.innerText.includes(title)),
   }));
   await page.goto(`${base}/careers/assembly-technician/`, { waitUntil: "networkidle" });
@@ -2528,6 +2635,7 @@ report.careersStates = await (async () => {
     sections: document.querySelectorAll(".record-section").length,
     applyDisabled: document.querySelector(".apply-disabled button")?.disabled,
     applyDescribed: Boolean(document.querySelector(".apply-disabled button")?.getAttribute("aria-describedby")),
+    applyNote: document.querySelector("#apply-note")?.textContent.trim(),
     forms: document.querySelectorAll("form").length,
     schemaBlocks: document.querySelectorAll('script[type="application/ld+json"]').length,
   }));
@@ -2535,46 +2643,39 @@ report.careersStates = await (async () => {
 })();
 const careers = report.careersStates;
 if (careers.index.cards !== 3 || careers.index.linked !== 2) failures.push(`/careers/ must list three openings with two detail pages: ${JSON.stringify(careers.index)}`);
-if (careers.index.withCompensation !== 1 || careers.index.withoutCompensation !== 2) failures.push(`/careers/ must render the optional compensation field only where a record has one: ${JSON.stringify(careers.index)}`);
-if (careers.index.sampleTags !== 3) failures.push(`/careers/ must mark all three records as samples, found ${careers.index.sampleTags}`);
+if (careers.index.factCounts.some((count) => count !== 4)) failures.push(`/careers/ cards must carry the four fact fields and no invented compensation: ${JSON.stringify(careers.index.factCounts)}`);
+if (careers.index.sampleTags !== 0 || careers.index.saysSample) failures.push("/careers/ still carries retired sample language");
 if (careers.index.livePostings.length) failures.push(`/careers/ copies live postings: ${careers.index.livePostings.join(", ")}`);
 if (careers.detail.sections < 3) failures.push(`A job detail page rendered ${careers.detail.sections} sections`);
-if (!careers.detail.applyDisabled || !careers.detail.applyDescribed) failures.push("A sample apply action must be disabled and say why");
+if (!careers.detail.applyDisabled || !careers.detail.applyDescribed) failures.push("The apply action must be disabled and say why");
+if (careers.detail.applyNote !== "Applications for this role are not open yet.") failures.push(`The apply note reads ${JSON.stringify(careers.detail.applyNote)}`);
 if (careers.detail.forms !== 0) failures.push("A prototype job page must collect no applicant data");
-if (careers.detail.schemaBlocks !== 0) failures.push("A mock job record must emit no JobPosting schema");
+if (careers.detail.schemaBlocks !== 0) failures.push("A fictional job record must emit no JobPosting schema");
 
+// safetyStates. V15-D-V15-7: the portal state. No notice records, no absence claim in either
+// direction, the official portal as the primary action, and a way to Contact beside it.
 report.safetyStates = await (async () => {
   await page.goto(`${base}/safety/`, { waitUntil: "networkidle" });
-  const index = await page.evaluate(() => ({
-    cards: document.querySelectorAll(".record-card--notice").length,
-    // The key facts are visible on the card without a hover: hazard, remedy, product, date, and ID.
-    complete: [...document.querySelectorAll(".record-card--notice")].filter((card) => card.querySelectorAll(".notice-facts dt").length >= 5).length,
-    sampleTags: [...document.querySelectorAll(".sample-tag")].filter((tag) => tag.textContent === "Sample notice").length,
-    forbiddenClaim: /no active recalls/i.test(document.body.innerText),
+  return await page.evaluate(() => ({
+    h1: document.querySelector("h1").textContent,
+    cards: document.querySelectorAll(".record-card--notice, .record-card").length,
+    forbiddenClaim: /no active recalls|no current notices|no notices/i.test(document.body.innerText),
     liveSubjects: ["accelerator", "tie-rod", "rear-steer", "electrical shock"].filter((subject) => document.body.innerText.toLowerCase().includes(subject)),
-    portalLink: [...document.querySelectorAll("a")].filter((anchor) => (anchor.getAttribute("href") || "").includes("portal.vanderhallusa.com")).length,
-    // Severity is never colour alone: every status is a word.
-    statusWords: [...document.querySelectorAll(".notice-facts dd")].filter((node) => node.textContent.trim()).length,
-  }));
-  await page.goto(`${base}/safety/placeholder-notice-b/`, { waitUntil: "networkidle" });
-  const detail = await page.evaluate(() => ({
-    revised: /revised/i.test(document.body.innerText),
-    facts: document.querySelectorAll(".notice-facts--detail dt").length,
-    blocks: document.querySelectorAll(".prose > *").length,
-    saysSample: document.body.innerText.includes("describes no hazard"),
+    portalAction: [...document.querySelectorAll("a.button")].filter((anchor) => (anchor.getAttribute("href") || "").includes("portal.vanderhallusa.com")).length,
+    contactAction: [...document.querySelectorAll(".page a")].filter((anchor) => anchor.getAttribute("href") === "/contact/").length,
+    sampleLanguage: /\bsample\b/i.test(document.body.innerText),
     schemaBlocks: document.querySelectorAll('script[type="application/ld+json"]').length,
   }));
-  return { index, detail };
 })();
 const safety = report.safetyStates;
-if (safety.index.cards !== 3 || safety.index.complete !== 3) failures.push(`/safety/ must list three complete notice cards: ${JSON.stringify(safety.index)}`);
-if (safety.index.sampleTags !== 3) failures.push(`/safety/ must mark all three notices as samples, found ${safety.index.sampleTags}`);
-if (safety.index.forbiddenClaim) failures.push("/safety/ must not claim there are no active recalls: only the authoritative system can determine that");
-if (safety.index.liveSubjects.length) failures.push(`/safety/ appears to adapt live notices: ${safety.index.liveSubjects.join(", ")}`);
-if (safety.index.portalLink === 0) failures.push("/safety/ must keep the official portal reachable as a fallback");
-if (!safety.detail.revised || safety.detail.facts < 6) failures.push(`A revised notice must show its revision date and full facts: ${JSON.stringify(safety.detail)}`);
-if (!safety.detail.saysSample) failures.push("A sample notice must say plainly that it describes no hazard");
-if (safety.detail.schemaBlocks !== 0) failures.push("A mock safety record must emit no structured data");
+if (safety.h1 !== "Safety notices") failures.push(`The safety page h1 is ${safety.h1}`);
+if (safety.cards !== 0) failures.push(`/safety/ must publish no notice records in the portal state, found ${safety.cards}`);
+if (safety.forbiddenClaim) failures.push("/safety/ must not claim an absence of notices: only the authoritative system can determine that");
+if (safety.liveSubjects.length) failures.push(`/safety/ appears to adapt live notices: ${safety.liveSubjects.join(", ")}`);
+if (safety.portalAction === 0) failures.push("/safety/ must lead with the official portal action");
+if (safety.contactAction === 0) failures.push("/safety/ must offer a way to Contact");
+if (safety.sampleLanguage) failures.push("/safety/ still carries retired sample language");
+if (safety.schemaBlocks !== 0) failures.push("/safety/ must emit no structured data");
 
 // privacyDocument. The reading experience changed and the copy did not.
 report.privacyDocument = {};
@@ -2593,6 +2694,7 @@ for (const width of [390, 1440]) {
       entries: links.length,
       unresolved: links.filter((anchor) => !document.querySelector(anchor.getAttribute("href").replace("#", "#"))).length,
       prototypeLabel: document.body.innerText.includes("Prototype policy structure."),
+      verbatimAnchor: document.body.innerText.includes("This privacy policy has been compiled to better serve"),
       dates: [...document.querySelectorAll(".policy-header__meta dt")].map((node) => node.textContent),
       sections: document.querySelectorAll(".policy__section").length,
       measure: Math.round(document.querySelector(".policy p").getBoundingClientRect().width),
@@ -2603,7 +2705,9 @@ for (const width of [390, 1440]) {
   if (shape.navs !== 1) failures.push(`/privacy/ at ${width}: expected one contents nav, found ${shape.navs}`);
   if (shape.unresolved !== 0) failures.push(`/privacy/ at ${width}: ${shape.unresolved} contents entries resolve to nothing`);
   if (shape.entries === 0) failures.push(`/privacy/ at ${width}: the contents list is empty`);
-  if (!shape.prototypeLabel) failures.push(`/privacy/ at ${width}: the prototype label is missing`);
+  // V15-F: the visible label is retired; the verbatim copy itself must still be present in full.
+  if (shape.prototypeLabel) failures.push(`/privacy/ at ${width}: the retired prototype label remains`);
+  if (!shape.verbatimAnchor) failures.push(`/privacy/ at ${width}: Vanderhall's verbatim policy text is missing`);
   if (shape.dates.includes("Effective") || shape.dates.includes("Last updated")) failures.push(`/privacy/ at ${width}: a policy date was invented`);
   if (shape.sections !== 13) failures.push(`/privacy/ at ${width}: renders ${shape.sections} sections`);
   if (!shape.noHorizontalScroll) failures.push(`/privacy/ widened the document at ${width}px`);
@@ -2641,7 +2745,7 @@ for (const width of [1440, 390]) {
       delivery: text.includes("expected to begin during the fourth quarter of 2026"),
       state: document.querySelector(".launch-state")?.textContent,
       reserveActions: [...document.querySelectorAll("a, button")].filter((node) => /^reserve/i.test(node.textContent.trim())).length,
-      disclaims: text.includes("Registering does not create a reservation"),
+      disclaims: text.includes("Registering your interest does not create a reservation"),
       banned: ["MSRP", "deposit", "150 mi", "300 mi", "180 hp"].filter((token) => text.includes(token)),
       consentCheckboxes: document.querySelectorAll("input[type='checkbox']").length,
       noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1,
@@ -2687,7 +2791,7 @@ if (!launch.summaryVisible || !launch.summaryFocused) failures.push(`The Launch 
 // An invalid email is caught by type rather than by pattern, and the entered values survive.
 await launchForm.getByLabel(/^First name/).fill("Test");
 await launchForm.getByLabel(/^Last name/).fill("Visitor");
-await launchForm.getByLabel(/^Address/).fill("1 Sample Street");
+await launchForm.getByLabel(/^Address/).fill("1 Test Street");
 await launchForm.getByLabel(/^City/).fill("Provo");
 await launchForm.getByLabel(/^State/).selectOption("UT");
 await launchForm.getByLabel(/^ZIP/).fill("84601");
@@ -2708,7 +2812,7 @@ await launchForm.locator("[name='render_timestamp']").evaluate((input) => { inpu
 await launchForm.getByRole("button", { name: "Register your interest" }).click();
 report.launchInterestForm.result = await launchForm.locator(".form-status").innerText();
 report.launchInterestForm.posted = launchRequests.length;
-if (report.launchInterestForm.result !== "This form is not connected yet. Your information was not sent.") failures.push(`The Launch Edition prototype result reads ${report.launchInterestForm.result}`);
+if (report.launchInterestForm.result !== "Online submissions are not open yet. Email inquiry@vanderhall.com and the team will follow up.") failures.push(`The Launch Edition prototype result reads ${report.launchInterestForm.result}`);
 if (launchRequests.length) failures.push(`The Launch Edition prototype transmitted ${launchRequests.length} requests`);
 
 // ownerManualAccess. Reached from the footer, every file still where it was, and nothing about the manuals
@@ -2741,20 +2845,22 @@ for (const width of [1440, 390]) {
 }
 await page.setViewportSize({ width: 1440, height: 1000 });
 
-// mockProductionGuard. The visible markers, the noindex set, and the negative test: a production build must
-// refuse to run while the blockers are open.
+// mockProductionGuard. The noindex set and the negative test: a production build must refuse to run
+// while the blockers are open. V15-F retires the visible markers, so the marker assertion inverts:
+// no route may render one, and the mock routes' remaining public safeguard is the noindex below.
+// /experience/ and /blog/ left the set with their fictional records.
 report.mockProductionGuard = { routes: {} };
-for (const route of ["/dealers/", "/experience/", "/blog/", "/careers/", "/safety/", "/santarosa/launch-edition/"]) {
+for (const route of ["/dealers/", "/careers/", "/safety/", "/santarosa/launch-edition/"]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   const shape = await page.evaluate(() => ({
     sampleMarkers: document.querySelectorAll(".sample-note, .sample-tag").length,
     robots: document.querySelector('meta[name="robots"]')?.content ?? null,
   }));
   report.mockProductionGuard.routes[route] = shape;
-  if (shape.sampleMarkers === 0) failures.push(`${route}: mock content carries no visible sample marker`);
+  if (shape.sampleMarkers !== 0) failures.push(`${route}: a retired sample marker is still rendered`);
   if (shape.robots !== "noindex, follow") failures.push(`${route}: a mock-data route must not be indexable, found ${shape.robots}`);
 }
-for (const route of ["/", "/brawley/", "/contact/", "/privacy/", "/owners/"]) {
+for (const route of ["/", "/brawley/", "/contact/", "/privacy/", "/owners/", "/experience/", "/blog/", ...articleRoutes]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   const robots = await page.evaluate(() => document.querySelector('meta[name="robots"]')?.content ?? null);
   report.mockProductionGuard.routes[route] = { robots };

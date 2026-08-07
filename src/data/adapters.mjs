@@ -16,7 +16,7 @@
 //
 // The submit functions transmit nothing and store nothing, on purpose. See src/data/prototype.mjs.
 import { MOCK_DEALERS, DEALER_FILTERS } from "./mock/dealers.mjs";
-import { MOCK_POSTS, FEATURED_POST_ID } from "./mock/articles.mjs";
+import { ARTICLES, FEATURED_ARTICLE_ID } from "./articles.mjs";
 import { MOCK_JOBS, EQUAL_OPPORTUNITY_STATEMENT } from "./mock/careers.mjs";
 import { MOCK_SAFETY_NOTICES, SAFETY_PORTAL_URL } from "./mock/safety.mjs";
 import { santarosaLaunchCampaign, brawleyDeliveryStatus, CAMPAIGN_PHASES } from "./mock/campaign.mjs";
@@ -54,9 +54,15 @@ export const getDealerFilters = () => DEALER_FILTERS;
 // Editorial
 // ---------------------------------------------------------------------------------------------
 // Newest first, and published state is a field rather than an assumption, so an unpublished draft in a
-// connected CMS never reaches a page.
-export const getPosts = () => MOCK_POSTS
-  .map((post) => required(post, "Post", ["id", "slug", "title", "excerpt", "category", "author", "publishedAt"]))
+// connected CMS never reaches a page. V15: the records are the two real Vanderhall articles in
+// src/data/articles.mjs, no longer fixtures, and the required set grows to the full editorial contract
+// because a real article missing its standfirst or hero is a broken page, not a sparse card.
+export const getPosts = () => ARTICLES
+  .map((post) => required(post, "Post", ["id", "slug", "title", "standfirst", "excerpt", "category", "author", "publishedAt", "hero", "bodyBlocks", "relatedSlugs"]))
+  .map((post) => {
+    if (!post.seo?.description) throw new Error(`Post ${post.id} is missing the required field "seo.description"`);
+    return post;
+  })
   .slice()
   .sort((a, b) => (a.publishedAt < b.publishedAt ? 1 : -1));
 
@@ -81,9 +87,11 @@ export const getExperienceModules = () => {
       heading: "Latest from Vanderhall.",
       // Post IDs, not copies of the records. The hub and the archive read the same adapter, so a story
       // cannot be featured on one and missing from the other.
-      featuredId: FEATURED_POST_ID,
-      recentIds: getPosts().filter((post) => post.id !== FEATURED_POST_ID).slice(0, 3).map((post) => post.id),
-      archive: { label: "View all stories", href: "/blog/" },
+      featuredId: FEATURED_ARTICLE_ID,
+      recentIds: getPosts().filter((post) => post.id !== FEATURED_ARTICLE_ID).slice(0, 3).map((post) => post.id),
+      // V15, D-V15-3: no archive action. With two stories the hub and the archive are the same page
+      // with different furniture; /blog/ stays built as every article's back-link parent, and this
+      // entry returns when the archive outgrows the hub.
     },
   ];
   for (const module of modules) {
@@ -92,7 +100,7 @@ export const getExperienceModules = () => {
   return modules;
 };
 
-export const getFeaturedPost = () => getPosts().find((post) => post.id === FEATURED_POST_ID) || getPosts()[0] || null;
+export const getFeaturedPost = () => getPosts().find((post) => post.id === FEATURED_ARTICLE_ID) || getPosts()[0] || null;
 
 // ---------------------------------------------------------------------------------------------
 // Careers

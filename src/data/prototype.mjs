@@ -12,12 +12,10 @@
 export const MODE = process.env.VHW_MODE === "production" ? "production" : "prototype";
 export const IS_PROTOTYPE = MODE !== "production";
 
-// The visible marker. Mock operational content carries it on the page, not only in a data file: the
-// plan's rule is that sample content must be visibly marked in any public preview, and a preview is
-// exactly the thing somebody screenshots and forwards.
-export const SAMPLE_LABEL = "Sample content";
-export const SAMPLE_NOTICE_LABEL = "Sample notice";
-export const SAMPLE_SENTENCE = "Sample content. These records are prototype data for layout review and will be replaced with Vanderhall's own before launch.";
+// V15-F, Owen on 2026-08-06: the visible sample markers are retired sitewide. What remains of the
+// honesty contract is this file's production gate, the per-route noindex, and fixtures that stay
+// provably fictional by construction (reserved 555-01xx numbers, example.com hosts). check-content
+// now asserts the marker classes and their sentences appear in zero delivered files.
 
 // Each row is one thing a person has to supply before this site may be released. `owner` is who, not
 // what team: John owns the integrations, the content owners own the words, legal owns the legal
@@ -30,7 +28,7 @@ export const PRODUCTION_BLOCKERS = Object.freeze([
   { id: "launch-interest-endpoint", owner: "John", detail: "The Santarosa Launch Edition interest endpoint and CRM mapping. FORM_ENDPOINTS['santarosa-launch-interest'] is null." },
   { id: "launch-consent", owner: "Legal", detail: "Approved email and SMS marketing consent wording and privacy linkage for the Launch Edition interest form. No checkbox text may be invented." },
   { id: "launch-copy", owner: "Owen's boss", detail: "The Launch Edition landing copy in Plans/V13-plan.md section 7.12 is drafted from supplied facts and is not approved production wording." },
-  { id: "article-records", owner: "Content owner", detail: "Three sample articles stand in for the editorial archive. No legacy article body may be reused." },
+  { id: "article-claim-review", owner: "Vanderhall content/legal", detail: "The two migrated editorial articles are published source-faithfully and carry claims the current product pages do not (140-mile range, dual-motor wording, 35-inch tires). Review before treating them as current marketing; see INTEGRATION.md." },
   { id: "career-records", owner: "Content owner", detail: "Three fictional openings stand in for the careers feed. The live Paralegal and Welding Operator postings are deliberately not copied." },
   { id: "safety-records", owner: "Vanderhall safety", detail: "Three explicitly fictional notices stand in for the authoritative safety source. No live notice may be adapted as sample content." },
   { id: "privacy-copy", owner: "Vanderhall legal", detail: "The privacy policy still describes the old WordPress site. Approved replacement copy is required before publication." },
