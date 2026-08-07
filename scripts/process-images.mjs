@@ -569,6 +569,31 @@ for (const [sourceName, outputBase, widths] of EDITORIAL_IMAGES) {
   }
 }
 
+// V16-D. Film stills: the tall mobile hero rungs, cut from the Brawley film master's own closing
+// frame (master frame 1426, ~59.476s, extracted at the 59.49s mid-frame point; see
+// src/data/video.mjs for why this frame and not the poster frame). ffmpeg extracts the frame at
+// full 3840x2160, sharp takes the centered 1728x2160 window (a 4:5 tall aspect, matching the model
+// pages' tall hero crops), and the rungs encode with the site's standard webp settings. This
+// section needs only the in-project master under Assets/Source Video, not the external v3 archive.
+const filmStillMaster = resolve(assetsRoot, "Source Video/Brawley/brawley-final-master.mp4");
+const filmStillFrame = resolve(websiteRoot, "work/film-still-1426.png");
+await run("ffmpeg", ["-y", "-loglevel", "error", "-ss", "59.49", "-i", filmStillMaster, "-frames:v", "1", filmStillFrame]);
+const filmStillOutput = resolve(websiteRoot, "assets/video/brawley");
+for (const width of [480, 720, 800, 960]) {
+  const output = resolve(filmStillOutput, `brawley-film-25-60-final-tall-${width}.webp`);
+  const outputInfo = await sharp(filmStillFrame)
+    .extract({ left: 1056, top: 0, width: 1728, height: 2160 })
+    .resize(width, Math.round(width * 1.25), { fit: "fill" })
+    .webp({ quality: 80, effort: 6, smartSubsample: true })
+    .toFile(output);
+  record(output, filmStillMaster, "film closing frame 1426 at 59.49s; centered 1728x2160 window; tall rung", {
+    output_width: outputInfo.width,
+    output_height: outputInfo.height,
+    crop_window: "1056,0 1728x2160",
+  });
+}
+await rm(filmStillFrame, { force: true });
+
 const manualsOutput = resolve(websiteRoot, "assets/manuals");
 await rm(manualsOutput, { recursive: true, force: true });
 await mkdir(manualsOutput, { recursive: true });

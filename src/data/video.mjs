@@ -45,16 +45,30 @@ const poster = (stem, alt, { src = 1920 } = {}) => ({
 });
 
 // Alt text describes only what is in the frame. No terrain, weather, location, model year, trim or
-// performance claim is inferred from footage, which is the video plan's section 8 rule.
+// performance claim is inferred from footage, which is the video plan's section 8 rule. The one
+// alt below serves both delivered frames (the picture element switches sources at 768px but an img
+// carries a single alt), so it states only what is true in both: a dark Vanderhall Brawley in open
+// desert terrain.
 //
 // The poster is the film's own first frame, the 25.000-second action start, so the crossfade from
-// poster to motion is a moment of the same scene rather than a scene change, and a visitor below
-// the 768px gate sees the frame the film would have opened on.
+// poster to motion is a moment of the same scene rather than a scene change.
+//
+// V16-D, Owen on 2026-08-06: below 768px the homepage carries no video experience at all, so the
+// phone hero is a designed still rather than the film's opening frame. The wide 16:9 poster
+// cover-cropped into the tall mobile hero upscaled roughly 2x and read as a stalled player; these
+// tall rungs are cut at full quality from the master's frame 1426 (~59.476s, extracted at 59.49s,
+// mid-frame), the same clean close front view the delivered cut ends on, centered 1728x2160 from
+// the 3840x2160 frame. That frame carries no burned-in caption band, which every earlier frame
+// does; a still that clips the caption mid-line was not an option, and every static photograph on
+// this site ships without one. Do not re-derive the timestamp from scene detection, and reproduce
+// the rungs with `npm run images` (the film-stills section of scripts/process-images.mjs).
+const TALL_RUNGS = [480, 720, 800, 960];
 export const heroFilm = {
   webm: `${BASE}/brawley-film-25-60.webm`,
   mp4: `${BASE}/brawley-film-25-60.mp4`,
   focal: "50% 50%",
-  poster: poster("brawley-film-25-60-poster", "Dark Vanderhall Brawley driving across open desert scrub, trailing dust"),
+  poster: poster("brawley-film-25-60-poster", "Dark Vanderhall Brawley in open desert terrain"),
+  tallSrcset: TALL_RUNGS.map((width) => `${BASE}/brawley-film-25-60-final-tall-${width}.webp ${width}w`).join(", "),
 };
 
 // One list, so the check scripts can assert the delivered set against the same source the pages

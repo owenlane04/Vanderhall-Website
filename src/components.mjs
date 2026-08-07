@@ -8,6 +8,7 @@ import { IS_PROTOTYPE } from "./data/prototype.mjs";
 import { CONTACT_CATEGORIES, CONTACT_TIMEFRAMES } from "./data/mock/contact.mjs";
 import { campaignStatement } from "./data/mock/campaign.mjs";
 import { formatDate } from "./data/adapters.mjs";
+import { WORLD_BOX, WORLD_SIZE, mercatorPoint, worldBordersPath, worldLandPath } from "./data/worldmap.mjs";
 
 // The public brand name, in one place. V13, Q-V13-25: `Vanderhall` only, across visible copy, titles,
 // metadata, accessible labels, JSON-LD, and the web manifest. Every one of the ten source sites the plan
@@ -106,7 +107,7 @@ export const backLink = ({ label, href }) => `<nav class="back-nav" aria-label="
 // stop. What replaces it is the accent mark the eyebrow was already carrying in its ::before, now
 // standing on its own above the title. The mark is CSS on --marked, so there is no empty element in
 // the accessibility tree pretending to be a label.
-export const pageHeader = (title, intro, className = "", back = null) => `<header class="page-header page-header--marked${className ? ` ${className}` : ""}">${back ? backLink(back) : ""}<h1>${escapeHtml(title)}</h1><p>${escapeHtml(intro)}</p></header>`;
+export const pageHeader = (title, intro, className = "", back = null) => `<header class="page-header page-header--marked${className ? ` ${className}` : ""}">${back ? backLink(back) : ""}<h1>${escapeHtml(title)}</h1>${intro ? `<p>${escapeHtml(intro)}</p>` : ""}</header>`;
 
 // Venice and Carmel only. Owen confirmed their status in chat on 2026-08-05; the two current
 // models carry no tag, because current is the default a visitor already assumes.
@@ -428,10 +429,11 @@ const integrationFields = (formId, submitLabel) => `
   ${/* V15-F: the pre-submit "not connected" note is gone. The form still transmits nothing; on
         submit, site.js answers with one true sentence directing the visitor to the inquiry address,
         so nobody's message silently disappears and nothing pretends to have sent. */""}
+  ${/* V16-A: the required-fields key reads at the foot of the form rather than the head. */""}
+  <p class="form-key">Fields marked * are required.</p>
   <p class="form-status" tabindex="-1" aria-live="polite"></p>`;
 
 const formOpen = (id, formId) => `<form class="lead-form" id="${id}" novalidate data-site-form data-form-id="${formId}" data-endpoint="${FORM_ENDPOINTS[formId] || ""}">
-  <p class="form-key">Fields marked * are required.</p>
   <div class="form-error-summary" role="alert" tabindex="-1" hidden></div>`;
 
 // V13-G. leadForm() is retired with the /dealers/ inquiry it served. Its identity is retired with it: the
@@ -833,7 +835,16 @@ export const blogPostingSchema = (post) => jsonLd({
 const NOINDEX_ROUTES = ["/dealers", "/careers", "/safety", "/santarosa/launch-edition"];
 const isNoindex = (path) => IS_PROTOTYPE && NOINDEX_ROUTES.some((route) => path === route || path.startsWith(`${route}/`));
 
-export const shell = ({ title, description, path, body, schema = "", mainClass = "" }) => `<!doctype html>
+// V16-C: the homepage opens through a veil. The animation is entirely CSS and self-removing (the
+// final keyframe holds visibility hidden), so a visitor without JavaScript still reaches the page;
+// the one script involved is the pre-paint session gate below, which keeps the veil to the first
+// homepage view of a session rather than every return to it. Reduced motion never sees it.
+const introVeil = () => `<div class="intro-veil" aria-hidden="true">
+    <img class="intro-veil__logo" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" alt="" width="585" height="61" decoding="async">
+  </div>`;
+const introGate = `<script>try{if(sessionStorage.getItem("vhw.intro"))document.documentElement.setAttribute("data-intro-seen","");else sessionStorage.setItem("vhw.intro","1")}catch(e){}</script>`;
+
+export const shell = ({ title, description, path, body, schema = "", mainClass = "", intro = false }) => `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
@@ -852,11 +863,11 @@ export const shell = ({ title, description, path, body, schema = "", mainClass =
         block takes them away again, which leaves a no-JS visitor the complete dealer list and no control that
         could not work. A <noscript> style applies only when scripting is off, so it costs nobody else
         anything. */""}
-  <noscript><style>[data-locator-search],[data-locator-modes],[data-dealer-select]{display:none}</style></noscript>
-  ${schema}
+  <noscript><style>[data-locator-search],[data-dealer-select]{display:none}</style></noscript>
+  ${intro ? `${introGate}\n  ` : ""}${schema}
 </head>
 <body>
-  ${header(path)}
+  ${intro ? `${introVeil()}\n  ` : ""}${header(path)}
   <main id="main"${mainClass ? ` class="${mainClass}"` : ""}>${body}</main>
   ${footer()}
   <script>addEventListener('load',()=>requestAnimationFrame(()=>requestAnimationFrame(()=>{const s=document.createElement('script');s.src='/scripts/site.js';document.body.append(s)})),{once:true})</script>
@@ -1162,18 +1173,45 @@ const dealerCard = (dealer) => {
   </article>`;
 };
 
-// V15-E. The illustrative map: a build-time SVG drawn for this site, not a tile service and not an
-// imitation of one. Simplified western-state boundaries (straight-line borders drawn from their
-// defining parallels and meridians, a hand-simplified coastline), and one pin per dealer projected
-// from the record's real coordinates, so the pins are as honest as the list. It renders at first
-// paint in the no-key state and is what the Map view shows until John's Google key exists; with a
-// key, the Google canvas takes over and this panel is the failure fallback rather than a sentence.
-const MAP_BOUNDS = { latMin: 31, latMax: 49.5, lngMin: -125.5, lngMax: -101.5 };
-const MAP_SIZE = { width: 700, height: 700 };
-const mapPoint = (lat, lng) => ({
-  x: ((lng - MAP_BOUNDS.lngMin) / (MAP_BOUNDS.lngMax - MAP_BOUNDS.lngMin)) * MAP_SIZE.width,
-  y: ((MAP_BOUNDS.latMax - lat) / (MAP_BOUNDS.latMax - MAP_BOUNDS.latMin)) * MAP_SIZE.height,
-});
+// V15-E introduced the illustrative map: a build-time SVG drawn for this site, not a tile service
+// and not an imitation of one. One pin per dealer projected from the record's real coordinates, so
+// the pins are as honest as the list. It renders at first paint in the no-key state and stands
+// until John's Google key exists; with a key, the Google canvas takes over and this panel is the
+// failure fallback rather than a sentence.
+//
+// V16-F rebuilds the drawing on a world base. Owen asked for a map that can hold thirty-plus
+// dealers and zoom from the whole world to a region, so the projection is now Web Mercator over
+// the world-atlas outlines (src/data/worldmap.mjs), the delivered viewBox is fitted to wherever
+// the records actually are, and site.js drives zoom and pan by rewriting that viewBox. Everything
+// below still works with the script gone: the fitted view is baked in, and the zoom controls ship
+// hidden exactly as the walkaround's do.
+const MAP_SCALE_REF = 700; // the V15 drawing's box; pin geometry is authored against it and scaled
+const MAP_MIN_VIEW = 40;   // never fit tighter than ~14 degrees of longitude
+const mapPoint = (lat, lng) => mercatorPoint(lat, lng);
+
+// The fitted opening view: the pins' own box, padded, squared, and clamped to the world.
+const mapFitBox = (dealers) => {
+  const points = dealers.map((dealer) => mapPoint(dealer.latitude, dealer.longitude));
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  const pad = Math.max(6, (Math.max(...xs) - Math.min(...xs)) * 0.14, (Math.max(...ys) - Math.min(...ys)) * 0.14);
+  let x0 = Math.min(...xs) - pad;
+  let x1 = Math.max(...xs) + pad;
+  let y0 = Math.min(...ys) - pad;
+  let y1 = Math.max(...ys) + pad;
+  const side = Math.min(Math.max(x1 - x0, y1 - y0, MAP_MIN_VIEW), WORLD_SIZE);
+  const cx = (x0 + x1) / 2;
+  const cy = (y0 + y1) / 2;
+  x0 = cx - side / 2; y0 = cy - side / 2;
+  // Clamp inside the world box so the opening view never letterboxes on empty projection space; a
+  // spread of dealers wider than the world's own height centres on the world instead.
+  x0 = Math.min(Math.max(x0, WORLD_BOX.x), WORLD_BOX.x + WORLD_BOX.width - side);
+  y0 = side >= WORLD_BOX.height
+    ? WORLD_BOX.y - (side - WORLD_BOX.height) / 2
+    : Math.min(Math.max(y0, WORLD_BOX.y), WORLD_BOX.y + WORLD_BOX.height - side);
+  const round = (value) => Number(value.toFixed(1));
+  return { x: round(x0), y: round(y0), width: round(side), height: round(side) };
+};
 
 // Each polyline is [lat, lng] vertices. The straight segments are the borders' actual defining
 // lines (the 37th, 42nd, 45th, and 49th parallels; the 104.05, 109.05, 111.05, 114.05, and 117.03
@@ -1198,20 +1236,29 @@ const MAP_STATE_LINES = [
 ];
 
 export const dealerMap = (dealers) => {
+  const fit = mapFitBox(dealers);
   const lines = MAP_STATE_LINES.map((line) => `M${line.map(([lat, lng]) => {
     const { x, y } = mapPoint(lat, lng);
     return `${x.toFixed(1)} ${y.toFixed(1)}`;
   }).join("L")}`).join("");
+  // Pin geometry keeps its V15 authoring scale and is counter-scaled to the fitted view, which is
+  // the same arithmetic site.js applies on every zoom: a pin's on-screen size never follows the
+  // camera. Labels ship visible for a set this small; past twelve pins they wait for site.js to
+  // open them at a regional zoom, because thirty city names over a whole-country view is noise.
+  const pinScale = (fit.width / MAP_SCALE_REF).toFixed(4);
   const pins = dealers.map((dealer) => {
     const { x, y } = mapPoint(dealer.latitude, dealer.longitude);
-    return `<g class="map-pin" data-dealer-pin="${dealer.slug}" transform="translate(${x.toFixed(1)} ${y.toFixed(1)})">
+    return `<g class="map-pin" data-dealer-pin="${dealer.slug}" data-map-x="${x.toFixed(1)}" data-map-y="${y.toFixed(1)}" transform="translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(${pinScale})">
       <circle class="map-pin__halo" r="10"></circle>
       <circle class="map-pin__dot" r="4"></circle>
       <text class="map-pin__label" x="15" y="4">${escapeHtml(dealer.city)}</text>
     </g>`;
   }).join("");
-  return `<svg class="locator__map-art" viewBox="0 0 ${MAP_SIZE.width} ${MAP_SIZE.height}" role="img" aria-label="Illustrative map of the ${dealers.length} dealer locations. Full addresses and directions are in the dealer list." preserveAspectRatio="xMidYMid meet">
-    <path class="map-lines" d="${lines}"></path>
+  const viewBox = `${fit.x} ${fit.y} ${fit.width} ${fit.height}`;
+  return `<svg class="locator__map-art${dealers.length <= 12 ? " map-art--labels" : ""}" viewBox="${viewBox}" data-map-fit="${viewBox}" data-map-world="${WORLD_BOX.x} ${WORLD_BOX.y} ${WORLD_BOX.width} ${WORLD_BOX.height}" role="img" aria-label="Illustrative map of the ${dealers.length} dealer locations. Full addresses and directions are in the dealer list." preserveAspectRatio="xMidYMid meet">
+    <path class="map-land" fill-rule="evenodd" vector-effect="non-scaling-stroke" d="${worldLandPath}"></path>
+    <path class="map-borders" vector-effect="non-scaling-stroke" d="${worldBordersPath}"></path>
+    <path class="map-lines" vector-effect="non-scaling-stroke" d="${lines}"></path>
     ${pins}
   </svg>`;
 };
@@ -1233,16 +1280,15 @@ export const dealerLocator = (dealers, filters, { mapKey = "", mapId = "" } = {}
       <button class="button button--secondary" type="reset" data-locator-reset>Clear</button>
     </div>
   </form>
+  ${/* V16-E, Owen on 2026-08-06: the List/Map switch is retired. Both panes render at every width,
+        side by side where there is room and stacked with the map first where there is not, so there
+        is no mode for a control to change. */""}
   <div class="locator__bar">
     <p class="locator__count" data-locator-count>${dealers.length} ${dealers.length === 1 ? "dealer" : "dealers"}</p>
-    <div class="locator__modes" data-locator-modes role="group" aria-label="View">
-      <button class="locator__mode is-selected" type="button" data-locator-mode="list" aria-pressed="true">List</button>
-      <button class="locator__mode" type="button" data-locator-mode="map" aria-pressed="false">Map</button>
-    </div>
   </div>
   <p class="locator__state" data-locator-state="searching" role="status" hidden>Searching</p>
   <p class="locator__state" data-locator-state="data-failed" role="alert" hidden>The dealer list could not be loaded. Please try again, or contact Vanderhall.</p>
-  <div class="locator__panes" data-locator-panes data-mode="list">
+  <div class="locator__panes" data-locator-panes>
     <div class="locator__list" data-locator-list>
       ${dealers.map(dealerCard).join("")}
       <div class="locator__no-results" data-locator-state="no-results" hidden>
@@ -1257,6 +1303,13 @@ export const dealerLocator = (dealers, filters, { mapKey = "", mapId = "" } = {}
             a drawing of where the dealers are, and the list beside it carries everything else. */""}
       <div class="locator__map-fallback" data-locator-map-fallback>
         ${dealerMap(dealers)}
+        ${/* V16-F: the zoom controls belong to the drawing and leave with it when the Google map
+              takes over. Hidden until site.js can honour them, the walkaround's rule again. */""}
+        <div class="locator__map-controls" data-map-controls hidden>
+          <button class="locator__map-button" type="button" data-map-zoom="in" aria-label="Zoom in">+</button>
+          <button class="locator__map-button" type="button" data-map-zoom="out" aria-label="Zoom out">&minus;</button>
+          <button class="locator__map-button locator__map-button--fit" type="button" data-map-zoom="fit" aria-label="Reset the map view">Fit</button>
+        </div>
       </div>
     </div>
   </div>

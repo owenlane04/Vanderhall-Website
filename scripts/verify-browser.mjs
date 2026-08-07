@@ -290,16 +290,17 @@ if (titleShape.headings !== 1 || !titleShape.isWordmark || titleShape.accessible
   failures.push(`Concept title failed: ${JSON.stringify(titleShape)}`);
 }
 
-// Owner resources: the groups that have delivered photography carry it, and every manual is a card.
+// Owner resources: V16-I makes the library a plain list. Every manual is a card, every group is
+// typographic, and no model photograph survives on the page.
 await page.goto(`${base}/owners/`, { waitUntil: "networkidle" });
 report.interactions.ownerResources = await page.evaluate(() => ({
   cards: document.querySelectorAll(".resource-card").length,
   groups: document.querySelectorAll(".resource-group").length,
-  withMedia: document.querySelectorAll(".resource-group--media .resource-group__media img").length,
+  withMedia: document.querySelectorAll(".resource-group--media, .resource-group__media, .resource-group img").length,
   retiredRows: document.querySelectorAll(".resource-row").length,
 }));
 const ownerShape = report.interactions.ownerResources;
-if (ownerShape.cards !== 19 || ownerShape.groups !== 5 || ownerShape.withMedia !== 3 || ownerShape.retiredRows !== 0) {
+if (ownerShape.cards !== 19 || ownerShape.groups !== 5 || ownerShape.withMedia !== 0 || ownerShape.retiredRows !== 0) {
   failures.push(`Owner resources failed: ${JSON.stringify(ownerShape)}`);
 }
 
@@ -473,7 +474,10 @@ if (report.interactions.requestFormCount !== 1) failures.push("/contact/ must ho
 report.interactions.contactFlow.initial = await page.evaluate(() => ({
   visibleSteps: [...document.querySelectorAll("[data-step]")].filter((step) => !step.hidden).map((step) => step.dataset.step),
   navVisible: [...document.querySelectorAll("[data-form-nav]")].some((nav) => !nav.hidden),
-  submitVisible: !document.querySelector(".form-submit-row").hidden,
+  // Computed display, not the hidden attribute. V16-B exists because the attribute was set and the
+  // button rendered anyway: display:flex on the class beat the UA sheet's [hidden] rule, and this
+  // assertion read the attribute and passed. Ask what the visitor sees, not what the DOM intends.
+  submitVisible: getComputedStyle(document.querySelector(".form-submit-row")).display !== "none",
   status: document.querySelector("[data-step-status]").textContent,
 }));
 const contactInitial = report.interactions.contactFlow.initial;
@@ -1629,7 +1633,11 @@ await noJsPage.goto(`${base}/dealers/`, { waitUntil: "load" });
 report.noJs.locator = await noJsPage.evaluate(() => ({
   cards: [...document.querySelectorAll(".dealer-card")].filter((card) => card.checkVisibility()).length,
   searchVisible: document.querySelector("[data-locator-search]").checkVisibility(),
-  modesVisible: document.querySelector("[data-locator-modes]").checkVisibility(),
+  // V16-E: the mode switch is retired outright, and V16-F's zoom controls ship with the hidden
+  // attribute, so neither may be visible here for opposite reasons: one must not exist at all,
+  // the other exists and waits for the island.
+  modeMarkup: document.querySelectorAll("[data-locator-modes], [data-locator-mode]").length,
+  zoomControlsVisible: document.querySelector("[data-map-controls]")?.checkVisibility() ?? false,
   selectVisible: [...document.querySelectorAll("[data-dealer-select]")].filter((button) => button.checkVisibility()).length,
   phones: document.querySelectorAll('.dealer-card a[href^="tel:"]').length,
   directions: [...document.querySelectorAll(".dealer-card a")].filter((anchor) => anchor.href.includes("google.com/maps/dir")).length,
@@ -1638,7 +1646,7 @@ report.noJs.locator = await noJsPage.evaluate(() => ({
 }));
 const noJsLocator = report.noJs.locator;
 if (noJsLocator.cards !== 6 || noJsLocator.phones !== 6 || noJsLocator.directions !== 6) failures.push(`No-JS /dealers/ must render every dealer with its phone and directions: ${JSON.stringify(noJsLocator)}`);
-if (noJsLocator.searchVisible || noJsLocator.modesVisible || noJsLocator.selectVisible) failures.push(`No-JS /dealers/ shows controls it cannot drive: ${JSON.stringify(noJsLocator)}`);
+if (noJsLocator.searchVisible || noJsLocator.modeMarkup !== 0 || noJsLocator.zoomControlsVisible || noJsLocator.selectVisible) failures.push(`No-JS /dealers/ shows controls it cannot drive: ${JSON.stringify(noJsLocator)}`);
 if (!noJsLocator.mapArt || noJsLocator.mapPins !== 6) failures.push(`No-JS /dealers/ must still show the illustrative map with all six pins: ${JSON.stringify(noJsLocator)}`);
 
 // The policy page has to be complete without script, because it is a legal document.
@@ -1960,23 +1968,18 @@ await page.goto(`${base}/brawley/gts/`, { waitUntil: "networkidle" });
 report.interactions.gtsRowsStayTabular = await page.evaluate(() => getComputedStyle(document.querySelector(".spec-table .spec-row")).display);
 if (report.interactions.gtsRowsStayTabular !== "grid") failures.push(`The purchase page's reference table must stay a table, found ${report.interactions.gtsRowsStayTabular}`);
 
-// V11-G. The owner group photographs are centred against their manual lists.
+// V11-G asserted the owner group photographs sat centred against their lists; V16-I retires the
+// photographs, so what is asserted now is that the library really is the plain list Owen asked
+// for: no group renders a media column at this width either.
 await page.setViewportSize({ width: 1280, height: 900 });
 await page.goto(`${base}/owners/`, { waitUntil: "networkidle" });
-report.interactions.ownerAlignment = await page.evaluate(() => {
-  const group = document.querySelector(".resource-group--media");
-  const media = group.querySelector(".resource-group__media");
-  const body = group.querySelector(".resource-group__body");
-  const centre = (element) => { const rect = element.getBoundingClientRect(); return Math.round(rect.top + rect.height / 2); };
-  return {
-    alignItems: getComputedStyle(group).alignItems,
-    mediaCentre: centre(media),
-    bodyCentre: centre(body),
-    drift: Math.abs(centre(media) - centre(body)),
-  };
-});
-if (report.interactions.ownerAlignment.alignItems !== "center") failures.push(`/owners/ groups must centre their photograph, found ${report.interactions.ownerAlignment.alignItems}`);
-if (report.interactions.ownerAlignment.drift > 2) failures.push(`/owners/ photograph is ${report.interactions.ownerAlignment.drift}px off the centre of its manual list`);
+report.interactions.ownerAlignment = await page.evaluate(() => ({
+  mediaColumns: [...document.querySelectorAll(".resource-group")].filter((group) => getComputedStyle(group).gridTemplateColumns.trim().split(" ").length > 1).length,
+  images: document.querySelectorAll(".resource-group img").length,
+}));
+if (report.interactions.ownerAlignment.mediaColumns !== 0 || report.interactions.ownerAlignment.images !== 0) {
+  failures.push(`/owners/ still renders a photograph column: ${JSON.stringify(report.interactions.ownerAlignment)}`);
+}
 
 // V11-J. The pathway component is gone from the rendered page as well as from the markup.
 report.interactions.pathwaysRetired = {};
@@ -2380,7 +2383,8 @@ report.dealerLocator = await page.evaluate(() => {
     // Every card carries the facts that matter without a hover or a click.
     complete: cards.filter((card) => card.querySelector(".dealer-card__address") && card.querySelector('a[href^="tel:"]') && [...card.querySelectorAll("a")].some((anchor) => anchor.href.includes("google.com/maps/dir"))).length,
     searchVisible: document.querySelector("[data-locator-search]").checkVisibility(),
-    modesVisible: document.querySelector("[data-locator-modes]").checkVisibility(),
+    // V16-E: the retired mode switch must not come back under either of its selectors.
+    modeMarkup: document.querySelectorAll("[data-locator-modes], [data-locator-mode]").length,
     selectButtons: [...document.querySelectorAll("[data-dealer-select]")].filter((button) => button.checkVisibility()).length,
     count: document.querySelector("[data-locator-count]").textContent,
     filters: [...document.querySelectorAll("[name='capability']")].map((radio) => radio.value),
@@ -2390,7 +2394,7 @@ report.dealerLocator = await page.evaluate(() => {
 const locator = report.dealerLocator;
 if (locator.cards !== 6 || locator.visible !== 6) failures.push(`/dealers/ must render six visible dealer cards, found ${locator.cards} and ${locator.visible}`);
 if (locator.complete !== 6) failures.push(`${6 - locator.complete} dealer cards are missing an address, a telephone number, or directions`);
-if (!locator.searchVisible || !locator.modesVisible || locator.selectButtons !== 6) failures.push(`The locator controls are not rendered: ${JSON.stringify(locator)}`);
+if (!locator.searchVisible || locator.modeMarkup !== 0 || locator.selectButtons !== 6) failures.push(`The locator controls are not rendered: ${JSON.stringify(locator)}`);
 if (JSON.stringify(locator.filters) !== JSON.stringify(["all", "ev", "gas", "service"])) failures.push(`The locator filters are ${locator.filters.join(", ")}`);
 if (!locator.noResultsHidden) failures.push("The locator shows its no-results state with six results");
 
@@ -2496,44 +2500,82 @@ report.dealerLocator.geolocationCalls = await permissionPage.evaluate(() => wind
 if (report.dealerLocator.geolocationCalls !== 0) failures.push(`The locator requested the visitor's location ${report.dealerLocator.geolocationCalls} times on load`);
 await permissionContext.close();
 
-// dealerMobileMode. One pane at a time below 1024px, results first, and the map never the only way in.
+// dealerMobileStack. V16-E: no mode switch at any width. Below 1024px both panes stack with the
+// map first, every dealer stays visible, and nothing about the retired switch survives.
 await page.setViewportSize({ width: 390, height: 844 });
 await page.goto(`${base}/dealers/`, { waitUntil: "networkidle" });
-report.dealerMobileMode = await page.evaluate(() => {
-  const panes = document.querySelector("[data-locator-panes]");
+report.dealerMobileStack = await page.evaluate(() => {
+  const map = document.querySelector(".locator__map");
+  const list = document.querySelector(".locator__list");
   return {
-    mode: panes.dataset.mode,
-    listVisible: document.querySelector(".locator__list").checkVisibility(),
-    mapVisible: document.querySelector(".locator__map").checkVisibility(),
+    listVisible: list.checkVisibility(),
+    mapVisible: map.checkVisibility(),
+    mapAboveList: map.getBoundingClientRect().top < list.getBoundingClientRect().top,
+    fallbackVisible: !document.querySelector("[data-locator-map-fallback]").hidden,
     cards: [...document.querySelectorAll(".dealer-card")].filter((card) => card.checkVisibility()).length,
-    pressed: [...document.querySelectorAll("[data-locator-mode]")].map((button) => button.getAttribute("aria-pressed")),
+    modeButtons: document.querySelectorAll("[data-locator-modes], [data-locator-mode]").length,
+    modeAttribute: document.querySelector("[data-locator-panes]").dataset.mode ?? null,
     noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1,
   };
 });
-const mobileMode = report.dealerMobileMode;
-if (mobileMode.mode !== "list" || !mobileMode.listVisible || mobileMode.mapVisible) failures.push(`The locator must open on the list below 1024px: ${JSON.stringify(mobileMode)}`);
-if (mobileMode.cards !== 6) failures.push(`A phone must see all six dealers, found ${mobileMode.cards}`);
-if (JSON.stringify(mobileMode.pressed) !== JSON.stringify(["true", "false"])) failures.push(`The mode switch must expose its state, found ${mobileMode.pressed.join(", ")}`);
-if (!mobileMode.noHorizontalScroll) failures.push("The locator widened the document at 390px");
-await page.locator("[data-locator-mode='map']").click();
-await page.waitForTimeout(200);
-report.dealerMobileMode.afterSwitch = await page.evaluate(() => ({
-  mode: document.querySelector("[data-locator-panes]").dataset.mode,
-  listVisible: document.querySelector(".locator__list").checkVisibility(),
-  mapVisible: document.querySelector(".locator__map").checkVisibility(),
-  // With no key the map view shows the honest panel rather than an empty grey box.
-  fallbackVisible: !document.querySelector("[data-locator-map-fallback]").hidden,
-  pressed: [...document.querySelectorAll("[data-locator-mode]")].map((button) => button.getAttribute("aria-pressed")),
-}));
-const switched = report.dealerMobileMode.afterSwitch;
-if (switched.mode !== "map" || switched.listVisible || !switched.mapVisible) failures.push(`The Map view did not switch: ${JSON.stringify(switched)}`);
-if (!switched.fallbackVisible) failures.push("The mobile Map view must show the honest fallback with no key configured");
-if (JSON.stringify(switched.pressed) !== JSON.stringify(["false", "true"])) failures.push(`The mode switch state did not follow the switch, found ${switched.pressed.join(", ")}`);
-await page.locator("[data-locator-mode='list']").click();
-await page.waitForTimeout(200);
-report.dealerMobileMode.backToList = await page.evaluate(() => document.querySelector("[data-locator-panes]").dataset.mode);
-if (report.dealerMobileMode.backToList !== "list") failures.push("The mode switch did not return to the list");
+const mobileStack = report.dealerMobileStack;
+if (!mobileStack.listVisible || !mobileStack.mapVisible || !mobileStack.mapAboveList) failures.push(`Both panes must stack map-first below 1024px: ${JSON.stringify(mobileStack)}`);
+if (!mobileStack.fallbackVisible) failures.push("The stacked map must show the honest fallback with no key configured");
+if (mobileStack.cards !== 6) failures.push(`A phone must see all six dealers, found ${mobileStack.cards}`);
+if (mobileStack.modeButtons !== 0 || mobileStack.modeAttribute !== null) failures.push(`The retired mode switch survives: ${JSON.stringify(mobileStack)}`);
+if (!mobileStack.noHorizontalScroll) failures.push("The locator widened the document at 390px");
 await page.setViewportSize({ width: 1440, height: 1000 });
+
+// dealerMapCamera. V16-F: the illustrative map zooms and pans by viewBox. The controls are revealed
+// by the island, zooming in narrows the view while the pins counter-scale to a constant on-screen
+// size, zooming all the way out is clamped to the whole world, and Fit restores the opening view.
+await page.goto(`${base}/dealers/`, { waitUntil: "networkidle" });
+report.dealerMapCamera = await page.evaluate(() => {
+  const art = document.querySelector(".locator__map-art");
+  return {
+    controlsVisible: !document.querySelector("[data-map-controls]").hidden,
+    viewBox: art.getAttribute("viewBox"),
+    fit: art.dataset.mapFit,
+    world: art.dataset.mapWorld,
+    landPaths: document.querySelectorAll(".map-land").length,
+    borderPaths: document.querySelectorAll(".map-borders").length,
+    labelsOpen: art.classList.contains("map-art--labels"),
+  };
+});
+const camera = report.dealerMapCamera;
+if (!camera.controlsVisible) failures.push("The map's zoom controls were not revealed by the island");
+if (camera.viewBox !== camera.fit) failures.push(`The map must open on its fitted view: ${camera.viewBox} vs ${camera.fit}`);
+if (camera.landPaths !== 1 || camera.borderPaths !== 1) failures.push(`The world base must be two paths, found ${camera.landPaths} land and ${camera.borderPaths} borders`);
+if (!camera.labelsOpen) failures.push("Six pins must carry open labels at the fitted view");
+const pinScreenSize = () => page.evaluate(() => document.querySelector("[data-dealer-pin] .map-pin__dot").getBoundingClientRect().width);
+const sizeAtFit = await pinScreenSize();
+await page.locator("[data-map-zoom='in']").click();
+await page.waitForTimeout(100);
+report.dealerMapCamera.zoomedIn = await page.evaluate(() => ({
+  width: Number(document.querySelector(".locator__map-art").getAttribute("viewBox").split(" ")[2]),
+  fitWidth: Number(document.querySelector(".locator__map-art").dataset.mapFit.split(" ")[2]),
+}));
+if (report.dealerMapCamera.zoomedIn.width >= report.dealerMapCamera.zoomedIn.fitWidth) failures.push("Zoom in did not narrow the viewBox");
+const sizeZoomed = await pinScreenSize();
+if (Math.abs(sizeZoomed - sizeAtFit) > 1) failures.push(`Pins must hold their on-screen size through zoom: ${sizeAtFit}px became ${sizeZoomed}px`);
+for (let i = 0; i < 8; i += 1) await page.locator("[data-map-zoom='out']").click();
+await page.waitForTimeout(100);
+report.dealerMapCamera.world = await page.evaluate(() => ({
+  width: Number(document.querySelector(".locator__map-art").getAttribute("viewBox").split(" ")[2]),
+  worldWidth: Number(document.querySelector(".locator__map-art").dataset.mapWorld.split(" ")[2]),
+  outDisabled: document.querySelector("[data-map-zoom='out']").disabled,
+  labelsOpen: document.querySelector(".locator__map-art").classList.contains("map-art--labels"),
+}));
+const worldView = report.dealerMapCamera.world;
+if (worldView.width !== worldView.worldWidth || !worldView.outDisabled) failures.push(`Zoom out must clamp to the whole world and say so: ${JSON.stringify(worldView)}`);
+if (worldView.labelsOpen) failures.push("City labels must close at the world view");
+await page.locator("[data-map-zoom='fit']").click();
+await page.waitForTimeout(100);
+report.dealerMapCamera.afterFit = await page.evaluate(() => {
+  const art = document.querySelector(".locator__map-art");
+  return { viewBox: art.getAttribute("viewBox"), fit: art.dataset.mapFit };
+});
+if (report.dealerMapCamera.afterFit.viewBox !== report.dealerMapCamera.afterFit.fit) failures.push(`Fit must restore the opening view: ${JSON.stringify(report.dealerMapCamera.afterFit)}`);
 
 // experienceHub. One feed of real stories, no BLOG framing, no category kickers, no archive door,
 // and none of the event placeholders Q-V13-18 forbids.
@@ -2833,14 +2875,15 @@ for (const width of [1440, 390]) {
     pdfs: [...document.querySelectorAll(".resource-card")].filter((card) => card.getAttribute("type") === "application/pdf").length,
     sizes: [...document.querySelectorAll(".resource-card__meta")].filter((meta) => /PDF · \d/.test(meta.textContent)).length,
     hrefs: [...document.querySelectorAll(".resource-card")].map((card) => card.getAttribute("href")),
-    images: document.querySelectorAll(".resource-group__media img").length,
+    images: document.querySelectorAll(".resource-group img").length,
   }));
   report.ownerManualAccess[width] = shape;
   if (shape.landed !== "/owners/") failures.push(`The footer Owner manuals link landed on ${shape.landed} at ${width}`);
   if (shape.h1 !== "Owner manuals.") failures.push(`The manual library title is ${shape.h1} at ${width}`);
   if (JSON.stringify(shape.groups) !== JSON.stringify(["brawley", "venice", "carmel", "speedster", "laguna"])) failures.push(`The manual groups run ${shape.groups.join(", ")} at ${width}`);
   if (shape.cards !== 19 || shape.pdfs !== 19 || shape.sizes !== 19) failures.push(`All 19 manuals must keep their PDF type and size label: ${JSON.stringify(shape)}`);
-  if (shape.images !== 3) failures.push(`Three manual groups carry photography, found ${shape.images} at ${width}`);
+  // V16-I: the library is a plain list at every width.
+  if (shape.images !== 0) failures.push(`No manual group may carry photography, found ${shape.images} at ${width}`);
   if (shape.hrefs.some((href) => !href.startsWith("/assets/manuals/"))) failures.push("A manual URL moved");
 }
 await page.setViewportSize({ width: 1440, height: 1000 });

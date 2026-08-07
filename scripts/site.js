@@ -226,7 +226,10 @@ const REVEAL_SELECTORS = [
   // by the progressive island below, and an element that is `hidden` when its observer is created never
   // intersects, so it would keep the start state and arrive at opacity 0 the moment Continue revealed it.
   // The two dealer forms use .form-section rather than .form-step and keep their reveals.
-  ".lead-form > .field", ".lead-form > .form-fieldset:not(.form-step)", ".lead-form > .form-submit-row",
+  // V16-B extends the same exclusion to the Contact form's submit row: display-hiding it outside the
+  // last step (the fix that made the gating real) puts it in exactly the never-intersects state the
+  // steps are in, so the stepper owns its appearance and the reveal never touches it.
+  ".lead-form > .field", ".lead-form > .form-fieldset:not(.form-step)", ".lead-form:not([data-form-id='contact']) > .form-submit-row",
   // V13 coverage for the new page types. Every new route has to mark something, or it has no scroll motion
   // at all, which is the regression the coverage suite exists to catch.
   ".campaign-band__item", ".past-card", ".photo-gallery__figure", ".post-card", ".record-card", ".record-section",
@@ -588,7 +591,9 @@ document.querySelectorAll("[data-form-id='contact']").forEach((form) => {
     current = Math.min(Math.max(index, 1), steps.length);
     steps.forEach((step, position) => { step.hidden = position + 1 !== current; });
     // The submit control belongs to the last step. Offering it on step one would let a visitor submit a form
-    // whose category has not been chosen and then be told so by an error summary.
+    // whose category has not been chosen and then be told so by an error summary. V16-B makes the
+    // hiding real (display: none); the reveal island excludes this row for that reason, see the
+    // selector list above.
     if (submitRow) submitRow.hidden = current !== steps.length;
     if (status) status.textContent = `Step ${current} of ${steps.length}`;
     const heading = steps[current - 1].querySelector("legend");
@@ -664,7 +669,6 @@ document.querySelectorAll("[data-form-id='contact']").forEach((form) => {
 document.querySelectorAll("[data-locator]").forEach((locator) => {
   const search = locator.querySelector("[data-locator-search]");
   const list = locator.querySelector("[data-locator-list]");
-  const panes = locator.querySelector("[data-locator-panes]");
   const count = locator.querySelector("[data-locator-count]");
   const canvas = locator.querySelector("[data-locator-canvas]");
   const fallback = locator.querySelector("[data-locator-map-fallback]");
@@ -758,6 +762,9 @@ document.querySelectorAll("[data-locator]").forEach((locator) => {
       card.focus({ preventScroll: true });
     }
     for (const [key, pin] of pins) pin.classList.toggle("is-selected", key === slug);
+    // V16-F: the drawing's camera moves to a pin it cannot currently see, exactly as the Google
+    // camera pans below, and for the same reason: Show on map must show, not merely mark.
+    svgReveal?.(slug);
     const marker = markers.get(slug);
     if (marker && map) {
       // Panned to, never continuously re-zoomed: moving the camera every time focus passes through the list
@@ -770,7 +777,11 @@ document.querySelectorAll("[data-locator]").forEach((locator) => {
   cards.forEach((card) => {
     card.querySelector("[data-dealer-select]")?.addEventListener("click", () => {
       select(card.dataset.dealer);
-      if (matchMedia("(max-width: 1023px)").matches) setMode("map");
+      // V16-E: with the mode switch retired the map is always on the page; on a narrow screen it
+      // sits above the list, so showing a dealer on it means going to it rather than switching to it.
+      if (matchMedia("(max-width: 1023px)").matches) {
+        locator.querySelector(".locator__map")?.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+      }
     });
   });
 
@@ -790,16 +801,139 @@ document.querySelectorAll("[data-locator]").forEach((locator) => {
   });
   locator.querySelectorAll("[name='capability']").forEach((radio) => radio.addEventListener("change", apply));
 
-  const setMode = (mode) => {
-    panes.dataset.mode = mode;
-    locator.querySelectorAll("[data-locator-mode]").forEach((button) => {
-      const active = button.dataset.locatorMode === mode;
-      button.classList.toggle("is-selected", active);
-      button.setAttribute("aria-pressed", String(active));
+  // V16-E: setMode and the List/Map buttons are retired with the mode switch itself. Both panes
+  // are always rendered now, so the Google SDK's on-demand load is carried entirely by the
+  // IntersectionObserver below.
+
+  // ---------------------------------------------------------------------------------------------
+  // V16-F. The illustrative map's camera: zoom and pan by rewriting the SVG's viewBox, from the
+  // whole world down to a region. Everything here is additive over the baked fitted view: without
+  // this script the controls never appear and the drawing stands still, complete. Pins are
+  // counter-scaled on every move so their on-screen size never follows the camera, and the city
+  // labels open only when they have room to be read. On touch, one finger still scrolls the page
+  // (touch-action allows it); two fingers pan and pinch the map, which is the convention embedded
+  // maps follow so a map mid-page never becomes a scroll trap. A mouse drags directly.
+  // ---------------------------------------------------------------------------------------------
+  let svgReveal = null;
+  const art = fallback?.querySelector(".locator__map-art");
+  const mapControls = fallback?.querySelector("[data-map-controls]");
+  if (art && mapControls) {
+    const numbers = (value) => value.split(" ").map(Number);
+    const fit = numbers(art.dataset.mapFit);
+    const world = numbers(art.dataset.mapWorld);
+    const PIN_SCALE_REF = 700;
+    const MIN_VIEW = 12;
+    const zoomIn = mapControls.querySelector("[data-map-zoom='in']");
+    const zoomOut = mapControls.querySelector("[data-map-zoom='out']");
+    let view = [...fit];
+
+    const clampView = () => {
+      view[2] = Math.min(Math.max(view[2], MIN_VIEW), world[2]);
+      view[3] = view[2];
+      view[0] = Math.min(Math.max(view[0], world[0]), world[0] + world[2] - view[2]);
+      view[1] = view[3] >= world[3]
+        ? world[1] - (view[3] - world[3]) / 2
+        : Math.min(Math.max(view[1], world[1]), world[1] + world[3] - view[3]);
+    };
+    const render = () => {
+      // Number() drops a trailing .0 so a restored view is byte-identical to the baked data-map-fit.
+      art.setAttribute("viewBox", view.map((value) => Number(value.toFixed(1))).join(" "));
+      const scale = (view[2] / PIN_SCALE_REF).toFixed(4);
+      for (const pin of pins.values()) pin.setAttribute("transform", `translate(${pin.dataset.mapX} ${pin.dataset.mapY}) scale(${scale})`);
+      // Few pins read at any regional view; a crowd of them waits for a closer camera.
+      art.classList.toggle("map-art--labels", view[2] <= (pins.size <= 12 ? fit[2] * 1.5 : 120));
+      zoomIn.disabled = view[2] <= MIN_VIEW;
+      zoomOut.disabled = view[2] >= world[2];
+    };
+    // The drawn scale under preserveAspectRatio meet, and the drawing's px offset inside the
+    // element box, so cursor-anchored zoom and 1:1 dragging both survive any pane shape.
+    const frame = () => {
+      const rect = art.getBoundingClientRect();
+      const k = Math.min(rect.width / view[2], rect.height / view[3]);
+      return { k, ox: rect.left + (rect.width - view[2] * k) / 2, oy: rect.top + (rect.height - view[3] * k) / 2 };
+    };
+    const zoomAt = (factor, cx = view[0] + view[2] / 2, cy = view[1] + view[3] / 2) => {
+      const width = Math.min(Math.max(view[2] / factor, MIN_VIEW), world[2]);
+      const ratio = width / view[2];
+      view[0] = cx - (cx - view[0]) * ratio;
+      view[1] = cy - (cy - view[1]) * ratio;
+      view[2] = width;
+      view[3] = width;
+      clampView();
+      render();
+    };
+
+    zoomIn.addEventListener("click", () => zoomAt(1.6));
+    zoomOut.addEventListener("click", () => zoomAt(1 / 1.6));
+    mapControls.querySelector("[data-map-zoom='fit']").addEventListener("click", () => { view = [...fit]; render(); });
+
+    const pointers = new Map();
+    let pinch = null;
+    art.addEventListener("pointerdown", (event) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      art.setPointerCapture(event.pointerId);
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (pointers.size === 2) {
+        const [a, b] = [...pointers.values()];
+        pinch = { distance: Math.hypot(a.x - b.x, a.y - b.y) };
+      }
     });
-    if (mode === "map") loadMap();
-  };
-  locator.querySelectorAll("[data-locator-mode]").forEach((button) => button.addEventListener("click", () => setMode(button.dataset.locatorMode)));
+    art.addEventListener("pointermove", (event) => {
+      const previous = pointers.get(event.pointerId);
+      if (!previous) return;
+      const point = { x: event.clientX, y: event.clientY };
+      pointers.set(event.pointerId, point);
+      const { k, ox, oy } = frame();
+      if (pointers.size === 2 && pinch) {
+        // Two fingers both pan and pinch: the moved finger carries the midpoint half of its own
+        // movement, and the spread between the fingers drives an incremental zoom about it.
+        const [a, b] = [...pointers.values()];
+        const distance = Math.hypot(a.x - b.x, a.y - b.y);
+        view[0] -= (point.x - previous.x) / (2 * k);
+        view[1] -= (point.y - previous.y) / (2 * k);
+        clampView();
+        const midX = view[0] + ((a.x + b.x) / 2 - ox) / k;
+        const midY = view[1] + ((a.y + b.y) / 2 - oy) / k;
+        const factor = distance / pinch.distance;
+        pinch.distance = distance;
+        if (Number.isFinite(factor) && factor > 0) zoomAt(factor, midX, midY);
+        else render();
+      } else if (pointers.size === 1 && event.pointerType === "mouse") {
+        view[0] -= (point.x - previous.x) / k;
+        view[1] -= (point.y - previous.y) / k;
+        clampView();
+        render();
+      }
+    });
+    const release = (event) => {
+      pointers.delete(event.pointerId);
+      if (pointers.size < 2) pinch = null;
+    };
+    art.addEventListener("pointerup", release);
+    art.addEventListener("pointercancel", release);
+    art.addEventListener("wheel", (event) => {
+      event.preventDefault();
+      const { k, ox, oy } = frame();
+      zoomAt(event.deltaY < 0 ? 1.25 : 0.8, view[0] + (event.clientX - ox) / k, view[1] + (event.clientY - oy) / k);
+    }, { passive: false });
+
+    svgReveal = (slug) => {
+      const pin = pins.get(slug);
+      if (!pin) return;
+      const x = Number(pin.dataset.mapX);
+      const y = Number(pin.dataset.mapY);
+      const margin = view[2] * 0.08;
+      const inside = x >= view[0] + margin && x <= view[0] + view[2] - margin && y >= view[1] + margin && y <= view[1] + view[3] - margin;
+      if (inside) return;
+      view[0] = x - view[2] / 2;
+      view[1] = y - view[3] / 2;
+      clampView();
+      render();
+    };
+
+    render();
+    mapControls.hidden = false;
+  }
 
   // ---- Google Maps, on demand -------------------------------------------------------------------
   const key = locator.dataset.mapKey;

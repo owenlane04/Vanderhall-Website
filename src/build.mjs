@@ -247,6 +247,7 @@ const homePage = () => {
       hero({
         src: heroFilm.poster.src,
         srcset: heroFilm.poster.srcset,
+        tallSrcset: heroFilm.tallSrcset,
         alt: heroFilm.poster.alt,
         width: heroFilm.poster.width,
         height: heroFilm.poster.height,
@@ -263,19 +264,21 @@ const homePage = () => {
             HISTORICAL_SPECS rule. The V13 "Past models" link below the lineup is retired with the
             absence it compensated for. */""}
       <div class="vehicle-scroll">${[...currentModels, ...pastModels].map((model, index) => vehicleSection(model, { index, copy: model.summary, scope })).join("")}</div>
-      ${scope.notes()}
     </section>
     <section class="section split split--media-first">
       <div class="split__body">${sectionHeading(null, "Concepts")}<p>Nine Vanderhall concept vehicles. They are not offered for sale.</p><div class="cluster">${buttonLink("View concepts", "/concepts/", "secondary")}</div></div>
       <a class="split__media" href="/concepts/"><img src="${indio.hero.src}" srcset="${indio.hero.srcset}" width="${sizeOf(indio.hero.src).width}" height="${sizeOf(indio.hero.src).height}" sizes="(min-width: 768px) 45vw, 92vw" alt="${indio.hero.alt}" loading="lazy" decoding="async"></a>
     </section>
+    ${/* V16-H, Owen on 2026-08-06: the lineup's footnote reads quietly here, after everything it
+          annotates and before the two campaign statements, instead of crowding the lineup itself. */""}
+    <section class="section--tight">${scope.notes()}</section>
     ${/* V15-B. The campaign band closes the page: the two operational statements, centered on the
           site's one silver field, after everything the visitor came to see. Both statements still read
           from the campaign data, so this band and the Launch Edition page can never disagree about
           which phase the campaign is in. */
       campaignBand(getBrawleyDeliveryStatus(), getSantarosaLaunchCampaign())}
   </div>`;
-  return shell({ title: "Home", description: "Vanderhall builds handcrafted electric UTVs, side-by-sides, and three-wheeled autocycles.", path: "/", body, schema: organizationSchema() });
+  return shell({ title: "Home", description: "Vanderhall builds handcrafted electric UTVs, side-by-sides, and three-wheeled autocycles.", path: "/", body, schema: organizationSchema(), intro: true });
 };
 
 const vehiclesPage = () => {
@@ -353,7 +356,9 @@ const dealersPage = () => {
 // V13-G. /contact/ is a real route rather than a redirect, and it owns every request the site takes.
 const contactPage = () => {
   const body = `<div class="page">
-    ${pageHeader("Contact Vanderhall.", "Choose a request type and tell us how we can help. Your answers will guide your request to the right team.", "form-shell", PARENTS.contact)}
+    ${/* V16-A, Owen on 2026-08-06: no subheading under the title, and the form sits close to it.
+          The category help text inside step two still explains what each request type covers. */
+      pageHeader("Contact Vanderhall.", null, "form-shell page-header--tight", PARENTS.contact)}
     <section class="section--tight form-shell form-stack">
       ${contactForm()}
       <p class="form-note">Prefer email? Write to <a href="mailto:${INQUIRY_EMAIL}">${INQUIRY_EMAIL}</a>.</p>
@@ -619,15 +624,8 @@ const ownerManualData = await Promise.all(ownerManuals.map(async ([slug, model, 
   return { slug, model, year, file, language, size };
 }));
 
-// Only the models whose photography is already delivered get a frame. Speedster and Laguna are
-// retired roadsters and no photograph of either exists in Assets/, so their groups stay
-// typographic rather than borrowing an image of a different vehicle. The concept named Speedster
-// is not the same machine and must not stand in for it.
-const OWNER_GROUP_IMAGE = {
-  venice: modelBySlug.venice.images.lead,
-  carmel: modelBySlug.carmel.images.lead,
-  brawley: modelBySlug.brawley.images.lead,
-};
+// V16-I: OWNER_GROUP_IMAGE is retired with the photographs it paired. Every group is typographic
+// now, which also ends the V13 note about Speedster and Laguna being the only unillustrated groups.
 
 // V13. Owners is a focused manual library reached from the footer, not the site's primary Owners
 // destination. Nothing about the files changes: every PDF URL, size label, group, and image pairing is
@@ -639,18 +637,15 @@ const OWNER_GROUP_IMAGE = {
 const OWNER_GROUP_ORDER = ["brawley", "venice", "carmel", "speedster", "laguna"];
 
 const ownersPage = () => {
+  // V16-I, Owen on 2026-08-06: the manual library is a subsection now, so it reads as a plain
+  // list. The model photographs are gone; each group is its heading and its downloads.
   const groups = OWNER_GROUP_ORDER.map((slug) => {
     const manuals = ownerManualData.filter((manual) => manual.slug === slug);
-    const image = OWNER_GROUP_IMAGE[slug];
-    const media = image
-      ? `<div class="resource-group__media"><img src="${image.src}" srcset="${image.srcset}" width="${sizeOf(image.src).width}" height="${sizeOf(image.src).height}" sizes="(min-width: 768px) 38vw, 92vw" alt="${image.alt}" loading="lazy" decoding="async"></div>`
-      : "";
     const cards = manuals.map((manual) => `<a class="resource-card" href="/assets/manuals/${manual.file}" type="application/pdf">
         <span class="resource-card__title">${manual.year} ${manual.model} owner's manual${manual.language === "Spanish" ? " (Spanish)" : ""}</span>
         <span class="resource-card__meta">PDF · ${manual.size}<span class="resource-card__cue" aria-hidden="true">↓</span></span>
       </a>`).join("");
-    return `<section class="resource-group${media ? " resource-group--media" : ""}" id="${slug}">
-      ${media}
+    return `<section class="resource-group" id="${slug}">
       <div class="resource-group__body"><h2>${manuals[0].model}</h2><div class="resource-cards">${cards}</div></div>
     </section>`;
   }).join("");

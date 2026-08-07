@@ -139,6 +139,7 @@
   --z-header: 100;
   --z-panel: 200;
   --z-modal: 300;
+  --z-veil: 400;
 
   --hit-target: 2.75rem;
   --icon-size: 1.25rem;
@@ -514,6 +515,12 @@ p { color: var(--text-secondary); }
 .page-header h1 { max-width: var(--w-narrow); }
 .page-header > p { max-width: var(--w-text); font-size: var(--fs-body-lg); }
 .page-header.form-shell { padding-bottom: var(--sf-s); }
+/* V16-A: on /contact/ the subheading is gone and the form reads as part of the header's own
+   block, so the header keeps almost none of its usual clearance and the section below gives
+   up most of its top padding. Scoped to the modifier rather than to .form-shell, because the
+   two dealer form pages keep their intros and their ordinary spacing. */
+.page-header--tight { padding-bottom: var(--s-2); }
+.page-header--tight + .section--tight { padding-top: var(--s-3); }
 
 /* V10. One title per page, with the accent mark the eyebrow used to carry standing on its own above
    it. A ::before on the heading rather than an element of its own, because an empty span in the
@@ -715,7 +722,10 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 .form-stack { display: flex; flex-direction: column; gap: var(--s-5); }
 .form-heading { margin-bottom: var(--sf-s); font-size: var(--fs-display-s); }
 .form-fieldset { display: flex; min-width: 0; flex-direction: column; gap: var(--form-gap); margin: 0; border: 0; padding: 0; }
-.form-fieldset > legend { padding: 0; color: var(--text-primary); font-size: var(--fs-title); font-weight: var(--wt-medium); }
+/* The margin, not the flex gap, is what separates a legend from the first field: a rendered
+   legend sits in the fieldset's border area, outside the flex layout, so the gap never applies
+   to it. V16-A widens it after Owen read step one with the legend crowding First name. */
+.form-fieldset > legend { padding: 0; margin-bottom: var(--s-5); color: var(--text-primary); font-size: var(--fs-title); font-weight: var(--wt-medium); }
 .form-section { border-top: var(--hairline) solid var(--line); padding-top: var(--sf-m); }
 .radio-row { display: flex; flex-wrap: wrap; gap: var(--s-5); }
 .conditional-field { margin-left: var(--s-6); }
@@ -723,6 +733,11 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 .input-suffix input { grid-area: 1 / 1 / 2 / 3; padding-right: var(--s-10); }
 .input-suffix span { z-index: 1; grid-area: 1 / 2; padding-right: var(--s-3); color: var(--text-tertiary); font-size: var(--fs-caption); }
 .form-submit-row { display: flex; flex-direction: column; align-items: flex-start; }
+/* V16-B. The rule that makes the Contact stepper's submit gating real. site.js has set the row's
+   hidden attribute outside the last step since V13, but display:flex on the class beat the UA
+   sheet's [hidden] rule, so the button showed on every step anyway. An author rule for the same
+   attribute is what the UA sheet could not be. */
+.form-submit-row[hidden] { display: none; }
 
 /* Brawley GTS purchase page */
 /* V12-D: a hairline under the opening block. The page is a sequence of ruled bands: the figure band
@@ -826,9 +841,8 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
    into cards: the page was the only one on the site with no photography, and a list of filenames
    read as a document index rather than as something to act on. */
 .resource-groups { display: flex; flex-direction: column; gap: var(--sf-l); }
+/* V16-I: the media column's rules are retired with the owner photographs. */
 .resource-group { display: grid; grid-template-columns: 1fr; gap: var(--sf-s); }
-.resource-group__media { overflow: hidden; border-radius: var(--r-2); aspect-ratio: var(--ar-feature); background: var(--surface-1); }
-.resource-group__media img { width: 100%; height: 100%; object-fit: cover; }
 .resource-group__body { min-width: 0; }
 .resource-group h2 { margin-bottom: var(--s-5); font-size: var(--fs-display-s); }
 .resource-cards { display: flex; flex-direction: column; gap: var(--s-3); }
@@ -916,12 +930,8 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
   .vehicle-section { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sf-l); }
   .vehicle-section--reverse .vehicle-section__media { grid-area: 1 / 2; }
   .vehicle-section--reverse .vehicle-section__body { grid-area: 1 / 1; }
-  /* The photograph takes the narrower side, matching the split section's proportions, so the
-     manual list stays the wider column and the year rows never crowd.
-     V11-G: centred rather than top-aligned. Venice carries eight year cards and Brawley four, so a
-     top-aligned 3:2 frame floated at the head of a column two or three times its own height and read
-     as unplaced. Centring puts the photograph against the middle of the list it belongs to. */
-  .resource-group--media { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: var(--sf-m); align-items: center; }
+  /* V16-I: the owner library's photograph column and its V11-G centring rule are retired with the
+     photographs; every group is the plain single-column list at every width. */
 }
 
 @media (min-width: 1024px) {
@@ -977,6 +987,12 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
   transition: opacity var(--dur-4) var(--ease-std);
 }
 .hero[data-painted] .hero__video { opacity: 1; }
+/* V16-D. Below the gate the phone's hero is the tall still and nothing else: the element that
+   site.js already refuses to load there now has no box either, so no rendering path can put a
+   stalled player behind the still. The pause control goes with it. */
+@media (max-width: 767px) {
+  .hero__video, .hero__bar { display: none; }
+}
 /* Top right, under the header and clear of both the bottom-left content column and the safe-area
    insets a phone reserves at the foot of the screen. Solid paper rather than a translucent chip, so
    the label's contrast is a fixed 15:1 against a known colour instead of whatever the film is doing
@@ -990,6 +1006,40 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
   color: var(--dark-ink);
 }
 .hero__toggle:hover { border-color: var(--dark-ink); }
+
+/* V16-C. The homepage intro veil: the lockup arrives on the site's own paper, holds, and the whole
+   veil dissolves into the page. Opacity and transform only, so nothing here can shift layout, and
+   the final keyframe holds visibility hidden, which is what ends both the paint and the pointer
+   interception without a single line of script. The session gate script in the head is additive:
+   without it the veil simply plays again, briefly, on each visit to the homepage. */
+@keyframes intro-veil {
+  0%, 72% { opacity: 1; visibility: visible; }
+  100% { opacity: 0; visibility: hidden; }
+}
+@keyframes intro-veil-logo {
+  0% { opacity: 0; transform: scale(0.975); }
+  30%, 74% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.03); }
+}
+.intro-veil {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-veil);
+  display: grid;
+  place-items: center;
+  padding-inline: var(--gutter);
+  background: var(--paper);
+  animation: intro-veil 2.3s var(--ease-std) both;
+}
+.intro-veil__logo {
+  width: min(100%, 20rem);
+  height: auto;
+  animation: intro-veil-logo 2.3s var(--ease-std) both;
+}
+/* Gone entirely, not merely instant, for a visitor who asked for less motion, and gone for the
+   rest of a session once it has played. */
+@media (prefers-reduced-motion: reduce) { .intro-veil { display: none; } }
+html[data-intro-seen] .intro-veil { display: none; }
 
 /* The concept band. Deliberately outside the @supports (animation-timeline: view()) block below.
    V9 amendment 2: the V6 rule "scroll reveals use CSS view() timelines only" governs scroll-driven
@@ -1344,6 +1394,9 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 
 .card-grid--posts { grid-template-columns: 1fr; }
 .post-card { display: flex; min-width: 0; flex-direction: column; gap: var(--s-4); }
+/* V16-G: a hairline and clear air between the feed's stories, so consecutive posts never read as
+   one collage. Scoped to the Experience module; the three-column archive grids keep their gaps. */
+.experience-module .post-card + .post-card { border-top: var(--hairline) solid var(--line); padding-top: var(--sf-m); margin-top: var(--sf-m); }
 .post-card__media { overflow: hidden; border-radius: var(--r-2); aspect-ratio: var(--ar-feature); background: var(--surface-1); }
 .post-card__media img, .post-card__media a { display: block; width: 100%; height: 100%; }
 .post-card__media img { object-fit: cover; transition: transform var(--dur-4) var(--ease-out); }
@@ -1439,12 +1492,13 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 .locator__search-actions { display: flex; flex-wrap: wrap; gap: var(--s-3); }
 .locator__bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-3); }
 .locator__count { color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); text-transform: uppercase; }
-.locator__modes { display: flex; border: var(--hairline) solid var(--line-strong); border-radius: var(--r-1); overflow: hidden; }
-.locator__mode { min-height: var(--hit-target); border: 0; padding-inline: var(--s-5); background: transparent; color: var(--text-secondary); font-size: var(--fs-nav); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps); text-transform: uppercase; cursor: pointer; }
-.locator__mode.is-selected { background: var(--ink); color: var(--paper); }
+/* V16-E: the mode switch's rules are retired with the control. Both panes render at every width;
+   below the two-pane breakpoint the map takes the first position, because a visitor arriving from
+   Show on map is sent up to it. */
 .locator__state { color: var(--text-secondary); font-size: var(--fs-body-sm); }
 .locator__state[hidden], .locator__no-results[hidden] { display: none; }
 .locator__panes { display: grid; grid-template-columns: 1fr; gap: var(--sf-s); }
+.locator__panes .locator__map { order: -1; }
 .locator__list { display: flex; flex-direction: column; gap: 0; }
 .locator__no-results { display: flex; flex-direction: column; gap: var(--s-4); border: var(--hairline) solid var(--line); border-radius: var(--r-2); padding: var(--card-pad); }
 .locator__map { position: relative; min-height: 20rem; overflow: hidden; border: var(--hairline) solid var(--line); border-radius: var(--r-2); background: var(--surface-1); }
@@ -1453,15 +1507,40 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 .locator__map-fallback[hidden] { display: none; }
 /* V15-E. The illustrative map. Letterboxed (meet), never cropped: a projection that slices its edges
    off is a map that can lose Phoenix on a wide pane. The letterbox is invisible because the pane's
-   own surface is the map's only background. */
-.locator__map-art { width: 100%; height: 100%; display: block; }
-.map-lines { fill: none; stroke: var(--ink-24); stroke-width: 1; }
+   own surface is the map's only background.
+   V16-F: the drawing sits on a world base now. Land is a filled shade of the pane's own surface,
+   country borders and the western-state overlay are hairlines whose px weight never follows the
+   camera (non-scaling strokes), and city labels are closed until the camera gives them room. */
+.locator__map-art { width: 100%; height: 100%; display: block; touch-action: pan-x pan-y; }
+.locator__map-art:active { cursor: grabbing; }
+@media (hover: hover) { .locator__map-art { cursor: grab; } }
+.map-land { fill: color-mix(in srgb, var(--ink) 7%, transparent); stroke: var(--ink-24); stroke-width: 0.75; }
+.map-borders { fill: none; stroke: var(--ink-24); stroke-width: 0.5; }
+.map-lines { fill: none; stroke: var(--ink-24); stroke-width: 0.5; }
 .map-pin__halo { fill: transparent; stroke: var(--ink-24); stroke-width: 1; transition: stroke var(--dur-2) var(--ease-out), fill var(--dur-2) var(--ease-out); }
 .map-pin__dot { fill: var(--accent); }
-.map-pin__label { fill: var(--text-secondary); font-size: 16px; font-weight: var(--wt-medium); }
+.map-pin__label { display: none; fill: var(--text-secondary); font-size: 16px; font-weight: var(--wt-medium); }
+.map-art--labels .map-pin__label, .map-pin.is-selected .map-pin__label { display: block; }
 .map-pin.is-dimmed { opacity: 0.25; }
 .map-pin.is-selected .map-pin__halo { stroke: var(--accent); fill: color-mix(in srgb, var(--accent) 14%, transparent); }
 .map-pin.is-selected .map-pin__label { fill: var(--text-primary); }
+.locator__map-controls { position: absolute; z-index: 2; top: var(--s-3); right: var(--s-3); display: flex; flex-direction: column; gap: var(--s-1); }
+.locator__map-controls[hidden] { display: none; }
+.locator__map-button {
+  min-width: var(--hit-target);
+  min-height: var(--hit-target);
+  border: var(--hairline) solid var(--line-strong);
+  border-radius: var(--r-1);
+  background: var(--paper);
+  color: var(--text-primary);
+  font-size: var(--fs-body);
+  font-weight: var(--wt-medium);
+  cursor: pointer;
+}
+.locator__map-button--fit { font-size: var(--fs-eyebrow); letter-spacing: var(--ls-caps-tight); text-transform: uppercase; }
+.locator__map-button:hover { border-color: var(--ink); }
+.locator__map-button:disabled { opacity: 0.4; cursor: default; }
+.locator__map-button:disabled:hover { border-color: var(--line-strong); }
 
 .dealer-card { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-3); border-top: var(--hairline) solid var(--line); padding-block: var(--sf-s); }
 .dealer-card:last-of-type { border-bottom: var(--hairline) solid var(--line); }
@@ -1498,11 +1577,14 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
   .card-grid--posts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   /* The featured story runs media beside body rather than above it, which is what makes it read as
      featured without a second type scale. */
-  .post-card--featured { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: var(--sf-m); align-items: center; }
-  .post-card--featured .post-card__title { font-size: var(--fs-display-m); }
+  /* V16-G, Owen on 2026-08-06: the feed's stories sit a step smaller. Both splits give the
+     photograph an even half rather than the wider track, and the featured title comes down one
+     display step, so the two stories read as a feed rather than as two heroes. */
+  .post-card--featured { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sf-m); align-items: center; }
+  .post-card--featured .post-card__title { font-size: var(--fs-display-s); }
   /* V15. A lone supporting story takes the featured split's shape, mirrored and a step quieter,
      because one card in the three-column grid read as two-thirds of empty page. */
-  .post-card--wide { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: var(--sf-m); align-items: center; }
+  .post-card--wide { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--sf-m); align-items: center; }
   .post-card--wide .post-card__media { order: 2; }
   .post-card--wide .post-card__title { font-size: var(--fs-display-s); }
   /* Roughly two fifths to three fifths, which is the proportion section 4.1 asks for, and the map is
@@ -1511,7 +1593,8 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
      one-line note. */
   .locator .locator__panes { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); gap: var(--sf-m); align-items: start; }
   .locator .locator__list { max-height: 42rem; overflow-y: auto; }
-  .locator .locator__map { position: sticky; top: calc(var(--header-h) + var(--s-4)); min-height: 34rem; }
+  /* order: 0 returns the map to the second column here; the map-first order is the stacked view's. */
+  .locator .locator__map { order: 0; position: sticky; top: calc(var(--header-h) + var(--s-4)); min-height: 34rem; }
   .policy-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 3fr); gap: var(--sf-l); align-items: start; }
   .policy-toc { position: sticky; top: calc(var(--header-h) + var(--s-5)); }
   .policy-toc__mobile { display: none; }
@@ -1519,12 +1602,10 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
   .policy-toc__desktop .policy-toc__list { max-height: 60svh; overflow-y: auto; margin-top: var(--s-4); }
 }
 
-/* Below 1024px the two panes become one, and the mode switch decides which is shown. Driven by a data
-   attribute rather than by a class on each pane, so one write to the container moves both. */
+/* V16-E: below 1024px both panes stack, map first (the order rule above), and the retired mode
+   switch decides nothing. The map keeps a working height without stealing the whole screen. */
 @media (max-width: 1023px) {
-  .locator__panes[data-mode="list"] .locator__map { display: none; }
-  .locator__panes[data-mode="map"] .locator__list { display: none; }
-  .locator__panes[data-mode="map"] .locator__map { min-height: 26rem; }
+  .locator__map { min-height: 24rem; }
 }
 
 @media (hover: hover) and (pointer: fine) {

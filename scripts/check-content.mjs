@@ -93,7 +93,11 @@ for (const token of ["data-missing", "MISSING:", "data-vehicles-trigger", "data-
   // past-models link went when the homepage began listing the past models; the category kickers went
   // when the feed became one surface; and the one-sentence map fallback went when the illustrative
   // map replaced it.
-  "lineup-past", "post-card__category", "article-header__category", "locator__map-message"]) {
+  "lineup-past", "post-card__category", "article-header__category", "locator__map-message",
+  // V16 retires two more. The locator's List/Map switch went when both panes began rendering at
+  // every width (the singular token matches the group and the buttons alike), and the owner
+  // library's photograph column went when Owen made the page a plain list.
+  "locator__mode", "data-locator-mode", "resource-group--media", "resource-group__media"]) {
   if (combinedHtml.includes(token)) failures.push(`Retired markup remains: ${token}`);
 }
 // The stylesheet has to lose them too. A retired component whose CSS survives is dead weight that
@@ -103,7 +107,7 @@ const bundleCss = await readFile(resolve(root, "styles/bundle.css"), "utf8");
 // exactly what this file is full of, and a check that forbids writing down the reason would push the
 // reason out of the code.
 const bundleRules = bundleCss.replace(/\/\*[\s\S]*?\*\//g, "");
-for (const token of [".pathway", ".ambient", ".footer-social", ".model-bar", ".is-split", ".word", ".gts-note", ".sample-note", ".sample-tag", ".lineup-past", ".post-card__category", ".article-header__category", ".locator__map-message"]) {
+for (const token of [".pathway", ".ambient", ".footer-social", ".model-bar", ".is-split", ".word", ".gts-note", ".sample-note", ".sample-tag", ".lineup-past", ".post-card__category", ".article-header__category", ".locator__map-message", ".locator__mode", ".locator__modes", ".resource-group--media", ".resource-group__media"]) {
   if (new RegExp(`\\${token}[\\s{,:_]`).test(bundleRules)) failures.push(`Retired component styles remain in the bundle: ${token}`);
 }
 // V12-C. The reveals are no longer driven by view() at all: they are IntersectionObserver-triggered
@@ -254,10 +258,12 @@ if (combinedHtml.includes("Talk with Vanderhall.")) failures.push("The retired V
 // the map fallback is honest rather than a spinner.
 const dealerCards = (dealersHtml.match(/class="dealer-card"/g) || []).length;
 if (dealerCards !== 6) failures.push(`/dealers/ must render all six dealer records as HTML, found ${dealerCards}`);
-// The locator's three script-dependent controls render at first paint, so becoming usable cannot shift the
+// The locator's script-dependent controls render at first paint, so becoming usable cannot shift the
 // page, and a <noscript> style block withdraws them when scripting is off. Asserted on every page rather than
 // on this one, because the block lives in the shared shell and a page that lost it would show dead controls.
-const NOSCRIPT_RULE = "<noscript><style>[data-locator-search],[data-locator-modes],[data-dealer-select]{display:none}</style></noscript>";
+// V16-E drops the mode switch's selector from the rule with the switch itself; the map's zoom controls are
+// not in it because they follow the walkaround's pattern instead, shipping hidden until site.js reveals them.
+const NOSCRIPT_RULE = "<noscript><style>[data-locator-search],[data-dealer-select]{display:none}</style></noscript>";
 for (const page of builtPages) {
   if (!page.text.includes(NOSCRIPT_RULE)) failures.push(`${page.path.replace(root, "")}: the no-JavaScript rule that withdraws the locator's controls is missing`);
 }
@@ -267,7 +273,7 @@ if ((dealersHtml.match(/data-dealer-select="[^"]+"/g) || []).length !== 6) failu
 // dealer projected from the record's own coordinates, labelled as illustrative in its accessible
 // name. The old one-sentence fallback is retired with it.
 if (dealersHtml.includes("The map is unavailable right now.")) failures.push("/dealers/ still carries the retired map-failure sentence");
-if (!dealersHtml.includes('class="locator__map-art"')) failures.push("/dealers/ must render the illustrative map in the fallback panel");
+if (!dealersHtml.includes('class="locator__map-art')) failures.push("/dealers/ must render the illustrative map in the fallback panel");
 if ((dealersHtml.match(/data-dealer-pin="[^"]+"/g) || []).length !== 6) failures.push("The illustrative map must carry one pin per dealer");
 if (!/aria-label="Illustrative map of the 6 dealer locations/.test(dealersHtml)) failures.push("The illustrative map must name itself illustrative in its accessible name");
 // The pins are the records' own coordinates, cross-checked pin by pin against the cards.
@@ -1011,11 +1017,11 @@ const ownerOrder = withoutFooter(ownersHtml).match(/<section class="resource-gro
 if (JSON.stringify(ownerOrder) !== JSON.stringify(["brawley", "venice", "carmel", "speedster", "laguna"])) {
   failures.push(`/owners/ groups must run current-first, found ${ownerOrder.join(", ")}`);
 }
+// V16-I: the library is a plain list. No group carries a photograph any more, at any width.
 for (const group of ownerGroups) {
   const slug = group.match(/id="([^"]+)"/)?.[1];
   const images = (group.match(/<img /g) || []).length;
-  const expected = ["venice", "carmel", "brawley"].includes(slug) ? 1 : 0;
-  if (images !== expected) failures.push(`/owners/ group ${slug} must carry ${expected} photograph, found ${images}`);
+  if (images !== 0) failures.push(`/owners/ group ${slug} must carry no photograph, found ${images}`);
 }
 
 const manifest = JSON.parse(await readFile(resolve(root, "assets/build-manifest.json"), "utf8"));
@@ -1397,7 +1403,8 @@ const deliveredPosters = files.filter((path) => /\/assets\/video\/.+\.webp$/.tes
 for (const url of deliveredPosters) {
   if (!referenced.has(url)) failures.push(`Delivered poster that no page references: ${url}`);
 }
-if (deliveredPosters.length !== 3) failures.push(`Expected three delivered posters, found ${deliveredPosters.length}`);
+// V16-D: three wide poster rungs and four tall still rungs, every one referenced by a page.
+if (deliveredPosters.length !== 7) failures.push(`Expected seven delivered poster and still rungs, found ${deliveredPosters.length}`);
 // V11-A retired ten files; the V13 film delivery retires the montage's five as well. Every stem is
 // deleted, not merely unreferenced, and they are named here so the deletion cannot be quietly undone
 // by a copy from the source package. The V11 loops' package is untouched in Assets/Video Image Plan/
