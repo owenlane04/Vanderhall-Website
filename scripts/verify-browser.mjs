@@ -250,7 +250,7 @@ for (const [route, expected, pairedGroups, tags, heroCta] of [
   if (shape.rows === 0 || shape.visibleRows !== shape.rows) failures.push(`${route} renders ${shape.visibleRows} of ${shape.rows} specification rows visibly`);
   if (shape.retiredUnitMarkup !== 0) failures.push(`${route} still carries retired unit or spec-table markup`);
   if (shape.specNotes !== 1) failures.push(`${route} must carry one disclosure note, found ${shape.specNotes}`);
-  if (shape.tags !== tags || shape.heroTag !== tags) failures.push(`${route} must carry ${tags} Past model tag in its hero, found ${shape.tags}`);
+  if (shape.tags !== tags || shape.heroTag !== tags) failures.push(`${route} must carry ${tags} Legacy model tag in its hero, found ${shape.tags}`);
   // V12-A. No bar, no overview paragraph, and the way back inside the photograph above the heading.
   if (shape.bars !== 0) failures.push(`${route} must carry no sticky model bar, found ${shape.bars}`);
   if (shape.ledes !== 0) failures.push(`${route} must run hero to IN DETAIL with no overview paragraph, found ${shape.ledes}`);
@@ -351,6 +351,20 @@ if (gtsShape.stage?.background !== "rgb(255, 255, 255)" || parseFloat(gtsShape.s
 await page.goto(`${base}/concepts/`, { waitUntil: "networkidle" });
 report.interactions.conceptHubCards = await page.locator(".card .card__link").count();
 if (report.interactions.conceptHubCards !== 9) failures.push("Concept hub must expose nine linked cards");
+
+// V18: the hub reads as two families, On-Road first in Owen's order, and every card sits in the
+// grid its heading claims. Membership itself is asserted longhand in check-content; what the
+// browser adds is that both headings paint and each grid's card count is what a visitor sees.
+report.interactions.conceptHubGroups = await page.evaluate(() => [...document.querySelectorAll(".page--concepts .section-heading h2")].map((heading) => ({
+  text: heading.textContent,
+  painted: heading.getClientRects().length > 0,
+  cards: heading.closest("section")?.querySelectorAll(".card .card__link").length ?? 0,
+})));
+const hubGroups = report.interactions.conceptHubGroups;
+if (JSON.stringify(hubGroups.map(({ text, cards }) => [text, cards])) !== JSON.stringify([["On-Road Concepts", 4], ["Off-Road Concepts", 5]])) {
+  failures.push(`The concepts hub must present On-Road Concepts (4 cards) then Off-Road Concepts (5 cards): ${JSON.stringify(hubGroups)}`);
+}
+if (hubGroups.some((group) => !group.painted)) failures.push("A concepts hub group heading is not painted");
 
 // The concept band under reduced motion, which is this context's default. The still state must be a
 // correct static layout: eighteen tiles, no animation, and no pause button offering to stop something
@@ -2243,22 +2257,31 @@ report.pastModelGrouping = await page.evaluate(() => {
     imagesPerCard: group ? [...group.querySelectorAll(".past-card")].map((card) => card.querySelectorAll("img").length) : [],
     pillsInGroup: group ? group.querySelectorAll(".model-tag").length : 0,
     // Quieter, measured: a compact card's title must take a smaller step than a lineup section's name.
+    // V18: the model name sits at h3 under the family group h2s.
     cardTitleSize: group ? Math.round(parseFloat(getComputedStyle(group.querySelector(".past-card__title")).fontSize)) : 0,
-    sectionTitleSize: Math.round(parseFloat(getComputedStyle(sections[0].querySelector("h2")).fontSize)),
+    sectionTitleSize: Math.round(parseFloat(getComputedStyle(sections[0].querySelector("h3")).fontSize)),
+    // V18: the three family headings, in order, all painted.
+    familyHeadings: [...document.querySelectorAll(".section-heading--group h2")].map((heading) => ({
+      text: heading.textContent,
+      painted: heading.getClientRects().length > 0,
+    })),
     groupAfterLineup: group && sections.length ? group.getBoundingClientRect().top > sections.at(-1).getBoundingClientRect().top : false,
   };
 });
 const grouping = report.pastModelGrouping;
 if (grouping.currentSections !== 2) failures.push(`/vehicles/ must present two current-model sections, found ${grouping.currentSections}`);
 if (JSON.stringify(grouping.currentLinks) !== JSON.stringify(["/brawley/", "/santarosa/"])) failures.push(`/vehicles/ current sections are ${grouping.currentLinks.join(", ")}`);
-if (grouping.groupHeading !== "Past Models") failures.push(`The past-model group heading is ${grouping.groupHeading}`);
+if (grouping.groupHeading !== "Vanderhall Legacy Vehicles") failures.push(`The legacy group heading is ${grouping.groupHeading}`);
+if (JSON.stringify(grouping.familyHeadings.map((heading) => heading.text)) !== JSON.stringify(["Vanderhall", "Vanderhall On-Road", "Vanderhall Legacy Vehicles"])) failures.push(`/vehicles/ family headings are ${JSON.stringify(grouping.familyHeadings)}`);
+if (grouping.familyHeadings.some((heading) => !heading.painted)) failures.push("A /vehicles/ family heading is not painted");
 if (grouping.cards !== 2 || JSON.stringify(grouping.imagesPerCard) !== JSON.stringify([1, 1])) failures.push(`The past-model group must be two one-image cards: ${JSON.stringify(grouping)}`);
 if (grouping.pillsInGroup !== 0) failures.push("The past-model group must not repeat the status as a pill on each card");
 if (!(grouping.cardTitleSize < grouping.sectionTitleSize)) failures.push(`A past-model card's title (${grouping.cardTitleSize}px) must be quieter than a current section's (${grouping.sectionTitleSize}px)`);
 if (!grouping.groupAfterLineup) failures.push("The past-model group must follow the current lineup");
 
-// homepageLineup. V15-C: all four models on the homepage, current first, the two past models tagged
-// beside their names and the current two not, and no quiet past-models link left over.
+// homepageLineup. V15-C kept all four models on the homepage, current first. V18 groups them under
+// the three family headings, puts the terrain pill beside each current model's name, and drops the
+// legacy pill from the lineup: the legacy group's heading says it now.
 await page.goto(`${base}/`, { waitUntil: "networkidle" });
 report.homepageLineup = await page.evaluate(() => {
   const sections = [...document.querySelectorAll(".vehicle-section")];
@@ -2266,15 +2289,23 @@ report.homepageLineup = await page.evaluate(() => {
     count: sections.length,
     order: sections.map((section) => section.querySelector("a[href]").getAttribute("href")),
     tags: sections.map((section) => section.querySelectorAll(".model-tag").length),
+    pillTexts: sections.map((section) => section.querySelector(".model-tag")?.textContent ?? null),
     tagsVisible: sections.map((section) => section.querySelector(".model-tag")?.checkVisibility() ?? null),
+    familyHeadings: [...document.querySelectorAll("#vehicles .section-heading--group h3")].map((heading) => ({
+      text: heading.textContent,
+      painted: heading.getClientRects().length > 0,
+    })),
     quietLink: [...document.querySelectorAll("a")].filter((anchor) => (anchor.getAttribute("href") || "").includes("#past-models")).length,
   };
 });
 const homepageLineup = report.homepageLineup;
 if (homepageLineup.count !== 4) failures.push(`The homepage must present four vehicle sections, found ${homepageLineup.count}`);
 if (JSON.stringify(homepageLineup.order) !== JSON.stringify(["/brawley/", "/santarosa/", "/carmel/", "/venice/"])) failures.push(`The homepage lineup order is ${homepageLineup.order.join(", ")}`);
-if (JSON.stringify(homepageLineup.tags) !== JSON.stringify([0, 0, 1, 1])) failures.push(`The Past model tags must sit on exactly the two past models: ${JSON.stringify(homepageLineup.tags)}`);
-if (homepageLineup.tagsVisible.slice(2).some((visible) => visible !== true)) failures.push("A homepage Past model tag is not visible");
+if (JSON.stringify(homepageLineup.tags) !== JSON.stringify([1, 1, 0, 0])) failures.push(`The terrain pills must sit on exactly the two current models: ${JSON.stringify(homepageLineup.tags)}`);
+if (JSON.stringify(homepageLineup.pillTexts) !== JSON.stringify(["Off-Road", "On-Road", null, null])) failures.push(`The homepage pills must read Off-Road beside Brawley and On-Road beside Santarosa: ${JSON.stringify(homepageLineup.pillTexts)}`);
+if (homepageLineup.tagsVisible.slice(0, 2).some((visible) => visible !== true)) failures.push("A homepage terrain pill is not visible");
+if (JSON.stringify(homepageLineup.familyHeadings.map((heading) => heading.text)) !== JSON.stringify(["Vanderhall", "Vanderhall On-Road", "Vanderhall Legacy Vehicles"])) failures.push(`The homepage family headings are ${JSON.stringify(homepageLineup.familyHeadings)}`);
+if (homepageLineup.familyHeadings.some((heading) => !heading.painted)) failures.push("A homepage family heading is not painted");
 if (homepageLineup.quietLink !== 0) failures.push("The retired quiet past-models link remains on the homepage");
 
 report.pastModelGalleries = {};
@@ -2307,7 +2338,7 @@ for (const route of ["/carmel/", "/venice/"]) {
   if (shape.upscaled !== 0) failures.push(`${route} upscales ${shape.upscaled} gallery frames`);
   if (shape.specRows || shape.specTables || shape.specNotes || shape.footnotes) failures.push(`${route} still publishes specification markup: ${JSON.stringify(shape)}`);
   if (shape.prices || shape.walkarounds) failures.push(`${route} must carry no price and no walkaround`);
-  if (shape.tag !== 1) failures.push(`${route} must carry one Past model tag beside its h1, found ${shape.tag}`);
+  if (shape.tag !== 1) failures.push(`${route} must carry one Legacy model tag beside its h1, found ${shape.tag}`);
   if (!shape.inventory?.includes("Availability is not guaranteed.")) failures.push(`${route} must state that availability is not guaranteed, found ${shape.inventory}`);
   if (shape.dealerAction === 0) failures.push(`${route} must offer a way to the dealer network`);
   if (/\b\d[\d,.]*\s*(?:hp|lb-ft|in\b|lb\b)/.test(shape.bodyText)) failures.push(`${route} gallery page renders an engineering figure`);

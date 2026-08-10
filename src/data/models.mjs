@@ -552,6 +552,11 @@ export const models = [
     slug: "brawley",
     name: "Brawley",
     powertrain: { fuel: "electric", layout: "4x4" },
+    // V18, Owen on 2026-08-10 relaying Vanderhall's direction: "Vanderhall" is the off-road family
+    // and "Vanderhall On-Road" the on-road one. The terrain word renders as a pill beside the name
+    // on the two lineup surfaces, in the past-model tag's own treatment. Stated here rather than
+    // inferred from powertrain.layout, because terrain is a brand statement, not a drivetrain fact.
+    terrain: "Off-Road",
     descriptor: "Quad-motor electric off-road UTV.",
     // Brawley is the one model with somewhere further to go than the inquiry form, so its hero
     // and model bar point at the purchase page instead. The other three keep Request info.
@@ -605,6 +610,8 @@ export const models = [
     slug: "santarosa",
     name: "Santarosa",
     powertrain: { fuel: "electric", layout: "3-wheel" },
+    // V18, as Brawley: the on-road half of the family split.
+    terrain: "On-Road",
     descriptor: "Three-wheel electric autocycle.",
     warranty: "1-year Vanderhall limited warranty. 36-month battery pack warranty.",
     // V13-B, Q-V13-12. Range and horsepower are out of both sentences; torque stays.
@@ -644,7 +651,7 @@ export const models = [
     // retained in HISTORICAL_SPECS below with every source note intact. The research is not deleted to
     // make a page look clean; it simply stops being published.
     specGroups: [],
-    inventoryNote: "Carmel is a past Vanderhall model. Contact the Vanderhall dealer network to ask about remaining inventory. Availability is not guaranteed.",
+    inventoryNote: "Carmel is a legacy Vanderhall model. Contact the Vanderhall dealer network to ask about remaining inventory. Availability is not guaranteed.",
     cta: { label: "Find a dealer", href: "/dealers/" },
     summary: "Open two-seat gas roadster on three wheels, shown here in red with a tan interior.",
     intro: "Open two-seat gas roadster on three wheels. The photographs show red bodywork, a leather-wrapped three-spoke wheel, four analog gauges, and tan contrast-stitched seats.",
@@ -681,7 +688,7 @@ export const models = [
     // V13-C, as Carmel. VENICE_SPECS is retained in HISTORICAL_SPECS, including its two third-party rows
     // and the reasons five other figures were never published.
     specGroups: [],
-    inventoryNote: "Venice is a past Vanderhall model. Contact the Vanderhall dealer network to ask about remaining inventory. Availability is not guaranteed.",
+    inventoryNote: "Venice is a legacy Vanderhall model. Contact the Vanderhall dealer network to ask about remaining inventory. Availability is not guaranteed.",
     cta: { label: "Find a dealer", href: "/dealers/" },
     // Homepage section: one line. Vehicles page: the same line plus one more.
     summary: "Open two-seat gas roadster on three wheels, shown here in silver over black.",

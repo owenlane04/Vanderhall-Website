@@ -110,8 +110,16 @@ export const backLink = ({ label, href }) => `<nav class="back-nav" aria-label="
 export const pageHeader = (title, intro, className = "", back = null) => `<header class="page-header page-header--marked${className ? ` ${className}` : ""}">${back ? backLink(back) : ""}<h1>${escapeHtml(title)}</h1>${intro ? `<p>${escapeHtml(intro)}</p>` : ""}</header>`;
 
 // Venice and Carmel only. Owen confirmed their status in chat on 2026-08-05; the two current
-// models carry no tag, because current is the default a visitor already assumes.
-export const pastModelTag = () => `<p class="model-tag">Past model</p>`;
+// models carry no tag, because current is the default a visitor already assumes. V18 renames the
+// word to match the "Vanderhall Legacy Vehicles" family name Owen relayed on 2026-08-10, and the
+// pill now renders on one surface only: beside each legacy detail page's h1, where no group
+// heading supplies the context. Both lineup surfaces head their legacy group instead (D-V18-5).
+export const pastModelTag = () => `<p class="model-tag">Legacy model</p>`;
+
+// V18. The terrain pill beside a current model's name on the two lineup surfaces: Off-Road beside
+// Brawley, On-Road beside Santarosa, per Vanderhall's family split. Same hairline treatment as the
+// legacy pill; the modifier class exists so the checks can count the two kinds separately.
+export const terrainTag = (terrain) => `<p class="model-tag model-tag--terrain">${escapeHtml(terrain)}</p>`;
 
 // V11 amendment, Owen on 2026-08-05: the tag goes beside the name rather than under it, "so there's
 // less text, less lengthy text". It is a qualifier on the name, not a line of its own, and a pill on
@@ -119,8 +127,16 @@ export const pastModelTag = () => `<p class="model-tag">Past model</p>`;
 // immediate next sibling: that adjacency is what check-content asserts, and it is what keeps the tag
 // from drifting away from the word it qualifies. It wraps to its own line on a narrow screen rather
 // than squeezing the name.
-export const modelHeadline = (name, { level = 3, pastModel = false } = {}) =>
-  `<div class="model-headline"><h${level}>${escapeHtml(name)}</h${level}>${pastModel ? pastModelTag() : ""}</div>`;
+export const modelHeadline = (name, { level = 3, pastModel = false, terrain = null } = {}) =>
+  `<div class="model-headline"><h${level}>${escapeHtml(name)}</h${level}>${terrain ? terrainTag(terrain) : ""}${pastModel ? pastModelTag() : ""}</div>`;
+
+// V18. The brand-family label above each lineup group: Vanderhall, Vanderhall On-Road, Vanderhall
+// Legacy Vehicles. A real heading (h3 under the homepage's lineup h2, h2 on /vehicles/) styled to
+// the caps register with a hairline rule, so the model names below it stay the page's display
+// type. It rides the .section-heading base class deliberately: both reveal lists already cover
+// that selector, so the label animates in without either list growing.
+export const groupHeading = (title, { level = 2, intro = "" } = {}) =>
+  `<div class="section-heading section-heading--group"><h${level}>${escapeHtml(title)}</h${level}>${intro ? `<p>${escapeHtml(intro)}</p>` : ""}</div>`;
 
 // A null eyebrow takes the marked treatment instead, for the one section whose category word and
 // title were the same word. Everywhere else the eyebrow says something the title does not, which is
@@ -212,7 +228,11 @@ export const vehicleSection = (model, { index, copy, eager = false, level = 3, w
       ${support ? `<div class="vehicle-section__row">${support}</div>` : ""}
     </div>
     <div class="vehicle-section__body">
-      ${modelHeadline(model.name, { level, pastModel: model.pastModel })}
+      ${/* V18: lineup sections carry the terrain pill and never the legacy one. Both lineup
+            surfaces group their models under brand-family headings now, so a legacy section's
+            status lives in the heading above it, and the legacy pill renders only beside the
+            detail-page h1 (D-V18-5). */""}
+      ${modelHeadline(model.name, { level, terrain: model.terrain })}
       ${/* V13-F: the estimate note has to be resolved on the surface that prints the figure. These
             sentences carry torque, power and travel figures, and a note on the model page cannot qualify
             a sentence on the homepage, so the mark goes on the paragraph here and the lineup section

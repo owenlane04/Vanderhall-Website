@@ -27,6 +27,7 @@ import {
   figureBand,
   footnoteScope,
   gallery,
+  groupHeading,
   hero,
   internationalDealerForm,
   jobCard,
@@ -239,6 +240,21 @@ const brawleyGtsPage = (model) => {
   });
 };
 
+// V18, Owen on 2026-08-10 relaying Vanderhall's direction: the lineup reads as three brand
+// families, in his order. "Vanderhall" is the off-road family, "Vanderhall On-Road" the on-road
+// one, and the earlier three-wheelers are "Vanderhall Legacy Vehicles". Both lineup surfaces render
+// from this one list, so the homepage and /vehicles/ can never disagree about who belongs where.
+// The rendered model order is unchanged: brawley, santarosa, carmel, venice.
+const VEHICLE_FAMILIES = [
+  { title: "Vanderhall", models: currentModels.filter((model) => model.terrain === "Off-Road") },
+  { title: "Vanderhall On-Road", models: currentModels.filter((model) => model.terrain === "On-Road") },
+  { title: "Vanderhall Legacy Vehicles", models: pastModels },
+];
+// The flat position of a model across the grouped lineup, which is what keeps the sections'
+// left-right alternation identical to the ungrouped V15 layout.
+const LINEUP_ORDER = VEHICLE_FAMILIES.flatMap(({ models: group }) => group);
+const lineupIndex = (model) => LINEUP_ORDER.indexOf(model);
+
 const homePage = () => {
   const indio = concepts[0];
   const scope = footnoteScope();
@@ -265,16 +281,21 @@ const homePage = () => {
       })}
     <section class="section" id="vehicles">
       ${sectionHeading("VEHICLES", "The Vanderhall lineup.")}
-      ${/* V15-C, Owen on 2026-08-06: all four models on the homepage, current first, and the two past
-            models carry the Past model tag beside the name (vehicleSection reads the record's own
-            pastModel flag). Each past model shows only its descriptive summary sentence: a gallery
-            model publishes no figure, so nothing here can disagree with the inverse
-            HISTORICAL_SPECS rule. The V13 "Past models" link below the lineup is retired with the
-            absence it compensated for. */""}
-      <div class="vehicle-scroll">${[...currentModels, ...pastModels].map((model, index) => vehicleSection(model, { index, copy: model.summary, scope })).join("")}</div>
+      ${/* V18, Owen on 2026-08-10 relaying Vanderhall's direction: the lineup divides into the
+            three brand families, each under its caps-register group heading, with the terrain pill
+            beside each current model's name. All four models stay on the homepage in the V15-C
+            order (brawley, santarosa, carmel, venice); the grouping changes headings, not order.
+            Each model still shows only its summary sentence, so nothing here can disagree with the
+            inverse HISTORICAL_SPECS rule. The index runs flat across the groups to keep the
+            left-right alternation the four sections have always had, and the names drop to h4
+            under each family's h3. */""}
+      ${VEHICLE_FAMILIES.map(({ title, models: group }) => `<div class="lineup-group">
+        ${groupHeading(title, { level: 3 })}
+        <div class="vehicle-scroll">${group.map((model) => vehicleSection(model, { index: lineupIndex(model), copy: model.summary, level: 4, scope })).join("")}</div>
+      </div>`).join("")}
     </section>
     <section class="section split split--media-first">
-      <div class="split__body">${sectionHeading(null, "Concepts")}<p>Nine Vanderhall concept vehicles. They are not offered for sale.</p><div class="cluster">${buttonLink("View concepts", "/concepts/", "secondary")}</div></div>
+      <div class="split__body">${sectionHeading(null, "Concepts")}<p>Nine Vanderhall concept vehicles, on-road and off-road. They are not offered for sale.</p><div class="cluster">${buttonLink("View concepts", "/concepts/", "secondary")}</div></div>
       <a class="split__media" href="/concepts/"><img src="${indio.hero.src}" srcset="${indio.hero.srcset}" width="${sizeOf(indio.hero.src).width}" height="${sizeOf(indio.hero.src).height}" sizes="(min-width: 768px) 45vw, 92vw" alt="${indio.hero.alt}" loading="lazy" decoding="async"></a>
     </section>
     ${/* V16-H, Owen on 2026-08-06: the lineup's footnote reads quietly here, after everything it
@@ -291,21 +312,28 @@ const homePage = () => {
 
 const vehiclesPage = () => {
   const scope = footnoteScope();
+  // V18: the same family grouping as the homepage, at this page's heading levels. The two current
+  // families keep the full vehicle sections; the group heading is the caps label, so the model name
+  // below it stays the display type the page has always led with.
+  const currentFamilies = VEHICLE_FAMILIES.filter(({ models: group }) => group.some((model) => !model.pastModel));
   const body = `<div class="page">
     ${pageHeader("Vehicles", "Explore Vanderhall's electric off-road UTV and three-wheel electric autocycle, hand-built in Provo, Utah.", "", PARENTS.vehicles)}
     <section class="section">
-      <div class="vehicle-scroll">${currentModels.map((model, index) => vehicleSection(model, { index, copy: model.intro, eager: index === 0, level: 2, withSupport: true, scope })).join("")}</div>
+      ${currentFamilies.map(({ title, models: group }) => `<div class="lineup-group">
+        ${groupHeading(title, { level: 2 })}
+        <div class="vehicle-scroll">${group.map((model) => vehicleSection(model, { index: lineupIndex(model), copy: model.intro, eager: lineupIndex(model) === 0, level: 3, withSupport: true, scope })).join("")}</div>
+      </div>`).join("")}
       ${scope.notes()}
     </section>
     ${/* V13-D. A visually quieter group, not a second lineup. The heading supplies the status, which is why
-          the cards inside it carry no Past model pill: the tag stays beside the h1 on each detail page,
-          where there is no heading to say it. */""}
+          the cards inside it carry no legacy pill: the tag stays beside the h1 on each detail page,
+          where there is no heading to say it. V18 renames the group to the family name Owen relayed. */""}
     <section class="section" id="past-models">
-      ${sectionHeading("PAST MODELS", "Past Models", "Explore the design and history of earlier Vanderhall models, and contact the dealer network to ask about any remaining inventory.")}
+      ${groupHeading("Vanderhall Legacy Vehicles", { level: 2, intro: "Explore the design and history of earlier Vanderhall models, and contact the dealer network to ask about any remaining inventory." })}
       <div class="past-grid">${pastModels.map(pastModelCard).join("")}</div>
     </section>
   </div>`;
-  return shell({ title: "Vehicles", description: "The Vanderhall vehicle lineup: Brawley and Santarosa, with the past Venice and Carmel models.", path: "/vehicles", body });
+  return shell({ title: "Vehicles", description: "The Vanderhall lineup: the off-road Brawley, the on-road Santarosa, and the legacy Venice and Carmel models.", path: "/vehicles", body });
 };
 
 // The white studio field. V11-E introduced it for the ten concept routes; V12-D added the purchase page.
@@ -316,12 +344,24 @@ const vehiclesPage = () => {
 const STUDIO = "page--studio";
 
 const conceptsPage = () => {
+  // V18, Owen on 2026-08-10: the hub divides into the two families, On-Road first in his order.
+  // Grouping is a render-time filter on each record's terrain field; the data array keeps its
+  // order, the decorative band above keeps all nine, and no route moves. Card titles drop to h3
+  // under the two section h2s, and the three eager fetches stay on the first three rendered cards.
+  const groups = [
+    { title: "On-Road Concepts", terrain: "on-road" },
+    { title: "Off-Road Concepts", terrain: "off-road" },
+  ].map(({ title, terrain }) => ({ title, group: concepts.filter((concept) => concept.terrain === terrain) }));
+  const ordered = groups.flatMap(({ group }) => group);
   const body = `<div class="page page--concepts">
     ${pageHeader("Concepts", "These nine vehicles are Vanderhall concepts. They are not offered for sale, and no pricing or specifications are published for them.", "", PARENTS.concepts)}
     ${conceptMarquee(concepts)}
-    <section class="section--tight"><div class="card-grid card-grid--concepts">${concepts.map((concept, index) => conceptCard(concept, { eager: index < 3 })).join("")}</div></section>
+    ${groups.map(({ title, group }) => `<section class="section--tight">
+      ${sectionHeading(null, title)}
+      <div class="card-grid card-grid--concepts">${group.map((concept) => conceptCard(concept, { eager: ordered.indexOf(concept) < 3, level: 3 })).join("")}</div>
+    </section>`).join("")}
   </div>`;
-  return shell({ title: "Concepts", description: "Vanderhall concept vehicles and design studies, not offered for sale.", path: "/concepts", body, mainClass: STUDIO });
+  return shell({ title: "Concepts", description: "Vanderhall concept vehicles and design studies, on-road and off-road, not offered for sale.", path: "/concepts", body, mainClass: STUDIO });
 };
 
 const conceptImage = (item, { eager = false } = {}) => {

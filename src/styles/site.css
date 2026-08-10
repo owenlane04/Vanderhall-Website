@@ -219,6 +219,26 @@ p { color: var(--text-secondary); }
 .section-heading--marked h2::before { margin-bottom: var(--s-3); }
 .section-heading { display: flex; flex-direction: column; gap: var(--s-3); margin-bottom: var(--sf-m); }
 .section-heading p { max-width: var(--w-text); }
+/* V18. The brand-family label above each lineup group: a real heading (h3 on the homepage, h2 on
+   /vehicles/) held to the caps register with a hairline rule filling the line, so the model names
+   below it keep the display type. It rides the .section-heading base class so both reveal lists
+   already cover it. */
+.section-heading--group :is(h2, h3) {
+  display: flex;
+  align-items: center;
+  gap: var(--s-5);
+  margin-block: 0;
+  color: var(--text-secondary);
+  font-size: var(--fs-nav);
+  font-weight: var(--wt-medium);
+  letter-spacing: var(--ls-caps);
+  line-height: var(--lh-caps);
+  text-transform: uppercase;
+}
+.section-heading--group :is(h2, h3)::after { content: ""; flex: 1; border-top: var(--hairline) solid var(--line); }
+/* Groups stack inside the lineup section with the same breath the vehicle sections keep between
+   themselves, so the grouping adds headings without changing the page's rhythm. */
+.lineup-group + .lineup-group { margin-top: var(--sf-l); }
 
 /* Cards */
 .card-grid { display: grid; grid-template-columns: 1fr; gap: var(--card-gap); }
@@ -240,8 +260,9 @@ p { color: var(--text-secondary); }
 .vehicle-scroll { display: flex; flex-direction: column; gap: var(--sf-l); }
 .vehicle-section { display: grid; grid-template-columns: 1fr; gap: var(--sf-m); align-items: center; }
 /* The name carries the section, so it takes the display-m step rather than the smaller
-   heading size its level would otherwise imply. */
-.vehicle-section__body :is(h2, h3) { font-size: var(--fs-display-m); line-height: var(--lh-heading); letter-spacing: var(--ls-display); }
+   heading size its level would otherwise imply. V18 adds h4: the grouped lineup drops the names
+   one level under each brand-family heading, and h4 sits outside the global heading resets. */
+.vehicle-section__body :is(h2, h3, h4) { margin-block: 0; font-size: var(--fs-display-m); line-height: var(--lh-heading); letter-spacing: var(--ls-display); text-wrap: balance; }
 .vehicle-section__media { display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; }
 /* Both frames are links to the model page, so they are blocks rather than inline anchors. */
 .vehicle-section__lead, .vehicle-section__support { display: block; overflow: hidden; border-radius: var(--r-2); background: var(--surface-1); }

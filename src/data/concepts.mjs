@@ -1,3 +1,7 @@
+// V18, Owen on 2026-08-10 relaying Vanderhall's direction: the hub divides into On-Road and
+// Off-Road concepts. Terrain is stated per record and follows each concept's own category string;
+// Balboa, the electric motorcycle, files as on-road. check-content carries the same nine
+// assignments written out longhand, so a record drifting between groups fails by name.
 // Dimensions are not restated here. Hub cards are cut to the vehicle band in each source and
 // centred on a fresh canvas, so their delivered size is read from the build manifest instead.
 const card = (slug, alt) => ({ src: `/assets/images/v3/concepts/hub/${slug}-656.webp`, alt });
@@ -6,6 +10,7 @@ export const concepts = [
   {
     name: "Indio",
     slug: "indio",
+    terrain: "on-road",
     category: "Three-wheel electric autocycle concept",
     intro: "Indio is a Vanderhall design study for an open three-wheel roadster. The concept imagery pairs a low two-seat cockpit with a single rear wheel and bodywork finished in a high-visibility green.",
     card: card("indio", "Side profile of a green three-wheel roadster design study"),
@@ -21,6 +26,7 @@ export const concepts = [
   {
     name: "Coachella",
     slug: "coachella",
+    terrain: "off-road",
     category: "Electric off-road concept",
     intro: "Coachella explores what a Vanderhall desert racer could look like. The study renders a high-clearance two-seat body on long-travel suspension, photographed front-on in blowing dust.",
     card: card("coachella", "Side profile of a silver two-seat off-road design study"),
@@ -35,6 +41,7 @@ export const concepts = [
   {
     name: "Brawley R",
     slug: "brawley-r",
+    terrain: "off-road",
     category: "Electric off-road UTV concept",
     intro: "Brawley R is a design study that pushes the Brawley silhouette toward a harder trim: a white roof over deep-tint glass, exposed long-travel suspension, and interior renderings with four sport seats.",
     card: card("brawley-r", "Side profile of a magenta and grey off-road design study"),
@@ -48,6 +55,7 @@ export const concepts = [
   {
     name: "Santarosa R",
     slug: "santarosa-r",
+    terrain: "on-road",
     category: "Three-wheel electric autocycle concept",
     intro: "Santarosa R reimagines the Santarosa three-wheel silhouette as a darker, more aggressive study, rendered in a magenta and carbon scheme with a low windscreen and open cockpit.",
     card: card("santarosa-r", "Side profile of a magenta three-wheel roadster design study"),
@@ -60,6 +68,7 @@ export const concepts = [
   {
     name: "Speedster",
     slug: "speedster",
+    terrain: "on-road",
     category: "Three-wheel electric autocycle concept",
     intro: "Speedster is a single-cockpit take on the Vanderhall three-wheel roadster. The study removes the windshield entirely and pairs white bodywork with gold striping and green upholstery.",
     card: card("speedster", "Side profile of a white single-cockpit three-wheel design study"),
@@ -72,6 +81,7 @@ export const concepts = [
   {
     name: "Yuma",
     slug: "yuma",
+    terrain: "off-road",
     category: "Electric off-road utility concept",
     intro: "Yuma studies a compact electric pickup for Vanderhall. The renderings show a two-door cab, an integrated open bed, and a two-tone tan and black body on off-road tires.",
     card: card("yuma", "Side profile of a tan and black electric pickup design study"),
@@ -85,6 +95,7 @@ export const concepts = [
   {
     name: "Yuma Defense",
     slug: "yuma-defense",
+    terrain: "off-road",
     category: "Electric off-road defense concept",
     intro: "Yuma Defense adapts the Yuma study for defense use: an open four-seat configuration with a full external roll cage, tow points, and a winch, rendered in a uniform tan.",
     card: card("yuma-defense", "Side profile of a tan open four-seat design study with a full roll cage"),
@@ -97,6 +108,7 @@ export const concepts = [
   {
     name: "Laduna",
     slug: "laduna",
+    terrain: "off-road",
     category: "Electric off-road concept",
     intro: "Laduna is a compact open-cockpit off-road study in blue and black, shown with gold wheels, a visible roll structure, and gullwing-style doors in the interior renderings.",
     card: card("laduna", "Side profile of a blue and grey off-road design study with gold wheels"),
@@ -110,6 +122,7 @@ export const concepts = [
   {
     name: "Balboa",
     slug: "balboa",
+    terrain: "on-road",
     category: "Electric motorcycle concept",
     intro: "Balboa is Vanderhall's electric motorcycle study: a low cafe-racer stance, a monolithic tank form with an integrated display, and minimal brightwork.",
     card: card("balboa", "Side profile of a dark electric motorcycle design study"),

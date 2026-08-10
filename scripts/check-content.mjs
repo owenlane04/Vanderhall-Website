@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 // counts asserted below are hardcoded on purpose, so the structural checks stay independent of the
 // generator: importing the data proves the strings match, the counts prove the shape is right.
 import { currentModels, HISTORICAL_SPECS, modelBySlug, pastModels, SPEC_DISCLAIMER } from "../src/data/models.mjs";
-import { conceptBySlug } from "../src/data/concepts.mjs";
+import { conceptBySlug, concepts } from "../src/data/concepts.mjs";
 import { privacySections } from "../src/data/privacy.mjs";
 import { ambientVideos } from "../src/data/video.mjs";
 import { FORM_ENDPOINTS, INQUIRY_EMAIL } from "../src/data/forms.mjs";
@@ -239,6 +239,15 @@ const MODEL_SLUGS = ["brawley", "santarosa", "carmel", "venice"];
 // derived from the same flag, and both would still pass.
 const CURRENT_SLUGS = ["brawley", "santarosa"];
 const PAST_SLUGS = ["carmel", "venice"];
+// V18, Owen on 2026-08-10 relaying Vanderhall's direction: the family split. Longhand for the same
+// reason as CURRENT_SLUGS, and cross-checked against the data below so a terrain that drifts in
+// models.mjs fails by name here rather than re-labelling a pill and passing.
+const TERRAIN_TAGS = { brawley: "Off-Road", santarosa: "On-Road", carmel: null, venice: null };
+for (const model of [...currentModels, ...pastModels]) {
+  if ((model.terrain ?? null) !== TERRAIN_TAGS[model.slug]) {
+    failures.push(`models.mjs declares ${model.slug} terrain ${model.terrain ?? "none"}, not the ${TERRAIN_TAGS[model.slug] ?? "none"} this script expects`);
+  }
+}
 if (JSON.stringify(currentModels.map((model) => model.slug)) !== JSON.stringify(CURRENT_SLUGS)) {
   failures.push(`The data declares current models ${currentModels.map((model) => model.slug).join(", ")}, not the ${CURRENT_SLUGS.join(", ")} this script expects`);
 }
@@ -325,17 +334,49 @@ for (const [route, html] of [["/", homeHtml], ["/vehicles/", vehiclesHtml]]) {
   // too, so the order is read one section at a time rather than from a flat list of hrefs.
   const order = blocks.map((block) => block.match(/href="\/(brawley|santarosa|carmel|venice)\/"/)?.[1] || "none");
   if (JSON.stringify(order) !== JSON.stringify(expectedOrder)) failures.push(`${route}: vehicle sections must link to ${expectedOrder.join(", ")} in order, found ${order.join(", ") || "none"}`);
-  // A past model's section is tagged beside the name; a current model's is not. Both directions.
+  // V18: a lineup section carries its terrain pill and nothing else. The legacy pill left both
+  // lineup surfaces with the grouping, because each group's heading supplies the status now; the
+  // pill survives only beside each legacy detail page's h1 (D-V18-5).
   for (const [index, block] of blocks.entries()) {
-    const tagged = block.includes(">Past model<");
-    const isPast = PAST_SLUGS.includes(order[index]);
-    if (isPast && !tagged) failures.push(`${route}: the ${order[index]} section must carry the Past model tag beside its name`);
-    if (!isPast && tagged) failures.push(`${route}: the current model ${order[index]} must not be tagged as a past model`);
+    const expected = TERRAIN_TAGS[order[index]] ?? null;
+    const pill = block.match(/<p class="model-tag model-tag--terrain">([^<]*)<\/p>/)?.[1] ?? null;
+    if (pill !== expected) failures.push(`${route}: the ${order[index]} section must carry ${expected ? `the ${expected} terrain pill` : "no terrain pill"} beside its name, found ${pill ?? "none"}`);
+    if (block.includes(">Legacy model<") || block.includes(">Past model<")) failures.push(`${route}: the ${order[index]} lineup section must not carry a status pill: its group heading says it`);
   }
   // Media links must never take a tab stop or a name away from the text link beneath them.
   for (const block of blocks) {
     for (const tag of block.match(/<a class="vehicle-section__(?:lead|support)"[^>]*>/g) || []) {
       if (!tag.includes('tabindex="-1"') || !tag.includes('aria-hidden="true"')) failures.push(`${route}: a vehicle media link is not removed from the tab order`);
+    }
+  }
+}
+// V18: the three family headings, in Owen's order, each sitting above the sections it heads. The
+// markers are asserted strictly increasing from the top of each page, which pins heading-before-
+// group without parsing the wrappers, and the exact heading strings also pin the levels the axe
+// heading-order rule assumes (h3 under the homepage's lineup h2, h2 on /vehicles/). The terrain
+// pill's adjacency to the name is pinned the same way.
+for (const [route, html, level, sequence] of [
+  ["/", homeHtml, 3, ["Vanderhall|brawley", "Vanderhall On-Road|santarosa", "Vanderhall Legacy Vehicles|carmel", "|venice"]],
+  ["/vehicles/", vehiclesHtml, 2, ["Vanderhall|brawley", "Vanderhall On-Road|santarosa", "Vanderhall Legacy Vehicles|carmel", "|venice"]],
+]) {
+  const scroll = withoutFooter(html);
+  let cursor = 0;
+  for (const step of sequence) {
+    const [family, slug] = step.split("|");
+    for (const marker of [family ? `<h${level}>${family}</h${level}>` : null, `href="/${slug}/"`].filter(Boolean)) {
+      const at = scroll.indexOf(marker, cursor);
+      if (at < cursor || at < 0) { failures.push(`${route}: expected ${marker} after position ${cursor} in the grouped lineup`); break; }
+      cursor = at + marker.length;
+    }
+  }
+  for (const family of ["Vanderhall", "Vanderhall On-Road", "Vanderhall Legacy Vehicles"]) {
+    const count = (scroll.match(new RegExp(`<h${level}>${family}</h${level}>`, "g")) || []).length;
+    if (count !== 1) failures.push(`${route}: the ${family} group heading must appear exactly once at h${level}, found ${count}`);
+  }
+  const nameLevel = level + 1;
+  for (const [name, terrain] of [["Brawley", "Off-Road"], ["Santarosa", "On-Road"]]) {
+    if (!scroll.includes(`<h${nameLevel}>${name}</h${nameLevel}><p class="model-tag model-tag--terrain">${terrain}</p>`)) {
+      failures.push(`${route}: the ${terrain} pill must sit immediately beside the ${name} name at h${nameLevel}`);
     }
   }
 }
@@ -352,18 +393,18 @@ const supportFrames = (vehiclesHtml.match(/vehicle-section__support/g) || []).le
 if (supportFrames !== 4) failures.push(`/vehicles/ must carry two supporting photographs per current vehicle, found ${supportFrames}`);
 if ((homeHtml.match(/vehicle-section__support/g) || []).length !== 0) failures.push("The homepage must stay the short version with one photograph per vehicle");
 
-// V13-D. The Past Models group: one section, two compact cards, one image each, and no status pill inside
-// it, because the heading above already says what the group is.
+// V13-D, renamed by V18. The legacy group: one section, two compact cards, one image each, and no
+// status pill inside it, because the heading above already says what the group is.
 const pastCards = (vehiclesHtml.match(/<article class="past-card">/g) || []).length;
 if (pastCards !== 2) failures.push(`/vehicles/ must present two past-model cards, found ${pastCards}`);
 if (!vehiclesHtml.includes('<section class="section" id="past-models">')) failures.push("/vehicles/ must carry the past-models anchor the homepage links to");
-if (!vehiclesHtml.includes("<h2>Past Models</h2>")) failures.push("/vehicles/ must head its past-model group Past Models");
+if (!vehiclesHtml.includes("<h2>Vanderhall Legacy Vehicles</h2>")) failures.push("/vehicles/ must head its legacy group Vanderhall Legacy Vehicles");
 const pastGroup = vehiclesHtml.slice(vehiclesHtml.indexOf('id="past-models"'));
 for (const slug of PAST_SLUGS) {
   if (!pastGroup.includes(`href="/${slug}/"`)) failures.push(`/vehicles/ past-model group must lead to /${slug}/`);
 }
 if ((pastGroup.match(/class="past-card__media"/g) || []).length !== 2) failures.push("Each past-model card must carry exactly one photograph");
-if (withoutFooter(pastGroup).includes(">Past model<")) failures.push("The Past Models group must not repeat the status as a pill on each card");
+if (withoutFooter(pastGroup).includes(">Legacy model<") || withoutFooter(pastGroup).includes(">Past model<")) failures.push("The legacy group must not repeat the status as a pill on each card");
 // V15-C: the quiet link is retired with the absence it compensated for. The homepage lists the past
 // models directly now, so a link to a list of things the visitor is already looking at is gone.
 if (homeHtml.includes('href="/vehicles/#past-models"')) failures.push("The retired quiet past-models link remains on the homepage");
@@ -570,27 +611,33 @@ if (galleryFigures !== 12) failures.push(`Expected twelve gallery frames sitewid
 // card. What is left is one tag beside each detail page's h1, which is the one surface with no heading above
 // it to supply the context.
 const PAST_MODELS = ["venice", "carmel"];
-// V15-C: four tags sitewide now. One beside each past-model h1, and one beside each past model's
-// name in the homepage lineup.
-const totalTags = (combinedHtml.match(/>Past model</g) || []).length;
-if (totalTags !== 4) failures.push(`Expected four Past model tags sitewide, found ${totalTags}`);
-const homeTags = (withoutFooter(homeHtml).match(/>Past model</g) || []).length;
-if (homeTags !== 2) failures.push(`The homepage must carry exactly two Past model tags, found ${homeTags}`);
+// V18 recuts the census to two, and renames the word to match the Vanderhall Legacy Vehicles
+// family name. Both lineup surfaces head their legacy group now, so the pill survives only beside
+// each legacy detail page's h1, which is the one surface with no heading to supply the context.
+// The old wording is retired outright: a surviving ">Past model<" anywhere is a failure.
+const totalTags = (combinedHtml.match(/>Legacy model</g) || []).length;
+if (totalTags !== 2) failures.push(`Expected two Legacy model tags sitewide, found ${totalTags}`);
+if ((withoutFooter(homeHtml).match(/>Legacy model</g) || []).length !== 0) failures.push("The homepage lineup must carry no Legacy model pill: its legacy group heading says it");
+if (combinedHtml.includes(">Past model<")) failures.push("The retired Past model wording remains: V18 renamed the pill Legacy model");
 for (const slug of MODEL_SLUGS) {
   const html = pageBySuffix(`/${slug}/index.html`);
-  const tags = (html.match(/>Past model</g) || []).length;
+  const tags = (html.match(/>Legacy model</g) || []).length;
   const expected = PAST_MODELS.includes(slug) ? 1 : 0;
-  if (tags !== expected) failures.push(`/${slug}/ must carry ${expected} Past model tag, found ${tags}`);
-  if (expected && !/<h1>[^<]*<\/h1>\s*<p class="model-tag">/.test(html)) failures.push(`/${slug}/ must place the Past model tag directly after the heading`);
+  if (tags !== expected) failures.push(`/${slug}/ must carry ${expected} Legacy model tag, found ${tags}`);
+  if (expected && !/<h1>[^<]*<\/h1>\s*<p class="model-tag">/.test(html)) failures.push(`/${slug}/ must place the Legacy model tag directly after the heading`);
 }
-// V15-C: /vehicles/ lineup sections stay untagged (its past models live in their own headed group);
-// the homepage's per-section tagging is asserted with the lineup order further up.
-for (const [route, html] of [["/vehicles/", vehiclesHtml]]) {
-  const blocks = withoutFooter(html).split('<section class="vehicle-section').slice(1);
-  for (const block of blocks) {
-    const slug = block.match(/href="\/(brawley|santarosa|carmel|venice)\/"/)?.[1];
-    if (block.includes(">Past model<")) failures.push(`${route}: the current model ${slug} must not be tagged as a past model`);
-  }
+// V18: the terrain pill census. Four sitewide: Off-Road beside Brawley and On-Road beside
+// Santarosa, once on each lineup surface, and none anywhere else. The model-page heroes stay
+// clean of little text per V15-H, so a terrain pill reaching a hero fails here.
+const terrainPills = (combinedHtml.match(/class="model-tag model-tag--terrain"/g) || []).length;
+if (terrainPills !== 4) failures.push(`Expected four terrain pills sitewide, found ${terrainPills}`);
+for (const [route, html] of [["/", homeHtml], ["/vehicles/", vehiclesHtml]]) {
+  const count = (withoutFooter(html).match(/class="model-tag model-tag--terrain"/g) || []).length;
+  if (count !== 2) failures.push(`${route} must carry exactly two terrain pills, found ${count}`);
+}
+for (const slug of MODEL_SLUGS) {
+  const html = pageBySuffix(`/${slug}/index.html`);
+  if (html.includes("model-tag--terrain")) failures.push(`/${slug}/ must carry no terrain pill: the hero stays clean per V15-H`);
 }
 // Prices exist on exactly one route. V1 through V5 published none at all, and V6 publishes the
 // Brawley GTS MSRP and its three paint tiers under Owen's approval of 2026-08-05, sourced from
@@ -853,6 +900,39 @@ for (const page of builtPages) {
 const conceptsHubHtml = pageBySuffix("/concepts/index.html");
 const conceptCards = (conceptsHubHtml.match(/<article class="card">/g) || []).length;
 if (conceptCards !== 9) failures.push(`Concepts hub must present nine cards, found ${conceptCards}`);
+
+// V18, Owen on 2026-08-10: the hub divides into the two families, On-Road first in his order.
+// Membership is written out longhand per slug, as TERRAIN_TAGS above, and cross-checked against
+// the data, so a record drifting between groups fails by name here rather than re-sorting
+// silently. Balboa, the electric motorcycle, files as on-road per the plan.
+const CONCEPT_TERRAIN = {
+  indio: "on-road", coachella: "off-road", "brawley-r": "off-road", "santarosa-r": "on-road",
+  speedster: "on-road", yuma: "off-road", "yuma-defense": "off-road", laduna: "off-road", balboa: "on-road",
+};
+const ON_ROAD_CONCEPTS = ["indio", "santarosa-r", "speedster", "balboa"];
+const OFF_ROAD_CONCEPTS = ["coachella", "brawley-r", "yuma", "yuma-defense", "laduna"];
+for (const concept of concepts) {
+  if ((concept.terrain ?? null) !== CONCEPT_TERRAIN[concept.slug]) {
+    failures.push(`concepts.mjs declares ${concept.slug} terrain ${concept.terrain ?? "none"}, not the ${CONCEPT_TERRAIN[concept.slug]} this script expects`);
+  }
+}
+{
+  const onRoadAt = conceptsHubHtml.indexOf("<h2>On-Road Concepts</h2>");
+  const offRoadAt = conceptsHubHtml.indexOf("<h2>Off-Road Concepts</h2>");
+  if (onRoadAt < 0 || offRoadAt < 0 || onRoadAt > offRoadAt) {
+    failures.push("The concepts hub must head its two groups On-Road Concepts then Off-Road Concepts, in that order");
+  } else {
+    // Each grid holds exactly its family, in the data's own order, and nothing else.
+    const gridSlugs = (html) => [...html.matchAll(/href="\/concepts\/([a-z-]+)\/"/g)].map((match) => match[1]);
+    const onRoadFound = gridSlugs(conceptsHubHtml.slice(onRoadAt, offRoadAt));
+    const offRoadFound = gridSlugs(withoutFooter(conceptsHubHtml.slice(offRoadAt)));
+    if (JSON.stringify(onRoadFound) !== JSON.stringify(ON_ROAD_CONCEPTS)) failures.push(`The On-Road Concepts grid must hold ${ON_ROAD_CONCEPTS.join(", ")} in order, found ${onRoadFound.join(", ") || "none"}`);
+    if (JSON.stringify(offRoadFound) !== JSON.stringify(OFF_ROAD_CONCEPTS)) failures.push(`The Off-Road Concepts grid must hold ${OFF_ROAD_CONCEPTS.join(", ")} in order, found ${offRoadFound.join(", ") || "none"}`);
+  }
+  // The card titles sit at h3 under the two group h2s, so the hub's heading order stays clean.
+  const cardTitleH3s = (conceptsHubHtml.match(/<h3 class="card__title">/g) || []).length;
+  if (cardTitleH3s !== 9) failures.push(`The nine concept card titles must sit at h3 under the group headings, found ${cardTitleH3s}`);
+}
 
 // The V9 concept band. Decorative by construction, which is what keeps the assertions above true: the
 // nine cards are still nine because nothing in the band is an article, and the one h1 is still one
@@ -1339,7 +1419,9 @@ for (const relative of MARKED_HEADERS) {
 // it is still the homepage lineup section's eyebrow, above a heading reading "The Vanderhall lineup.",
 // and that pair says two different things. The assertion that matters for the page headers is the one
 // above, that none of them contains a caps label at all.
-for (const retired of ["Design studies", ">OWNERS<", ">DEALERS<", ">CONCEPTS<", ">DEALER NETWORK<", ">INTERNATIONAL DEALERS<"]) {
+// V18 adds the lineup group's old identity: the PAST MODELS eyebrow and its Past Models title
+// gave way to the Vanderhall Legacy Vehicles family heading.
+for (const retired of ["Design studies", ">OWNERS<", ">DEALERS<", ">CONCEPTS<", ">DEALER NETWORK<", ">INTERNATIONAL DEALERS<", ">PAST MODELS<", "<h2>Past Models</h2>"]) {
   if (combinedHtml.includes(retired)) failures.push(`A retired page-header eyebrow or title remains: ${retired}`);
 }
 if (!homeHtml.includes('<div class="section-heading section-heading--marked"><h2>Concepts</h2>')) failures.push("The homepage concepts section must carry one marked title reading Concepts");
