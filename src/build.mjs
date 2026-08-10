@@ -15,7 +15,6 @@ import {
   BRAND,
   brawleyOrderForm,
   buttonLink,
-  campaignBand,
   conceptCard,
   conceptMarquee,
   contactForm,
@@ -211,8 +210,8 @@ const brawleyGtsPage = (model) => {
     <section class="section">${walkaround(gts)}</section>
     <section class="section--tight">${figureBand(gts.figures, scope)}</section>
     <section class="section--tight"><figure class="gts-scene"><img src="${scene.src}" srcset="${scene.srcset}" sizes="(min-width: 1280px) 1200px, 92vw" width="${sizeOf(scene.src).width}" height="${sizeOf(scene.src).height}" alt="${gts.scene.alt}" loading="lazy" decoding="async"><figcaption>${gts.scene.label}</figcaption></figure></section>
-    <section class="section narrow centered" id="specifications">${sectionHeading("SPECIFICATIONS", "Published figures")}${specTable(model, scope)}</section>
-    <section class="section--tight narrow centered">
+    <section class="section narrow centered gts-section gts-section--specifications" id="specifications">${sectionHeading("SPECIFICATIONS", "Published figures")}${specTable(model, scope)}</section>
+    <section class="section--tight narrow centered gts-section">
       ${sectionHeading("ORDER", `Reserve your ${gts.name}.`, "Order through the Vanderhall reservation system, or ask Vanderhall to connect you with a dealer.")}
       ${actions("primary")}
     </section>
@@ -259,6 +258,10 @@ const lineupIndex = (model) => LINEUP_ORDER.indexOf(model);
 const homePage = () => {
   const indio = concepts[0];
   const scope = footnoteScope();
+  const modelStatus = {
+    brawley: getBrawleyDeliveryStatus(),
+    santarosa: campaignStatement(getSantarosaLaunchCampaign()),
+  };
   // Owen's copy, unchanged since V9 apart from the brand eyebrow, which V13 shortens to the public name.
   const heroContent = `${eyebrow(BRAND.toUpperCase())}
       <h1>Handcrafted electric vehicles.</h1>
@@ -292,21 +295,16 @@ const homePage = () => {
             under each family's h3. */""}
       ${VEHICLE_FAMILIES.map(({ title, models: group }) => `<div class="lineup-group">
         ${groupHeading(title, { level: 3 })}
-        <div class="vehicle-scroll">${group.map((model) => vehicleSection(model, { index: lineupIndex(model), copy: model.summary, level: 4, scope })).join("")}</div>
+        <div class="vehicle-scroll">${group.map((model) => vehicleSection(model, { index: lineupIndex(model), copy: model.summary, level: 4, scope, status: modelStatus[model.slug] })).join("")}</div>
       </div>`).join("")}
     </section>
     <section class="section split split--media-first">
       <div class="split__body">${sectionHeading(null, "Concepts")}<p>Nine Vanderhall concept vehicles, on-road and off-road. They are not offered for sale.</p><div class="cluster">${buttonLink("View concepts", "/concepts/", "secondary")}</div></div>
       <a class="split__media" href="/concepts/"><img src="${indio.hero.src}" srcset="${indio.hero.srcset}" width="${sizeOf(indio.hero.src).width}" height="${sizeOf(indio.hero.src).height}" sizes="(min-width: 768px) 45vw, 92vw" alt="${indio.hero.alt}" loading="lazy" decoding="async"></a>
     </section>
-    ${/* V16-H, Owen on 2026-08-06: the lineup's footnote reads quietly here, after everything it
-          annotates and before the two campaign statements, instead of crowding the lineup itself. */""}
+    ${/* V16-H, updated in V19: the lineup's footnote reads quietly here, after everything it
+          annotates. The two campaign statements now sit inside their models' lineup sections. */""}
     <section class="section--tight">${scope.notes()}</section>
-    ${/* V15-B. The campaign band closes the page: the two operational statements, centered on the
-          site's one silver field, after everything the visitor came to see. Both statements still read
-          from the campaign data, so this band and the Launch Edition page can never disagree about
-          which phase the campaign is in. */
-      campaignBand(getBrawleyDeliveryStatus(), getSantarosaLaunchCampaign())}
   </div>`;
   return shell({ title: "Home", description: "Vanderhall builds handcrafted electric UTVs, side-by-sides, and three-wheeled autocycles.", path: "/", body, schema: organizationSchema(), intro: true });
 };
@@ -345,13 +343,13 @@ const vehiclesPage = () => {
 const STUDIO = "page--studio";
 
 const conceptsPage = () => {
-  // V18, Owen on 2026-08-10: the hub divides into the two families, On-Road first in his order.
+  // V18 divides the hub into the two families. V19's final review puts Off-Road first.
   // Grouping is a render-time filter on each record's terrain field; the data array keeps its
   // order, the decorative band above keeps all nine, and no route moves. Card titles drop to h3
   // under the two section h2s, and the three eager fetches stay on the first three rendered cards.
   const groups = [
-    { title: "On-Road Concepts", terrain: "on-road" },
     { title: "Off-Road Concepts", terrain: "off-road" },
+    { title: "On-Road Concepts", terrain: "on-road" },
   ].map(({ title, terrain }) => ({ title, group: concepts.filter((concept) => concept.terrain === terrain) }));
   const ordered = groups.flatMap(({ group }) => group);
   const body = `<div class="page page--concepts">
@@ -637,14 +635,14 @@ const launchEditionPage = () => {
           reach. Left-aligned, the block sits over the dark floor and the car, which is where the scrim is
           strongest. */""}
     ${hero({ src: santarosa.images.hero, srcset: santarosa.images.heroSrcset, tallSrcset: santarosa.images.heroTallSrcset, alt: santarosa.images.heroAlt, focal: santarosa.images.focal, content: heroContent })}
-    <section class="section--tight narrow stack">
+    <section class="section--tight narrow centered stack launch-lede">
       ${/* V15-F: the Prototype copy marker is gone with the rest of the scaffolding language. Every
             fact on this page came from Owen's boss on 2026-08-06; the wording, consent language, and
             campaign state are still pending approval, and the launch-copy blocker holds the gate. */""}
       <p class="lede">A new chapter is about to begin.</p>
       <p>The Santarosa Launch Edition will be limited to just ${campaign.totalUnits} individually numbered vehicles. Each will be built with exclusive features available only on this inaugural edition.</p>
     </section>
-    <section class="section">
+    <section class="section launch-highlights-section">
       ${sectionHeading("LAUNCH EDITION", "Launch Edition highlights")}
       <ul class="launch-highlights">${campaign.highlights.map((highlight) => `<li>${escapeHtml(highlight.text)}${highlight.noteIds?.length ? scope.mark(highlight.noteIds) : ""}</li>`).join("")}</ul>
       <p class="launch-more">More details will be announced as we get closer to launch.</p>

@@ -352,7 +352,7 @@ await page.goto(`${base}/concepts/`, { waitUntil: "networkidle" });
 report.interactions.conceptHubCards = await page.locator(".card .card__link").count();
 if (report.interactions.conceptHubCards !== 9) failures.push("Concept hub must expose nine linked cards");
 
-// V18: the hub reads as two families, On-Road first in Owen's order, and every card sits in the
+// V19: the hub reads as two families, Off-Road first, and every card sits in the
 // grid its heading claims. Membership itself is asserted longhand in check-content; what the
 // browser adds is that both headings paint and each grid's card count is what a visitor sees.
 report.interactions.conceptHubGroups = await page.evaluate(() => [...document.querySelectorAll(".page--concepts .section-heading h2")].map((heading) => ({
@@ -361,8 +361,8 @@ report.interactions.conceptHubGroups = await page.evaluate(() => [...document.qu
   cards: heading.closest("section")?.querySelectorAll(".card .card__link").length ?? 0,
 })));
 const hubGroups = report.interactions.conceptHubGroups;
-if (JSON.stringify(hubGroups.map(({ text, cards }) => [text, cards])) !== JSON.stringify([["On-Road Concepts", 4], ["Off-Road Concepts", 5]])) {
-  failures.push(`The concepts hub must present On-Road Concepts (4 cards) then Off-Road Concepts (5 cards): ${JSON.stringify(hubGroups)}`);
+if (JSON.stringify(hubGroups.map(({ text, cards }) => [text, cards])) !== JSON.stringify([["Off-Road Concepts", 5], ["On-Road Concepts", 4]])) {
+  failures.push(`The concepts hub must present Off-Road Concepts (5 cards) then On-Road Concepts (4 cards): ${JSON.stringify(hubGroups)}`);
 }
 if (hubGroups.some((group) => !group.painted)) failures.push("A concepts hub group heading is not painted");
 
@@ -931,7 +931,7 @@ const REVEAL_SELECTOR = [
   ".photo-module__specs .spec-row", ".vehicle-section__row .vehicle-section__support",
   ".policy__section", ".lede", ".spec-note", ".form-heading",
   ".lead-form > .field", ".lead-form > .form-fieldset:not(.form-step)", ".lead-form > .form-submit-row",
-  ".campaign-band__item", ".past-card", ".photo-gallery__figure", ".post-card", ".record-card", ".record-section",
+  ".vehicle-status", ".past-card", ".photo-gallery__figure", ".post-card", ".record-card", ".record-section",
   ".launch-highlights li", ".launch-fact", ".article-hero", ".prose", ".empty-state",
 ].join(", ");
 
@@ -2180,67 +2180,113 @@ for (const width of [1440, 390]) {
 }
 await page.setViewportSize({ width: 1440, height: 1000 });
 
-// homepageCampaignStatus. Brawley first, both statements read from the campaign data, and no public Reserve
-// action while the phase is interest-open. V15-B: the band closes the page, centered, on the silver
-// field, so the placement, the alignment, and the recomputed light ramp are all measured.
+// homepageCampaignStatus. V19 moves each operational statement inside the current model it qualifies.
+// The fuller /vehicles/ lineup and the two legacy homepage sections stay free of campaign content.
 await page.goto(`${base}/`, { waitUntil: "networkidle" });
 report.homepageCampaignStatus = await page.evaluate(() => {
-  const band = document.querySelector(".campaign-band");
-  if (!band) return { found: false };
-  const items = [...band.querySelectorAll(".campaign-band__item")];
-  const lineup = document.querySelector("#vehicles").getBoundingClientRect();
-  const split = document.querySelector(".split--media-first").getBoundingClientRect();
-  const bandRect = band.getBoundingClientRect();
-  const bandStyle = getComputedStyle(band);
-  const labelStyle = getComputedStyle(band.querySelector(".campaign-band__label"));
-  const firstItem = items[0].getBoundingClientRect();
+  const sections = [...document.querySelectorAll("#vehicles .vehicle-section")];
+  const shape = (section) => {
+    const status = section.querySelector(".vehicle-status");
+    const copy = section.querySelector(".vehicle-section__body > p:not(.model-tag)");
+    const explore = [...section.querySelectorAll(":scope > .vehicle-section__body > .text-link")].at(-1);
+    const labelStyle = status ? getComputedStyle(status.querySelector(".vehicle-status__label")) : null;
+    return {
+      model: section.querySelector(".model-headline h4").textContent,
+      statuses: section.querySelectorAll(".vehicle-status").length,
+      statement: status?.querySelector(".vehicle-status__statement")?.childNodes[0]?.textContent.trim() ?? null,
+      action: status?.querySelector("a")?.getAttribute("href") ?? null,
+      actionLabel: status?.querySelector("a")?.textContent.trim().replace(/\s*→$/, "") ?? null,
+      betweenCopyAndExplore: Boolean(status && copy.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING && status.compareDocumentPosition(explore) & Node.DOCUMENT_POSITION_FOLLOWING),
+      capsLabel: labelStyle?.textTransform === "uppercase",
+      hairline: status ? getComputedStyle(status).borderTopStyle === "solid" : false,
+    };
+  };
   return {
-    found: true,
-    items: items.length,
-    labels: items.map((item) => item.querySelector(".campaign-band__label").textContent),
-    actions: items.map((item) => item.querySelector("a").getAttribute("href")),
-    actionLabels: items.map((item) => item.querySelector("a").textContent.trim()),
-    // DOM order and visual order agree, which is what the mobile requirement reduces to.
-    domOrder: items.map((item) => item.querySelector(".campaign-band__label").textContent.split(" ")[0]),
-    afterLineup: bandRect.top >= lineup.bottom - 2,
-    afterSplit: bandRect.top >= split.bottom - 2,
-    lastOnPage: !band.nextElementSibling && band.closest(".page") && !band.closest(".page").nextElementSibling?.matches("section"),
-    // The silver field: a light background with dark ink, measured as computed values rather than
-    // trusted from the stylesheet, and full bleed at the viewport width.
-    lightField: bandStyle.backgroundImage.includes("linear-gradient"),
-    inkIsDark: labelStyle.color.match(/\d+/g).slice(0, 3).map(Number).every((channel) => channel < 64),
-    fullBleed: Math.round(bandRect.width) >= innerWidth - 1,
-    centered: getComputedStyle(items[0]).textAlign === "center" && Math.abs((firstItem.left + firstItem.width / 2) < innerWidth ? 0 : 1) === 0,
+    sections: sections.map(shape),
+    retiredBand: document.querySelectorAll(".campaign-band").length,
+    statusCount: document.querySelectorAll("#vehicles .vehicle-status").length,
     h1: document.querySelector("h1").textContent,
-    // No alert-bar behaviour: nothing to dismiss, no timer, no modal.
-    dismissers: document.querySelectorAll(".campaign-band [data-dismiss], .campaign-band button").length,
   };
 });
 const campaign = report.homepageCampaignStatus;
-if (!campaign.found) failures.push("The homepage campaign status band is missing");
-else {
-  if (campaign.items !== 2) failures.push(`The status band carries ${campaign.items} items`);
-  if (campaign.domOrder[0] !== "Brawley" || campaign.domOrder[1] !== "Santarosa") failures.push(`The status band order is ${campaign.domOrder.join(", ")}`);
-  if (campaign.labels[0] !== "Brawley deliveries are underway.") failures.push(`The Brawley status reads ${campaign.labels[0]}`);
-  if (campaign.labels[1] !== "Santarosa Launch Edition registration of interest is open.") failures.push(`The Santarosa status reads ${campaign.labels[1]}`);
-  if (JSON.stringify(campaign.actions) !== JSON.stringify(["/brawley/", "/santarosa/launch-edition/"])) failures.push(`The status band actions are ${campaign.actions.join(", ")}`);
-  if (campaign.actionLabels.some((label) => label.startsWith("Reserve"))) failures.push("The status band offers a Reserve action outside a verified public-reservation phase");
-  if (!campaign.afterLineup || !campaign.afterSplit) failures.push("The status band must close the homepage, after the lineup and the concepts split");
-  if (!campaign.lightField || !campaign.inkIsDark) failures.push(`The status band must render as dark ink on the silver field: ${JSON.stringify({ lightField: campaign.lightField, inkIsDark: campaign.inkIsDark })}`);
-  if (!campaign.fullBleed) failures.push("The status band must run the full viewport width");
-  if (!campaign.centered) failures.push("The status band items must be centered");
-  if (campaign.h1 !== "Handcrafted electric vehicles.") failures.push(`The campaign band changed the homepage h1 to ${campaign.h1}`);
-  if (campaign.dismissers !== 0) failures.push("The status band must carry no dismiss control or timer");
+if (campaign.retiredBand !== 0 || campaign.statusCount !== 2) failures.push(`The homepage must carry two in-section statuses and no retired band: ${JSON.stringify(campaign)}`);
+const [brawleyStatus, santarosaStatus, carmelStatus, veniceStatus] = campaign.sections;
+if (brawleyStatus?.model !== "Brawley" || brawleyStatus.statement !== "Brawley deliveries are underway." || brawleyStatus.action !== "/brawley/" || brawleyStatus.actionLabel !== "Explore Brawley") failures.push(`The Brawley section status is wrong: ${JSON.stringify(brawleyStatus)}`);
+if (santarosaStatus?.model !== "Santarosa" || santarosaStatus.statement !== "Santarosa Launch Edition registration of interest is open." || santarosaStatus.action !== "/santarosa/launch-edition/" || santarosaStatus.actionLabel !== "View Launch Edition") failures.push(`The Santarosa section status is wrong: ${JSON.stringify(santarosaStatus)}`);
+for (const status of [brawleyStatus, santarosaStatus]) {
+  if (!status?.betweenCopyAndExplore || !status.capsLabel || !status.hairline) failures.push(`A current-model status is not in the quiet in-section register: ${JSON.stringify(status)}`);
 }
-// And the same band at 390, where Brawley must still be first both in the DOM and on the screen.
+if (carmelStatus?.statuses || veniceStatus?.statuses) failures.push("Legacy homepage sections must carry no campaign status");
+if (campaign.h1 !== "Handcrafted electric vehicles.") failures.push(`The campaign placement changed the homepage h1 to ${campaign.h1}`);
+
+// At 390px both status lines stay inside their own sections without widening the page.
 await page.setViewportSize({ width: 390, height: 844 });
 await page.goto(`${base}/`, { waitUntil: "networkidle" });
 report.homepageCampaignStatus.mobile = await page.evaluate(() => {
-  const items = [...document.querySelectorAll(".campaign-band__item")];
-  return { tops: items.map((item) => Math.round(item.getBoundingClientRect().top)), labels: items.map((item) => item.querySelector(".campaign-band__label").textContent.split(" ")[0]) };
+  const items = [...document.querySelectorAll("#vehicles .vehicle-status")];
+  return {
+    count: items.length,
+    models: items.map((item) => item.closest(".vehicle-section").querySelector(".model-headline h4").textContent),
+    contained: items.every((item) => item.getBoundingClientRect().right <= innerWidth + 1),
+    noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1,
+  };
 });
 const bandMobile = report.homepageCampaignStatus.mobile;
-if (bandMobile.labels[0] !== "Brawley" || bandMobile.tops[0] > bandMobile.tops[1]) failures.push(`At 390px the status band must keep Brawley first: ${JSON.stringify(bandMobile)}`);
+if (bandMobile.count !== 2 || JSON.stringify(bandMobile.models) !== JSON.stringify(["Brawley", "Santarosa"]) || !bandMobile.contained || !bandMobile.noHorizontalScroll) failures.push(`At 390px the in-section statuses are wrong: ${JSON.stringify(bandMobile)}`);
+await page.setViewportSize({ width: 1440, height: 1000 });
+
+// V19 page balance. The GTS reference groups are two-up native disclosures with only the first
+// open; the Launch Edition lede centers and its ten highlights form five visible rows.
+await page.goto(`${base}/brawley/gts/`, { waitUntil: "networkidle" });
+report.v19PageBalance = { gts: await page.evaluate(() => {
+  const section = document.querySelector("#specifications");
+  const groups = [...section.querySelectorAll("details.spec-group")];
+  const summaries = groups.map((group) => group.querySelector("summary")?.textContent.trim());
+  const heading = section.querySelector(".section-heading");
+  return {
+    groups: groups.length,
+    open: groups.map((group) => group.open),
+    summaries,
+    firstRowTops: groups.slice(0, 2).map((group) => Math.round(group.getBoundingClientRect().top)),
+    sectionWidth: Math.round(section.getBoundingClientRect().width),
+    headingCentered: getComputedStyle(heading).alignItems === "center" && getComputedStyle(heading).textAlign === "center",
+    noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1,
+  };
+}) };
+const gtsBalance = report.v19PageBalance.gts;
+if (gtsBalance.groups !== 6 || JSON.stringify(gtsBalance.open) !== JSON.stringify([true, false, false, false, false, false])) failures.push(`The GTS disclosures must render six groups with only the first open: ${JSON.stringify(gtsBalance)}`);
+if (gtsBalance.summaries.some((summary) => !summary) || gtsBalance.firstRowTops[0] !== gtsBalance.firstRowTops[1]) failures.push(`The GTS specification groups are not a two-column summary grid: ${JSON.stringify(gtsBalance)}`);
+if (gtsBalance.sectionWidth < 1000 || !gtsBalance.headingCentered || !gtsBalance.noHorizontalScroll) failures.push(`The GTS specifications region is not wide and centered at 1440px: ${JSON.stringify(gtsBalance)}`);
+await page.locator("#specifications details.spec-group").nth(1).locator("summary").click();
+if (!(await page.locator("#specifications details.spec-group").nth(1).evaluate((group) => group.open))) failures.push("A closed GTS specification group did not expand without custom JavaScript");
+
+await page.goto(`${base}/santarosa/launch-edition/`, { waitUntil: "networkidle" });
+report.v19PageBalance.launch = await page.evaluate(() => {
+  const lede = document.querySelector(".launch-lede");
+  const items = [...document.querySelectorAll(".launch-highlights li")];
+  return {
+    ledeCentered: getComputedStyle(lede).alignItems === "center" && getComputedStyle(lede).textAlign === "center",
+    items: items.length,
+    rowTops: [...new Set(items.map((item) => Math.round(item.getBoundingClientRect().top)))],
+    noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1,
+  };
+});
+const launchBalance = report.v19PageBalance.launch;
+if (!launchBalance.ledeCentered || launchBalance.items !== 10 || launchBalance.rowTops.length !== 5 || !launchBalance.noHorizontalScroll) failures.push(`The Launch Edition desktop balance is wrong: ${JSON.stringify(launchBalance)}`);
+
+await page.setViewportSize({ width: 390, height: 844 });
+await page.goto(`${base}/brawley/gts/`, { waitUntil: "networkidle" });
+report.v19PageBalance.gtsMobile = await page.evaluate(() => {
+  const groups = [...document.querySelectorAll("#specifications details.spec-group")];
+  return { tops: groups.slice(0, 2).map((group) => Math.round(group.getBoundingClientRect().top)), noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1 };
+});
+if (report.v19PageBalance.gtsMobile.tops[0] === report.v19PageBalance.gtsMobile.tops[1] || !report.v19PageBalance.gtsMobile.noHorizontalScroll) failures.push(`The GTS disclosure grid must stack at 390px: ${JSON.stringify(report.v19PageBalance.gtsMobile)}`);
+await page.goto(`${base}/santarosa/launch-edition/`, { waitUntil: "networkidle" });
+report.v19PageBalance.launchMobile = await page.evaluate(() => {
+  const items = [...document.querySelectorAll(".launch-highlights li")];
+  return { firstTops: items.slice(0, 2).map((item) => Math.round(item.getBoundingClientRect().top)), noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1 };
+});
+if (report.v19PageBalance.launchMobile.firstTops[0] === report.v19PageBalance.launchMobile.firstTops[1] || !report.v19PageBalance.launchMobile.noHorizontalScroll) failures.push(`The Launch Edition highlights must stack at 390px: ${JSON.stringify(report.v19PageBalance.launchMobile)}`);
 await page.setViewportSize({ width: 1440, height: 1000 });
 
 // pastModelGrouping and pastModelGalleries. The group is quieter than the lineup and the galleries publish no
@@ -2569,9 +2615,10 @@ if (mobileStack.modeButtons !== 0 || mobileStack.modeAttribute !== null) failure
 if (!mobileStack.noHorizontalScroll) failures.push("The locator widened the document at 390px");
 await page.setViewportSize({ width: 1440, height: 1000 });
 
-// dealerMapCamera. V16-F: the illustrative map zooms and pans by viewBox. The controls are revealed
-// by the island, zooming in narrows the view while the pins counter-scale to a constant on-screen
-// size, zooming all the way out is clamped to the whole world, and Fit restores the opening view.
+// dealerMapCamera. V19 adds an eased 220ms camera to the discrete inputs while direct manipulation
+// stays immediate. A normal-motion pass measures an interpolated frame, the settled destination,
+// rapid retargeting, and pin counter-scaling; a reduced-motion pass then proves instant landing.
+await page.emulateMedia({ reducedMotion: "no-preference" });
 await page.goto(`${base}/dealers/`, { waitUntil: "networkidle" });
 report.dealerMapCamera = await page.evaluate(() => {
   const art = document.querySelector(".locator__map-art");
@@ -2594,15 +2641,33 @@ const pinScreenSize = () => page.evaluate(() => document.querySelector("[data-de
 const sizeAtFit = await pinScreenSize();
 await page.locator("[data-map-zoom='in']").click();
 await page.waitForTimeout(100);
+report.dealerMapCamera.midTween = await page.evaluate(() => ({
+  width: Number(document.querySelector(".locator__map-art").getAttribute("viewBox").split(" ")[2]),
+  fitWidth: Number(document.querySelector(".locator__map-art").dataset.mapFit.split(" ")[2]),
+}));
+const midTween = report.dealerMapCamera.midTween;
+if (!(midTween.width < midTween.fitWidth && midTween.width > midTween.fitWidth / 1.6)) failures.push(`Zoom in must be between its start and target at 100ms: ${JSON.stringify(midTween)}`);
+await page.waitForFunction(() => {
+  const art = document.querySelector(".locator__map-art");
+  const width = Number(art.getAttribute("viewBox").split(" ")[2]);
+  const fitWidth = Number(art.dataset.mapFit.split(" ")[2]);
+  return Math.abs(width - fitWidth / 1.6) <= 0.2;
+}, null, { timeout: 1200 });
 report.dealerMapCamera.zoomedIn = await page.evaluate(() => ({
   width: Number(document.querySelector(".locator__map-art").getAttribute("viewBox").split(" ")[2]),
   fitWidth: Number(document.querySelector(".locator__map-art").dataset.mapFit.split(" ")[2]),
 }));
-if (report.dealerMapCamera.zoomedIn.width >= report.dealerMapCamera.zoomedIn.fitWidth) failures.push("Zoom in did not narrow the viewBox");
+if (Math.abs(report.dealerMapCamera.zoomedIn.width - report.dealerMapCamera.zoomedIn.fitWidth / 1.6) > 0.2) failures.push(`Zoom in did not settle at its 1.6 target: ${JSON.stringify(report.dealerMapCamera.zoomedIn)}`);
 const sizeZoomed = await pinScreenSize();
 if (Math.abs(sizeZoomed - sizeAtFit) > 1) failures.push(`Pins must hold their on-screen size through zoom: ${sizeAtFit}px became ${sizeZoomed}px`);
 for (let i = 0; i < 8; i += 1) await page.locator("[data-map-zoom='out']").click();
-await page.waitForTimeout(100);
+report.dealerMapCamera.outTargetState = await page.evaluate(() => ({
+  outDisabled: document.querySelector("[data-map-zoom='out']").disabled,
+  width: Number(document.querySelector(".locator__map-art").getAttribute("viewBox").split(" ")[2]),
+  worldWidth: Number(document.querySelector(".locator__map-art").dataset.mapWorld.split(" ")[2]),
+}));
+if (!report.dealerMapCamera.outTargetState.outDisabled || report.dealerMapCamera.outTargetState.width >= report.dealerMapCamera.outTargetState.worldWidth) failures.push(`The zoom-out button must disable from the target before the tween reaches the world: ${JSON.stringify(report.dealerMapCamera.outTargetState)}`);
+await page.waitForTimeout(280);
 report.dealerMapCamera.world = await page.evaluate(() => ({
   width: Number(document.querySelector(".locator__map-art").getAttribute("viewBox").split(" ")[2]),
   worldWidth: Number(document.querySelector(".locator__map-art").dataset.mapWorld.split(" ")[2]),
@@ -2613,12 +2678,33 @@ const worldView = report.dealerMapCamera.world;
 if (worldView.width !== worldView.worldWidth || !worldView.outDisabled) failures.push(`Zoom out must clamp to the whole world and say so: ${JSON.stringify(worldView)}`);
 if (worldView.labelsOpen) failures.push("City labels must close at the world view");
 await page.locator("[data-map-zoom='fit']").click();
-await page.waitForTimeout(100);
+await page.waitForTimeout(280);
 report.dealerMapCamera.afterFit = await page.evaluate(() => {
   const art = document.querySelector(".locator__map-art");
   return { viewBox: art.getAttribute("viewBox"), fit: art.dataset.mapFit };
 });
 if (report.dealerMapCamera.afterFit.viewBox !== report.dealerMapCamera.afterFit.fit) failures.push(`Fit must restore the opening view: ${JSON.stringify(report.dealerMapCamera.afterFit)}`);
+
+// Reduced motion collapses the same camera path to zero duration. The wheel remains the softened
+// 1.15 step, but its target is painted synchronously.
+await page.emulateMedia({ reducedMotion: "reduce" });
+await page.locator("[data-map-zoom='in']").click();
+report.dealerMapCamera.reducedMotion = await page.evaluate(() => {
+  const art = document.querySelector(".locator__map-art");
+  const width = Number(art.getAttribute("viewBox").split(" ")[2]);
+  const fitWidth = Number(art.dataset.mapFit.split(" ")[2]);
+  return { width, fitWidth, landedInstantly: Math.abs(width - fitWidth / 1.6) <= 0.2 };
+});
+if (!report.dealerMapCamera.reducedMotion.landedInstantly) failures.push(`Reduced motion must land the map camera instantly: ${JSON.stringify(report.dealerMapCamera.reducedMotion)}`);
+await page.locator("[data-map-zoom='fit']").click();
+await page.locator(".locator__map-art").dispatchEvent("wheel", { deltaY: -100, clientX: 600, clientY: 400 });
+report.dealerMapCamera.reducedWheel = await page.evaluate(() => {
+  const art = document.querySelector(".locator__map-art");
+  const width = Number(art.getAttribute("viewBox").split(" ")[2]);
+  const fitWidth = Number(art.dataset.mapFit.split(" ")[2]);
+  return { width, fitWidth, factor: fitWidth / width };
+});
+if (Math.abs(report.dealerMapCamera.reducedWheel.factor - 1.15) > 0.02) failures.push(`The softened wheel step must be about 1.15: ${JSON.stringify(report.dealerMapCamera.reducedWheel)}`);
 
 // experienceHub. One feed of real stories, no BLOG framing, no category kickers, no archive door,
 // and none of the event placeholders Q-V13-18 forbids.

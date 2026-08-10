@@ -232,7 +232,7 @@ const REVEAL_SELECTORS = [
   ".lead-form > .field", ".lead-form > .form-fieldset:not(.form-step)", ".lead-form:not([data-form-id='contact']) > .form-submit-row",
   // V13 coverage for the new page types. Every new route has to mark something, or it has no scroll motion
   // at all, which is the regression the coverage suite exists to catch.
-  ".campaign-band__item", ".past-card", ".photo-gallery__figure", ".post-card", ".record-card", ".record-section",
+  ".vehicle-status", ".past-card", ".photo-gallery__figure", ".post-card", ".record-card", ".record-section",
   ".launch-highlights li", ".launch-fact", ".article-hero", ".prose", ".empty-state", ".sample-note",
   // The dealer cards, and the locator clears the start state on any card it un-hides. See the note there: a
   // hidden element never intersects, so a card filtered out and back in without a scroll would otherwise keep
@@ -259,7 +259,7 @@ const revealDelay = (element) => {
   // the concept cards and the specification rows already have. The highlight list is capped like the rest, so
   // a ten-item list does not wait on a queue.
   if (element.matches(".card-grid--posts .post-card, .past-grid .past-card, .record-list .record-card, .launch-highlights li")) return step(position());
-  if (element.matches(".campaign-band__item")) return step(position());
+  if (element.matches(".vehicle-status")) return step(position());
   return 0;
 };
 
@@ -823,27 +823,76 @@ document.querySelectorAll("[data-locator]").forEach((locator) => {
     const world = numbers(art.dataset.mapWorld);
     const PIN_SCALE_REF = 700;
     const MIN_VIEW = 12;
+    const TWEEN_MS = 220;
     const zoomIn = mapControls.querySelector("[data-map-zoom='in']");
     const zoomOut = mapControls.querySelector("[data-map-zoom='out']");
     let view = [...fit];
+    let targetView = [...view];
+    let tween = null;
 
-    const clampView = () => {
-      view[2] = Math.min(Math.max(view[2], MIN_VIEW), world[2]);
-      view[3] = view[2];
-      view[0] = Math.min(Math.max(view[0], world[0]), world[0] + world[2] - view[2]);
-      view[1] = view[3] >= world[3]
-        ? world[1] - (view[3] - world[3]) / 2
-        : Math.min(Math.max(view[1], world[1]), world[1] + world[3] - view[3]);
+    const clamp = (candidate) => {
+      candidate[2] = Math.min(Math.max(candidate[2], MIN_VIEW), world[2]);
+      candidate[3] = candidate[2];
+      candidate[0] = Math.min(Math.max(candidate[0], world[0]), world[0] + world[2] - candidate[2]);
+      candidate[1] = candidate[3] >= world[3]
+        ? world[1] - (candidate[3] - world[3]) / 2
+        : Math.min(Math.max(candidate[1], world[1]), world[1] + world[3] - candidate[3]);
+      return candidate;
     };
-    const render = () => {
+    const render = (buttonView = view) => {
       // Number() drops a trailing .0 so a restored view is byte-identical to the baked data-map-fit.
       art.setAttribute("viewBox", view.map((value) => Number(value.toFixed(1))).join(" "));
       const scale = (view[2] / PIN_SCALE_REF).toFixed(4);
       for (const pin of pins.values()) pin.setAttribute("transform", `translate(${pin.dataset.mapX} ${pin.dataset.mapY}) scale(${scale})`);
       // Few pins read at any regional view; a crowd of them waits for a closer camera.
       art.classList.toggle("map-art--labels", view[2] <= (pins.size <= 12 ? fit[2] * 1.5 : 120));
-      zoomIn.disabled = view[2] <= MIN_VIEW;
-      zoomOut.disabled = view[2] >= world[2];
+      // During a tween the controls describe the destination, not every interpolated frame. That
+      // keeps a boundary button from flickering while the camera settles against its clamp.
+      zoomIn.disabled = buttonView[2] <= MIN_VIEW;
+      zoomOut.disabled = buttonView[2] >= world[2];
+    };
+    const sampleTween = (now) => {
+      if (!tween) return false;
+      const progress = Math.min((now - tween.startedAt) / tween.duration, 1);
+      const eased = 1 - ((1 - progress) ** 3);
+      view = tween.from.map((value, index) => value + (tween.to[index] - value) * eased);
+      render(tween.to);
+      if (progress < 1) return true;
+      view = [...tween.to];
+      targetView = [...tween.to];
+      tween = null;
+      render();
+      return false;
+    };
+    const tweenFrame = (now) => {
+      if (sampleTween(now) && tween) tween.frame = requestAnimationFrame(tweenFrame);
+    };
+    const stopTween = () => {
+      if (!tween) return;
+      sampleTween(performance.now());
+      if (tween) cancelAnimationFrame(tween.frame);
+      tween = null;
+      targetView = [...view];
+      render();
+    };
+    const animateTo = (candidate) => {
+      const next = clamp([...candidate]);
+      // Sample a running camera before retargeting so a new gesture begins at the visible frame,
+      // never at the previous destination.
+      if (tween) {
+        sampleTween(performance.now());
+        if (tween) cancelAnimationFrame(tween.frame);
+      }
+      targetView = [...next];
+      if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        tween = null;
+        view = [...next];
+        render();
+        return;
+      }
+      tween = { from: [...view], to: [...next], startedAt: performance.now(), duration: TWEEN_MS, frame: 0 };
+      render(next);
+      tween.frame = requestAnimationFrame(tweenFrame);
     };
     // The drawn scale under preserveAspectRatio meet, and the drawing's px offset inside the
     // element box, so cursor-anchored zoom and 1:1 dragging both survive any pane shape.
@@ -852,25 +901,31 @@ document.querySelectorAll("[data-locator]").forEach((locator) => {
       const k = Math.min(rect.width / view[2], rect.height / view[3]);
       return { k, ox: rect.left + (rect.width - view[2] * k) / 2, oy: rect.top + (rect.height - view[3] * k) / 2 };
     };
-    const zoomAt = (factor, cx = view[0] + view[2] / 2, cy = view[1] + view[3] / 2) => {
-      const width = Math.min(Math.max(view[2] / factor, MIN_VIEW), world[2]);
-      const ratio = width / view[2];
-      view[0] = cx - (cx - view[0]) * ratio;
-      view[1] = cy - (cy - view[1]) * ratio;
-      view[2] = width;
-      view[3] = width;
-      clampView();
+    const zoomedView = (base, factor, cx = base[0] + base[2] / 2, cy = base[1] + base[3] / 2) => {
+      const next = [...base];
+      const width = Math.min(Math.max(base[2] / factor, MIN_VIEW), world[2]);
+      const ratio = width / base[2];
+      next[0] = cx - (cx - base[0]) * ratio;
+      next[1] = cy - (cy - base[1]) * ratio;
+      next[2] = width;
+      next[3] = width;
+      return clamp(next);
+    };
+    const zoomDirect = (factor, cx, cy) => {
+      view = zoomedView(view, factor, cx, cy);
+      targetView = [...view];
       render();
     };
 
-    zoomIn.addEventListener("click", () => zoomAt(1.6));
-    zoomOut.addEventListener("click", () => zoomAt(1 / 1.6));
-    mapControls.querySelector("[data-map-zoom='fit']").addEventListener("click", () => { view = [...fit]; render(); });
+    zoomIn.addEventListener("click", () => animateTo(zoomedView(targetView, 1.6)));
+    zoomOut.addEventListener("click", () => animateTo(zoomedView(targetView, 1 / 1.6)));
+    mapControls.querySelector("[data-map-zoom='fit']").addEventListener("click", () => animateTo(fit));
 
     const pointers = new Map();
     let pinch = null;
     art.addEventListener("pointerdown", (event) => {
       if (event.pointerType === "mouse" && event.button !== 0) return;
+      stopTween();
       art.setPointerCapture(event.pointerId);
       pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
       if (pointers.size === 2) {
@@ -891,17 +946,18 @@ document.querySelectorAll("[data-locator]").forEach((locator) => {
         const distance = Math.hypot(a.x - b.x, a.y - b.y);
         view[0] -= (point.x - previous.x) / (2 * k);
         view[1] -= (point.y - previous.y) / (2 * k);
-        clampView();
+        view = clamp(view);
         const midX = view[0] + ((a.x + b.x) / 2 - ox) / k;
         const midY = view[1] + ((a.y + b.y) / 2 - oy) / k;
         const factor = distance / pinch.distance;
         pinch.distance = distance;
-        if (Number.isFinite(factor) && factor > 0) zoomAt(factor, midX, midY);
+        if (Number.isFinite(factor) && factor > 0) zoomDirect(factor, midX, midY);
         else render();
       } else if (pointers.size === 1 && event.pointerType === "mouse") {
         view[0] -= (point.x - previous.x) / k;
         view[1] -= (point.y - previous.y) / k;
-        clampView();
+        view = clamp(view);
+        targetView = [...view];
         render();
       }
     });
@@ -914,7 +970,9 @@ document.querySelectorAll("[data-locator]").forEach((locator) => {
     art.addEventListener("wheel", (event) => {
       event.preventDefault();
       const { k, ox, oy } = frame();
-      zoomAt(event.deltaY < 0 ? 1.25 : 0.8, view[0] + (event.clientX - ox) / k, view[1] + (event.clientY - oy) / k);
+      const cx = view[0] + (event.clientX - ox) / k;
+      const cy = view[1] + (event.clientY - oy) / k;
+      animateTo(zoomedView(targetView, event.deltaY < 0 ? 1.15 : 0.87, cx, cy));
     }, { passive: false });
 
     svgReveal = (slug) => {
@@ -922,13 +980,14 @@ document.querySelectorAll("[data-locator]").forEach((locator) => {
       if (!pin) return;
       const x = Number(pin.dataset.mapX);
       const y = Number(pin.dataset.mapY);
-      const margin = view[2] * 0.08;
-      const inside = x >= view[0] + margin && x <= view[0] + view[2] - margin && y >= view[1] + margin && y <= view[1] + view[3] - margin;
+      const base = targetView;
+      const margin = base[2] * 0.08;
+      const inside = x >= base[0] + margin && x <= base[0] + base[2] - margin && y >= base[1] + margin && y <= base[1] + base[3] - margin;
       if (inside) return;
-      view[0] = x - view[2] / 2;
-      view[1] = y - view[3] / 2;
-      clampView();
-      render();
+      const next = [...base];
+      next[0] = x - base[2] / 2;
+      next[1] = y - base[3] / 2;
+      animateTo(next);
     };
 
     render();

@@ -657,7 +657,7 @@ export const models = [
     specGroups: [],
     inventoryNote: "Carmel is a legacy Vanderhall model. Contact the Vanderhall dealer network to ask about remaining inventory. Availability is not guaranteed.",
     cta: { label: "Find a dealer", href: "/dealers/" },
-    summary: "Open two-seat gas roadster on three wheels, shown here in red with a tan interior.",
+    summary: "Open two-seat gas roadster on three wheels.",
     intro: "Open two-seat gas roadster on three wheels. The photographs show red bodywork, a leather-wrapped three-spoke wheel, four analog gauges, and tan contrast-stitched seats.",
     images: {
       focal: "52% 60%",
@@ -697,7 +697,7 @@ export const models = [
     inventoryNote: "Venice is a legacy Vanderhall model. Contact the Vanderhall dealer network to ask about remaining inventory. Availability is not guaranteed.",
     cta: { label: "Find a dealer", href: "/dealers/" },
     // Homepage section: one line. Vehicles page: the same line plus one more.
-    summary: "Open two-seat gas roadster on three wheels, shown here in silver over black.",
+    summary: "Open-air gas roadster for two, riding on three wheels.",
     intro: "Open two-seat gas roadster on three wheels. The photographs show polished silver bodywork over a black lower body, a wood-rimmed steering wheel, and tan leather seats.",
     images: {
       focal: "45% 55%",

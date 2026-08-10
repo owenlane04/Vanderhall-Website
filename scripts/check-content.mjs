@@ -105,7 +105,7 @@ for (const token of ["data-missing", "MISSING:", "data-vehicles-trigger", "data-
   // V16 retires two more. The locator's List/Map switch went when both panes began rendering at
   // every width (the singular token matches the group and the buttons alike), and the owner
   // library's photograph column went when Owen made the page a plain list.
-  "locator__mode", "data-locator-mode", "resource-group--media", "resource-group__media"]) {
+  "locator__mode", "data-locator-mode", "resource-group--media", "resource-group__media", "campaign-band"]) {
   if (combinedHtml.includes(token)) failures.push(`Retired markup remains: ${token}`);
 }
 // The stylesheet has to lose them too. A retired component whose CSS survives is dead weight that
@@ -115,7 +115,7 @@ const bundleCss = await readFile(resolve(root, "styles/bundle.css"), "utf8");
 // exactly what this file is full of, and a check that forbids writing down the reason would push the
 // reason out of the code.
 const bundleRules = bundleCss.replace(/\/\*[\s\S]*?\*\//g, "");
-for (const token of [".pathway", ".ambient", ".footer-social", ".model-bar", ".is-split", ".word", ".gts-note", ".sample-note", ".sample-tag", ".lineup-past", ".post-card__category", ".article-header__category", ".locator__map-message", ".locator__mode", ".locator__modes", ".resource-group--media", ".resource-group__media"]) {
+for (const token of [".pathway", ".ambient", ".footer-social", ".model-bar", ".is-split", ".word", ".gts-note", ".sample-note", ".sample-tag", ".lineup-past", ".post-card__category", ".article-header__category", ".locator__map-message", ".locator__mode", ".locator__modes", ".resource-group--media", ".resource-group__media", ".campaign-band"]) {
   if (new RegExp(`\\${token}[\\s{,:_]`).test(bundleRules)) failures.push(`Retired component styles remain in the bundle: ${token}`);
 }
 // V12-C. The reveals are no longer driven by view() at all: they are IntersectionObserver-triggered
@@ -423,6 +423,24 @@ if (homeHtml.includes('href="/vehicles/#past-models"')) failures.push("The retir
 for (const slug of PAST_SLUGS) {
   if (!withoutFooter(homeHtml).includes(`href="/${slug}/"`)) failures.push(`The homepage lineup must link to the past model ${slug}`);
 }
+// V19: the two operational statements now live with the current models they qualify. The legacy
+// sections and the fuller /vehicles/ lineup carry none, and the retired full-width band is banned above.
+const homeVehicleBlocks = withoutFooter(homeHtml).split('<section class="vehicle-section').slice(1);
+const homeVehicleBlock = (slug) => homeVehicleBlocks.find((block) => block.includes(`href="/${slug}/"`)) || "";
+const expectedStatuses = {
+  brawley: ["Brawley deliveries are underway.", "/brawley/", "Explore Brawley"],
+  santarosa: ["Santarosa Launch Edition registration of interest is open.", "/santarosa/launch-edition/", "View Launch Edition"],
+};
+for (const [slug, [label, href, action]] of Object.entries(expectedStatuses)) {
+  const block = homeVehicleBlock(slug);
+  if ((block.match(/class="vehicle-status"/g) || []).length !== 1) failures.push(`The homepage ${slug} section must carry exactly one current-availability line`);
+  if (!block.includes(`<p class="vehicle-status__statement">${label} <a class="text-link" href="${href}">${action}`)) failures.push(`The homepage ${slug} status must carry its campaign statement and action`);
+}
+for (const slug of PAST_SLUGS) {
+  if (homeVehicleBlock(slug).includes('class="vehicle-status"')) failures.push(`The homepage ${slug} legacy section must carry no current-availability line`);
+}
+if (withoutFooter(vehiclesHtml).includes('class="vehicle-status"')) failures.push("/vehicles/ must not repeat the homepage campaign statements");
+if (/shown here in/i.test(withoutFooter(homeHtml))) failures.push('The homepage legacy summaries must not describe a photograph with "shown here in"');
 
 // The V9 homepage front of page. Owen supplied the h1 and the descriptor verbatim; the retired
 // strings are matched in the shapes they occupied rather than as bare words, because "Hand-built in
@@ -734,6 +752,13 @@ if (combinedHtml.includes("See more info")) failures.push("The retired See more 
 if (!gtsHtml.includes('id="specifications"')) failures.push("/brawley/gts/ must keep its specification anchor");
 if (!gtsHtml.includes('class="spec-table"')) failures.push("/brawley/gts/ must keep its specification table");
 if (!gtsHtml.includes("Published figures")) failures.push("/brawley/gts/ must keep its specification heading");
+const specGroups = [...gtsHtml.matchAll(/<details class="spec-group"( open)?>([\s\S]*?)<\/details>/g)];
+if (specGroups.length !== modelBySlug.brawley.specGroups.length) failures.push(`/brawley/gts/ must render all ${modelBySlug.brawley.specGroups.length} specification groups as details, found ${specGroups.length}`);
+if (!specGroups[0]?.[1]) failures.push("/brawley/gts/ must ship its first specification group open");
+if (specGroups.slice(1).some((group) => group[1])) failures.push("/brawley/gts/ must ship only its first specification group open");
+for (const group of modelBySlug.brawley.specGroups) {
+  if (!specGroups.some((match) => match[2].includes(`<summary>${group.name}</summary>`))) failures.push(`/brawley/gts/ specification group ${group.name} must put its heading in a summary`);
+}
 const anchorCount = (combinedHtml.match(/id="specifications"/g) || []).length;
 if (anchorCount !== 1) failures.push(`The specifications anchor must exist once sitewide, found ${anchorCount}`);
 // V13-G. Current models and the purchase page lead to Contact with their category and model in the query;
@@ -914,7 +939,7 @@ const conceptsHubHtml = pageBySuffix("/concepts/index.html");
 const conceptCards = (conceptsHubHtml.match(/<article class="card">/g) || []).length;
 if (conceptCards !== 9) failures.push(`Concepts hub must present nine cards, found ${conceptCards}`);
 
-// V18, Owen on 2026-08-10: the hub divides into the two families, On-Road first in his order.
+// V18 divides the hub into the two families; V19's final review puts Off-Road first.
 // Membership is written out longhand per slug, as TERRAIN_TAGS above, and cross-checked against
 // the data, so a record drifting between groups fails by name here rather than re-sorting
 // silently. Balboa, the electric motorcycle, files as on-road per the plan.
@@ -932,13 +957,13 @@ for (const concept of concepts) {
 {
   const onRoadAt = conceptsHubHtml.indexOf("<h2>On-Road Concepts</h2>");
   const offRoadAt = conceptsHubHtml.indexOf("<h2>Off-Road Concepts</h2>");
-  if (onRoadAt < 0 || offRoadAt < 0 || onRoadAt > offRoadAt) {
-    failures.push("The concepts hub must head its two groups On-Road Concepts then Off-Road Concepts, in that order");
+  if (onRoadAt < 0 || offRoadAt < 0 || offRoadAt > onRoadAt) {
+    failures.push("The concepts hub must head its two groups Off-Road Concepts then On-Road Concepts, in that order");
   } else {
     // Each grid holds exactly its family, in the data's own order, and nothing else.
     const gridSlugs = (html) => [...html.matchAll(/href="\/concepts\/([a-z-]+)\/"/g)].map((match) => match[1]);
-    const onRoadFound = gridSlugs(conceptsHubHtml.slice(onRoadAt, offRoadAt));
-    const offRoadFound = gridSlugs(withoutFooter(conceptsHubHtml.slice(offRoadAt)));
+    const offRoadFound = gridSlugs(conceptsHubHtml.slice(offRoadAt, onRoadAt));
+    const onRoadFound = gridSlugs(withoutFooter(conceptsHubHtml.slice(onRoadAt)));
     if (JSON.stringify(onRoadFound) !== JSON.stringify(ON_ROAD_CONCEPTS)) failures.push(`The On-Road Concepts grid must hold ${ON_ROAD_CONCEPTS.join(", ")} in order, found ${onRoadFound.join(", ") || "none"}`);
     if (JSON.stringify(offRoadFound) !== JSON.stringify(OFF_ROAD_CONCEPTS)) failures.push(`The Off-Road Concepts grid must hold ${OFF_ROAD_CONCEPTS.join(", ")} in order, found ${offRoadFound.join(", ") || "none"}`);
   }
@@ -1753,29 +1778,8 @@ else {
   if (/type="checkbox"/.test(launchHtml)) failures.push("/santarosa/launch-edition/ carries a consent checkbox whose wording legal has not supplied");
 }
 
-// The homepage status band. Brawley first, in the DOM, with both actions read from the campaign data.
-// V15-B, Owen on 2026-08-06: it closes the page now, centered on the silver field, rather than
-// sitting between the hero and the lineup.
-const bandStart = homeHtml.indexOf('class="bleed campaign-band"');
-if (bandStart < 0) failures.push("The homepage must carry the campaign status band");
-else {
-  const band = homeHtml.slice(bandStart, homeHtml.indexOf("</section>", bandStart));
-  const items = (band.match(/class="campaign-band__item"/g) || []).length;
-  if (items !== 2) failures.push(`The homepage status band must carry two items, found ${items}`);
-  const order = [...band.matchAll(/class="campaign-band__label">([^<]+)</g)].map((match) => match[1]);
-  if (!order[0]?.startsWith("Brawley")) failures.push(`The status band must lead with Brawley, found ${order[0]}`);
-  if (!order[1]?.startsWith("Santarosa")) failures.push(`The status band's second item must be Santarosa, found ${order[1]}`);
-  if (!band.includes('href="/brawley/"') || !band.includes('href="/santarosa/launch-edition/"')) failures.push("The status band's two actions must lead to Brawley and the Launch Edition");
-  if (/>Reserve</.test(band)) failures.push("The status band must not offer a public Reserve action outside a verified public-reservation phase");
-  if (!band.includes('class="campaign-band__inner"')) failures.push("The status band must carry its centered inner column");
-  // It is the last section of the page: after the lineup, after the concepts split, before nothing.
-  if (bandStart < homeHtml.indexOf('id="vehicles"') || bandStart < homeHtml.indexOf('class="section split split--media-first"')) {
-    failures.push("The status band must close the homepage, after the lineup and the concepts split");
-  }
-  if (homeHtml.indexOf("<section", bandStart + 1) !== -1) failures.push("The status band must be the homepage's final section");
-}
-// The approved homepage h1 is untouched by the band.
-if (!homeHtml.includes("<h1>Handcrafted electric vehicles.</h1>")) failures.push("The campaign band must not replace the approved homepage h1");
+// The approved homepage h1 is untouched by the status placement change.
+if (!homeHtml.includes("<h1>Handcrafted electric vehicles.</h1>")) failures.push("The campaign status placement must not replace the approved homepage h1");
 
 // The Experience hub launches with Blog content only. Every one of these is an absence, and absences are what
 // this page needs asserted: a Coming soon event card is the exact thing Q-V13-18 forbids.

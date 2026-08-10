@@ -339,12 +339,13 @@ p { color: var(--text-secondary); }
 /* V11-J: the pathway card rules are retired with the component. V11-D and V11-H removed its last two
    callers, and .pathway joins the retired-components list in check-content.mjs. */
 
-/* Specifications. The width constraint lives on the .narrow section only: declaring it twice
-   meant a change to one silently failed to move the other. Imperial only since V8, so there is no
-   unit toggle and no second value to hide. Rows are shared with the paired photo modules. */
-.spec-table { display: flex; flex-direction: column; gap: var(--sf-s); }
-.spec-group h3 { margin-bottom: var(--s-3); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); text-transform: uppercase; color: var(--text-tertiary); }
-.spec-group + .spec-group { margin-top: var(--sf-s); }
+/* V19. The purchase page's long reference block is a grid of native disclosures. The first group
+   opens with the page; every other group stays one click away without depending on JavaScript. */
+.spec-table { display: grid; grid-template-columns: 1fr; gap: var(--s-4); }
+.spec-group { border-top: var(--hairline) solid var(--line); border-bottom: var(--hairline) solid var(--line-faint); }
+.spec-group summary { display: flex; min-height: var(--hit-target); align-items: center; padding-block: var(--s-3); color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); text-transform: uppercase; cursor: pointer; }
+.spec-group[open] summary { color: var(--text-primary); }
+.spec-group .spec-rows { padding-bottom: var(--s-4); }
 .spec-row { display: grid; grid-template-columns: 1fr; gap: var(--s-1); border-bottom: var(--hairline) solid var(--line-faint); padding: var(--s-3) 0; font-size: var(--fs-body-sm); }
 .spec-row > span { color: var(--text-secondary); }
 .spec-row strong { font-weight: var(--wt-medium); font-variant-numeric: tabular-nums; }
@@ -447,6 +448,8 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 .gts-open__row { display: flex; flex-direction: column; gap: var(--sf-s); }
 .gts-open__intro { display: flex; flex-direction: column; gap: var(--s-4); }
 .gts-open__descriptor { max-width: var(--w-text); font-size: var(--fs-body-lg); }
+.gts-section > .section-heading { align-items: center; text-align: center; }
+.gts-section > .section-heading p { margin-inline: auto; }
 
 /* One component, one string, always visible: never a tooltip, never behind a hover. */
 .price { display: flex; flex-direction: column; gap: var(--s-1); }
@@ -1040,16 +1043,12 @@ html[data-intro-seen] .intro-veil { display: none; }
 .stack { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-5); }
 .stack p { max-width: var(--w-text); }
 
-/* V15-B. The campaign band closes the homepage: the site's one silver field, full bleed, with the two
-   operational statements centered on it. Its color scope lives in tokens.css beside .page--studio,
-   for the same mechanical reason that scope exists at all; this file carries only the layout. */
-.campaign-band {
-  margin-top: var(--sf-l);
-  padding-block: var(--sf-l);
-}
-.campaign-band__inner { display: grid; grid-template-columns: 1fr; gap: var(--sf-m); width: min(92vw, var(--w-content)); margin-inline: auto; }
-.campaign-band__item { display: flex; flex-direction: column; align-items: center; gap: var(--s-2); min-width: 0; text-align: center; }
-.campaign-band__label { color: var(--text-primary); font-size: var(--fs-title); font-weight: var(--wt-medium); letter-spacing: -0.01em; }
+/* V19. Current availability belongs to the current model it qualifies. The hairline and caps label
+   keep it quieter than both the description above and the model action below. */
+.vehicle-status { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-2); width: 100%; border-top: var(--hairline) solid var(--line); padding-top: var(--s-3); }
+.vehicle-status__label { color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); line-height: var(--lh-caps); text-transform: uppercase; }
+.vehicle-status__statement { color: var(--text-secondary); font-size: var(--fs-body-sm); }
+.vehicle-status__statement .text-link { margin-left: var(--s-2); white-space: nowrap; }
 
 /* Past models on /vehicles/. Quieter than a vehicle section by construction: two compact cards in a
    grid rather than two full-bleed alternating rows. */
@@ -1169,6 +1168,8 @@ html[data-intro-seen] .intro-veil { display: none; }
 /* The Launch Edition page. Typography-led on purpose: no supplied photograph proves numbered badging or
    a carbon-fiber part, so the page states the equipment in type rather than implying it with imagery. */
 .launch-market { color: var(--pure-white); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); text-transform: uppercase; }
+.launch-lede { align-items: center; text-align: center; }
+.launch-lede p { margin-inline: auto; }
 .launch-highlights { display: grid; grid-template-columns: 1fr; gap: 0; margin: 0; padding: 0; list-style: none; }
 .launch-highlights li { border-top: var(--hairline) solid var(--line); padding-block: var(--s-4); color: var(--text-primary); font-size: var(--fs-body-lg); }
 .launch-highlights li:last-child { border-bottom: var(--hairline) solid var(--line); }
@@ -1271,13 +1272,15 @@ html[data-intro-seen] .intro-veil { display: none; }
 }
 
 @media (min-width: 768px) {
-  .campaign-band__inner { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .campaign-band__item + .campaign-band__item { border-left: var(--hairline) solid var(--line-strong); }
+  .launch-highlights { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--sf-m); }
+  .launch-highlights li:nth-last-child(-n + 2) { border-bottom: var(--hairline) solid var(--line); }
   .launch-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .locator__search { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto; align-items: end; }
 }
 
 @media (min-width: 1024px) {
+  .gts-section--specifications { width: min(100%, var(--w-content)); }
+  .gts-section--specifications .spec-table { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--sf-m); }
   .card-grid--posts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   /* The featured story runs media beside body rather than above it, which is what makes it read as
      featured without a second type scale. */

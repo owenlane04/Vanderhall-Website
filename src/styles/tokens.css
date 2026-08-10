@@ -223,43 +223,6 @@
   color: var(--text-primary);
 }
 
-/* V15-B. The homepage campaign band's silver field. The whole ramp is restated for the reason
-   .page--studio's is: a custom property's var() references resolve where the property is declared,
-   so a light field must redefine every derived value it uses. The silver is a shallow brushed
-   gradient rather than a flat fill, dark ink on top. The accent is the studio hue scaled darker
-   until the focus ring measured 3.4:1 against the gradient's darkest stop, past the 3:1 floor. */
-.campaign-band {
-  color-scheme: light;
-
-  --paper: #CDD0D5;
-  --ink: #101014;
-  --accent: #9A5834;
-
-  --ink-70: color-mix(in srgb, var(--ink) 70%, transparent);
-  --ink-60: color-mix(in srgb, var(--ink) 60%, transparent);
-  --ink-50: color-mix(in srgb, var(--ink) 50%, transparent);
-  --ink-24: color-mix(in srgb, var(--ink) 24%, transparent);
-  --ink-12: color-mix(in srgb, var(--ink) 12%, transparent);
-  --ink-06: color-mix(in srgb, var(--ink) 6%, transparent);
-  --ink-03: color-mix(in srgb, var(--ink) 3%, transparent);
-
-  --surface-1: var(--ink-03);
-  --surface-2: var(--ink-06);
-  --surface-hover: var(--ink-06);
-  --line: var(--ink-12);
-  --line-strong: var(--ink-50);
-  --line-faint: var(--ink-06);
-
-  --text-primary: var(--ink);
-  --text-secondary: var(--ink-70);
-  --text-tertiary: var(--ink-60);
-
-  --focus-color: var(--accent);
-
-  background: linear-gradient(180deg, #DCDEE2 0%, #C9CCD1 100%);
-  color: var(--text-primary);
-}
-
 @media (min-width: 1024px) {
   :root { --header-h: 4.75rem; }
 }

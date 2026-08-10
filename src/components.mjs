@@ -6,7 +6,6 @@ import { COUNTRIES, FORM_ENDPOINTS, INQUIRY_EMAIL, ORDER_COUNTRIES, US_REGIONS }
 import { FOOTNOTE_SYMBOLS, footnoteText } from "./data/footnotes.mjs";
 import { IS_PROTOTYPE } from "./data/prototype.mjs";
 import { CONTACT_CATEGORIES, CONTACT_TIMEFRAMES } from "./data/mock/contact.mjs";
-import { campaignStatement } from "./data/mock/campaign.mjs";
 import { formatDate } from "./data/adapters.mjs";
 import { WORLD_BOX, WORLD_SIZE, mercatorPoint, worldBordersPath, worldLandPath } from "./data/worldmap.mjs";
 
@@ -213,7 +212,7 @@ const splitMedia = (image, { eager = false, sizes = SPLIT_SIZES } = {}) => {
 // One section per vehicle, media on one side and content on the other, alternating down the
 // page. The homepage passes one photograph and the vehicles page passes three, which is the
 // only difference between the short version of this scroll and the fuller one.
-export const vehicleSection = (model, { index, copy, eager = false, level = 3, withSupport = false, scope = null } = {}) => {
+export const vehicleSection = (model, { index, copy, eager = false, level = 3, withSupport = false, scope = null, status = null } = {}) => {
   // Each frame is a link to the model page, so the photograph answers a hover the way the concept
   // cards already do. It is removed from the tab order and hidden from assistive technology,
   // because the text link below says the same thing and should stay the one stop per section.
@@ -237,7 +236,11 @@ export const vehicleSection = (model, { index, copy, eager = false, level = 3, w
             sentences carry torque, power and travel figures, and a note on the model page cannot qualify
             a sentence on the homepage, so the mark goes on the paragraph here and the lineup section
             prints the note itself. */""}
-      <p>${escapeHtml(copy)}${model.copyNoteIds?.length && scope ? scope.mark(model.copyNoteIds) : ""}</p>
+      <p>${escapeHtml(copy)}${model.copyNoteIds?.length && scope ? scope.mark(model.copyNoteIds) : ""}</p>${status ? `
+      <div class="vehicle-status" aria-label="Current availability">
+        <p class="vehicle-status__label">Current availability</p>
+        <p class="vehicle-status__statement">${escapeHtml(status.label)} ${textLink(status.action.label, status.action.href)}</p>
+      </div>` : ""}
       ${textLink(`Explore ${model.name}`, `/${model.slug}/`)}
     </div>
   </section>`;
@@ -416,10 +419,10 @@ export const hero = ({ src, srcset, tallSrcset, alt, focal, align = "", content,
 // carry broken conversions, and deriving a second unit system here would mean publishing figures
 // Vanderhall never stated.
 export const specTable = (model, scope) => `<div class="spec-table">
-    ${model.specGroups.map((group) => `<div class="spec-group">
-      <h3>${escapeHtml(group.name)}</h3>
+    ${model.specGroups.map((group, index) => `<details class="spec-group"${index === 0 ? " open" : ""}>
+      <summary>${escapeHtml(group.name)}</summary>
       <div class="spec-rows">${specRows(group.rows, scope)}</div>
-    </div>`).join("")}
+    </details>`).join("")}
   </div>`;
 
 // Warranty and, since V13-F, the estimate sentence as a real footnote rather than a third paragraph.
@@ -1150,32 +1153,6 @@ export const policyContents = (policy) => {
       ${list}
     </div>
   </nav>`;
-};
-
-// ---------------------------------------------------------------------------------------------
-// Homepage campaign status band
-// ---------------------------------------------------------------------------------------------
-// Two operational statements, Brawley first in the DOM and on the screen, both read from the campaign data
-// rather than written into this component. There is no countdown, no flashing, no modal, and nothing to
-// dismiss.
-//
-// V15-B, Owen on 2026-08-06: the band leaves its position after the hero and closes the homepage
-// instead, centered, on a silver field. It is the one light-field band on the dark page, which is
-// what makes the two statements read as a considered close rather than a notice bar. The wiring is
-// unchanged: both statements come from the campaign records, so this band and the Launch Edition
-// page cannot disagree about the campaign's phase.
-export const campaignBand = (delivery, campaign) => {
-  const santarosa = campaignStatement(campaign);
-  const item = (label, action) => `<div class="campaign-band__item">
-    <p class="campaign-band__label">${escapeHtml(label)}</p>
-    ${textLink(action.label, action.href)}
-  </div>`;
-  return `<section class="bleed campaign-band" aria-label="Current availability">
-    <div class="campaign-band__inner">
-      ${item(delivery.label, delivery.action)}
-      ${item(santarosa.label, santarosa.action)}
-    </div>
-  </section>`;
 };
 
 // ---------------------------------------------------------------------------------------------
