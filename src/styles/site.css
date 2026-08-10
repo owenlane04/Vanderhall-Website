@@ -341,7 +341,7 @@ p { color: var(--text-secondary); }
 
 /* V19. The purchase page's long reference block is a grid of native disclosures. The first group
    opens with the page; every other group stays one click away without depending on JavaScript. */
-.spec-table { display: grid; grid-template-columns: 1fr; gap: var(--s-4); }
+.spec-table { display: grid; grid-template-columns: 1fr; align-items: start; gap: var(--s-4); }
 .spec-group { overflow: hidden; border: var(--hairline) solid var(--line); border-radius: var(--r-2); }
 .spec-group summary { display: flex; min-height: var(--hit-target); align-items: center; justify-content: space-between; gap: var(--s-4); padding: var(--s-3) var(--s-4); background: var(--surface-1); color: var(--text-secondary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); text-transform: uppercase; cursor: pointer; transition: background var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out); }
 .spec-group summary::-webkit-details-marker { display: none; }

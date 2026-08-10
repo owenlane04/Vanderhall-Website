@@ -2224,6 +2224,8 @@ report.v19PageBalance = { gts: await page.evaluate(() => {
     open: groups.map((group) => group.open),
     summaries,
     firstRowTops: groups.slice(0, 2).map((group) => Math.round(group.getBoundingClientRect().top)),
+    firstRowHeights: groups.slice(0, 2).map((group) => Math.round(group.getBoundingClientRect().height)),
+    firstRowSummaryHeights: groups.slice(0, 2).map((group) => Math.round(group.querySelector("summary").getBoundingClientRect().height)),
     sectionWidth: Math.round(section.getBoundingClientRect().width),
     headingCentered: getComputedStyle(heading).alignItems === "center" && getComputedStyle(heading).textAlign === "center",
     noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1,
@@ -2232,6 +2234,7 @@ report.v19PageBalance = { gts: await page.evaluate(() => {
 const gtsBalance = report.v19PageBalance.gts;
 if (gtsBalance.groups !== 6 || JSON.stringify(gtsBalance.open) !== JSON.stringify([true, false, false, false, false, false])) failures.push(`The GTS disclosures must render six groups with only the first open: ${JSON.stringify(gtsBalance)}`);
 if (gtsBalance.summaries.some((summary) => !summary) || gtsBalance.firstRowTops[0] !== gtsBalance.firstRowTops[1]) failures.push(`The GTS specification groups are not a two-column summary grid: ${JSON.stringify(gtsBalance)}`);
+if (gtsBalance.firstRowHeights[1] !== gtsBalance.firstRowSummaryHeights[1] + 2 || gtsBalance.firstRowHeights[1] >= gtsBalance.firstRowHeights[0]) failures.push(`A closed GTS disclosure is stretching to match its open neighbor: ${JSON.stringify(gtsBalance)}`);
 if (gtsBalance.sectionWidth < 1000 || !gtsBalance.headingCentered || !gtsBalance.noHorizontalScroll) failures.push(`The GTS specifications region is not wide and centered at 1440px: ${JSON.stringify(gtsBalance)}`);
 await page.locator("#specifications details.spec-group").nth(1).locator("summary").click();
 if (!(await page.locator("#specifications details.spec-group").nth(1).evaluate((group) => group.open))) failures.push("A closed GTS specification group did not expand without custom JavaScript");
