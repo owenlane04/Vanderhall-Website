@@ -241,12 +241,13 @@ const brawleyGtsPage = (model) => {
 };
 
 // V18, Owen on 2026-08-10 relaying Vanderhall's direction: the lineup reads as three brand
-// families, in his order. "Vanderhall" is the off-road family, "Vanderhall On-Road" the on-road
-// one, and the earlier three-wheelers are "Vanderhall Legacy Vehicles". Both lineup surfaces render
-// from this one list, so the homepage and /vehicles/ can never disagree about who belongs where.
-// The rendered model order is unchanged: brawley, santarosa, carmel, venice.
+// families, in his order, and on his live review the first heading says the terrain outright
+// (D-V18-10: "where it says Vanderhall above the Brawley have it say Vanderhall off-road"). Both
+// lineup surfaces render from this one list, so the homepage and /vehicles/ can never disagree
+// about who belongs where. The rendered model order is unchanged: brawley, santarosa, carmel,
+// venice.
 const VEHICLE_FAMILIES = [
-  { title: "Vanderhall", models: currentModels.filter((model) => model.terrain === "Off-Road") },
+  { title: "Vanderhall Off-Road", models: currentModels.filter((model) => model.terrain === "Off-Road") },
   { title: "Vanderhall On-Road", models: currentModels.filter((model) => model.terrain === "On-Road") },
   { title: "Vanderhall Legacy Vehicles", models: pastModels },
 ];

@@ -646,6 +646,10 @@ export const models = [
     powertrain: { fuel: "gas", layout: "3-wheel" },
     descriptor: "Three-wheel gas roadster.",
     pastModel: true,
+    // V18, Owen on 2026-08-10 during his live review: the two legacy roadsters carry the On-Road
+    // terrain pill on the homepage lineup and on the /vehicles/ legacy cards. The legacy status
+    // itself stays in the group heading and the detail-page pill.
+    terrain: "On-Road",
     // V13-C. Carmel is an editorial gallery now, so it declares no specification groups and carries no
     // model-year qualifier: there are no figures on the page for a qualifier to qualify. CARMEL_SPECS is
     // retained in HISTORICAL_SPECS below with every source note intact. The research is not deleted to
@@ -685,6 +689,8 @@ export const models = [
     powertrain: { fuel: "gas", layout: "3-wheel" },
     descriptor: "Three-wheel gas roadster.",
     pastModel: true,
+    // V18, as Carmel: the On-Road pill on both lineup surfaces.
+    terrain: "On-Road",
     // V13-C, as Carmel. VENICE_SPECS is retained in HISTORICAL_SPECS, including its two third-party rows
     // and the reasons five other figures were never published.
     specGroups: [],

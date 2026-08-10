@@ -241,8 +241,9 @@ const CURRENT_SLUGS = ["brawley", "santarosa"];
 const PAST_SLUGS = ["carmel", "venice"];
 // V18, Owen on 2026-08-10 relaying Vanderhall's direction: the family split. Longhand for the same
 // reason as CURRENT_SLUGS, and cross-checked against the data below so a terrain that drifts in
-// models.mjs fails by name here rather than re-labelling a pill and passing.
-const TERRAIN_TAGS = { brawley: "Off-Road", santarosa: "On-Road", carmel: null, venice: null };
+// models.mjs fails by name here rather than re-labelling a pill and passing. The two legacy
+// roadsters carry On-Road per Owen's live-review instruction of the same day.
+const TERRAIN_TAGS = { brawley: "Off-Road", santarosa: "On-Road", carmel: "On-Road", venice: "On-Road" };
 for (const model of [...currentModels, ...pastModels]) {
   if ((model.terrain ?? null) !== TERRAIN_TAGS[model.slug]) {
     failures.push(`models.mjs declares ${model.slug} terrain ${model.terrain ?? "none"}, not the ${TERRAIN_TAGS[model.slug] ?? "none"} this script expects`);
@@ -356,8 +357,8 @@ for (const [route, html] of [["/", homeHtml], ["/vehicles/", vehiclesHtml]]) {
 // heading-order rule assumes (h3 under the homepage's lineup h2, h2 on /vehicles/). The terrain
 // pill's adjacency to the name is pinned the same way.
 for (const [route, html, level, sequence] of [
-  ["/", homeHtml, 3, ["Vanderhall|brawley", "Vanderhall On-Road|santarosa", "Vanderhall Legacy Vehicles|carmel", "|venice"]],
-  ["/vehicles/", vehiclesHtml, 2, ["Vanderhall|brawley", "Vanderhall On-Road|santarosa", "Vanderhall Legacy Vehicles|carmel", "|venice"]],
+  ["/", homeHtml, 3, ["Vanderhall Off-Road|brawley", "Vanderhall On-Road|santarosa", "Vanderhall Legacy Vehicles|carmel", "|venice"]],
+  ["/vehicles/", vehiclesHtml, 2, ["Vanderhall Off-Road|brawley", "Vanderhall On-Road|santarosa", "Vanderhall Legacy Vehicles|carmel", "|venice"]],
 ]) {
   const scroll = withoutFooter(html);
   let cursor = 0;
@@ -369,12 +370,18 @@ for (const [route, html, level, sequence] of [
       cursor = at + marker.length;
     }
   }
-  for (const family of ["Vanderhall", "Vanderhall On-Road", "Vanderhall Legacy Vehicles"]) {
+  for (const family of ["Vanderhall Off-Road", "Vanderhall On-Road", "Vanderhall Legacy Vehicles"]) {
     const count = (scroll.match(new RegExp(`<h${level}>${family}</h${level}>`, "g")) || []).length;
     if (count !== 1) failures.push(`${route}: the ${family} group heading must appear exactly once at h${level}, found ${count}`);
   }
+  // The pill sits immediately beside the name it qualifies. On the homepage that is all four
+  // models at h4; on /vehicles/ the two current models at h3, while the legacy pills live in the
+  // compact cards asserted with the legacy group below.
   const nameLevel = level + 1;
-  for (const [name, terrain] of [["Brawley", "Off-Road"], ["Santarosa", "On-Road"]]) {
+  const pairs = route === "/"
+    ? [["Brawley", "Off-Road"], ["Santarosa", "On-Road"], ["Carmel", "On-Road"], ["Venice", "On-Road"]]
+    : [["Brawley", "Off-Road"], ["Santarosa", "On-Road"]];
+  for (const [name, terrain] of pairs) {
     if (!scroll.includes(`<h${nameLevel}>${name}</h${nameLevel}><p class="model-tag model-tag--terrain">${terrain}</p>`)) {
       failures.push(`${route}: the ${terrain} pill must sit immediately beside the ${name} name at h${nameLevel}`);
     }
@@ -405,6 +412,11 @@ for (const slug of PAST_SLUGS) {
 }
 if ((pastGroup.match(/class="past-card__media"/g) || []).length !== 2) failures.push("Each past-model card must carry exactly one photograph");
 if (withoutFooter(pastGroup).includes(">Legacy model<") || withoutFooter(pastGroup).includes(">Past model<")) failures.push("The legacy group must not repeat the status as a pill on each card");
+// V18, Owen's live-review instruction: each legacy card carries the On-Road terrain pill beside
+// its title. Terrain is not status, so the repeated-word rule above still holds alongside this.
+for (const block of withoutFooter(pastGroup).split('<article class="past-card">').slice(1)) {
+  if (!block.includes('<p class="model-tag model-tag--terrain">On-Road</p>')) failures.push("A legacy card is missing its On-Road terrain pill");
+}
 // V15-C: the quiet link is retired with the absence it compensated for. The homepage lists the past
 // models directly now, so a link to a list of things the visitor is already looking at is gone.
 if (homeHtml.includes('href="/vehicles/#past-models"')) failures.push("The retired quiet past-models link remains on the homepage");
@@ -626,14 +638,15 @@ for (const slug of MODEL_SLUGS) {
   if (tags !== expected) failures.push(`/${slug}/ must carry ${expected} Legacy model tag, found ${tags}`);
   if (expected && !/<h1>[^<]*<\/h1>\s*<p class="model-tag">/.test(html)) failures.push(`/${slug}/ must place the Legacy model tag directly after the heading`);
 }
-// V18: the terrain pill census. Four sitewide: Off-Road beside Brawley and On-Road beside
-// Santarosa, once on each lineup surface, and none anywhere else. The model-page heroes stay
-// clean of little text per V15-H, so a terrain pill reaching a hero fails here.
+// V18: the terrain pill census. Eight sitewide: one beside each of the four names on each of the
+// two lineup surfaces (the legacy cards included, per Owen's live-review instruction), and none
+// anywhere else. The model-page heroes stay clean of little text per V15-H, so a terrain pill
+// reaching a hero fails here.
 const terrainPills = (combinedHtml.match(/class="model-tag model-tag--terrain"/g) || []).length;
-if (terrainPills !== 4) failures.push(`Expected four terrain pills sitewide, found ${terrainPills}`);
+if (terrainPills !== 8) failures.push(`Expected eight terrain pills sitewide, found ${terrainPills}`);
 for (const [route, html] of [["/", homeHtml], ["/vehicles/", vehiclesHtml]]) {
   const count = (withoutFooter(html).match(/class="model-tag model-tag--terrain"/g) || []).length;
-  if (count !== 2) failures.push(`${route} must carry exactly two terrain pills, found ${count}`);
+  if (count !== 4) failures.push(`${route} must carry exactly four terrain pills, found ${count}`);
 }
 for (const slug of MODEL_SLUGS) {
   const html = pageBySuffix(`/${slug}/index.html`);

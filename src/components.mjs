@@ -252,10 +252,13 @@ export const vehicleSection = (model, { index, copy, eager = false, level = 3, w
 export const pastModelCard = (model) => {
   const image = model.images.lead;
   const { width, height } = sizeOf(image.src);
+  // V18, Owen on 2026-08-10: the terrain pill rides beside the title here too, in the lineup
+  // sections' own headline treatment. Terrain is not status, so this does not reopen the
+  // repeated-word rule above: legacy stays in the heading, On-Road is new information.
   return `<article class="past-card">
     <a class="past-card__media" href="/${model.slug}/" tabindex="-1" aria-hidden="true"><img src="${image.src}" srcset="${image.srcset}" width="${width}" height="${height}" sizes="(min-width: 768px) 45vw, 92vw" alt="${escapeHtml(image.alt)}" loading="lazy" decoding="async"></a>
     <div class="past-card__body">
-      <h3 class="past-card__title"><a href="/${model.slug}/">${escapeHtml(model.name)}</a></h3>
+      <div class="model-headline"><h3 class="past-card__title"><a href="/${model.slug}/">${escapeHtml(model.name)}</a></h3>${model.terrain ? terrainTag(model.terrain) : ""}</div>
       <p>${escapeHtml(model.inventoryNote)}</p>
       ${textLink("View gallery", `/${model.slug}/`)}
     </div>

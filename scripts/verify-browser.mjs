@@ -2256,6 +2256,7 @@ report.pastModelGrouping = await page.evaluate(() => {
     cards: group ? group.querySelectorAll(".past-card").length : 0,
     imagesPerCard: group ? [...group.querySelectorAll(".past-card")].map((card) => card.querySelectorAll("img").length) : [],
     pillsInGroup: group ? group.querySelectorAll(".model-tag").length : 0,
+    terrainPillsInGroup: group ? group.querySelectorAll(".model-tag--terrain").length : 0,
     // Quieter, measured: a compact card's title must take a smaller step than a lineup section's name.
     // V18: the model name sits at h3 under the family group h2s.
     cardTitleSize: group ? Math.round(parseFloat(getComputedStyle(group.querySelector(".past-card__title")).fontSize)) : 0,
@@ -2272,10 +2273,10 @@ const grouping = report.pastModelGrouping;
 if (grouping.currentSections !== 2) failures.push(`/vehicles/ must present two current-model sections, found ${grouping.currentSections}`);
 if (JSON.stringify(grouping.currentLinks) !== JSON.stringify(["/brawley/", "/santarosa/"])) failures.push(`/vehicles/ current sections are ${grouping.currentLinks.join(", ")}`);
 if (grouping.groupHeading !== "Vanderhall Legacy Vehicles") failures.push(`The legacy group heading is ${grouping.groupHeading}`);
-if (JSON.stringify(grouping.familyHeadings.map((heading) => heading.text)) !== JSON.stringify(["Vanderhall", "Vanderhall On-Road", "Vanderhall Legacy Vehicles"])) failures.push(`/vehicles/ family headings are ${JSON.stringify(grouping.familyHeadings)}`);
+if (JSON.stringify(grouping.familyHeadings.map((heading) => heading.text)) !== JSON.stringify(["Vanderhall Off-Road", "Vanderhall On-Road", "Vanderhall Legacy Vehicles"])) failures.push(`/vehicles/ family headings are ${JSON.stringify(grouping.familyHeadings)}`);
 if (grouping.familyHeadings.some((heading) => !heading.painted)) failures.push("A /vehicles/ family heading is not painted");
 if (grouping.cards !== 2 || JSON.stringify(grouping.imagesPerCard) !== JSON.stringify([1, 1])) failures.push(`The past-model group must be two one-image cards: ${JSON.stringify(grouping)}`);
-if (grouping.pillsInGroup !== 0) failures.push("The past-model group must not repeat the status as a pill on each card");
+if (grouping.pillsInGroup !== 2 || grouping.terrainPillsInGroup !== 2) failures.push(`The legacy group must carry one On-Road terrain pill per card and no status pill, found ${grouping.pillsInGroup} pills of which ${grouping.terrainPillsInGroup} terrain`);
 if (!(grouping.cardTitleSize < grouping.sectionTitleSize)) failures.push(`A past-model card's title (${grouping.cardTitleSize}px) must be quieter than a current section's (${grouping.sectionTitleSize}px)`);
 if (!grouping.groupAfterLineup) failures.push("The past-model group must follow the current lineup");
 
@@ -2301,10 +2302,10 @@ report.homepageLineup = await page.evaluate(() => {
 const homepageLineup = report.homepageLineup;
 if (homepageLineup.count !== 4) failures.push(`The homepage must present four vehicle sections, found ${homepageLineup.count}`);
 if (JSON.stringify(homepageLineup.order) !== JSON.stringify(["/brawley/", "/santarosa/", "/carmel/", "/venice/"])) failures.push(`The homepage lineup order is ${homepageLineup.order.join(", ")}`);
-if (JSON.stringify(homepageLineup.tags) !== JSON.stringify([1, 1, 0, 0])) failures.push(`The terrain pills must sit on exactly the two current models: ${JSON.stringify(homepageLineup.tags)}`);
-if (JSON.stringify(homepageLineup.pillTexts) !== JSON.stringify(["Off-Road", "On-Road", null, null])) failures.push(`The homepage pills must read Off-Road beside Brawley and On-Road beside Santarosa: ${JSON.stringify(homepageLineup.pillTexts)}`);
-if (homepageLineup.tagsVisible.slice(0, 2).some((visible) => visible !== true)) failures.push("A homepage terrain pill is not visible");
-if (JSON.stringify(homepageLineup.familyHeadings.map((heading) => heading.text)) !== JSON.stringify(["Vanderhall", "Vanderhall On-Road", "Vanderhall Legacy Vehicles"])) failures.push(`The homepage family headings are ${JSON.stringify(homepageLineup.familyHeadings)}`);
+if (JSON.stringify(homepageLineup.tags) !== JSON.stringify([1, 1, 1, 1])) failures.push(`Every homepage lineup section must carry exactly one terrain pill: ${JSON.stringify(homepageLineup.tags)}`);
+if (JSON.stringify(homepageLineup.pillTexts) !== JSON.stringify(["Off-Road", "On-Road", "On-Road", "On-Road"])) failures.push(`The homepage pills must read Off-Road beside Brawley and On-Road beside the three roadsters: ${JSON.stringify(homepageLineup.pillTexts)}`);
+if (homepageLineup.tagsVisible.some((visible) => visible !== true)) failures.push("A homepage terrain pill is not visible");
+if (JSON.stringify(homepageLineup.familyHeadings.map((heading) => heading.text)) !== JSON.stringify(["Vanderhall Off-Road", "Vanderhall On-Road", "Vanderhall Legacy Vehicles"])) failures.push(`The homepage family headings are ${JSON.stringify(homepageLineup.familyHeadings)}`);
 if (homepageLineup.familyHeadings.some((heading) => !heading.painted)) failures.push("A homepage family heading is not painted");
 if (homepageLineup.quietLink !== 0) failures.push("The retired quiet past-models link remains on the homepage");
 
