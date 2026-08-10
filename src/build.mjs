@@ -667,8 +667,8 @@ const launchEditionPage = () => {
             one fact a registrant must not misread stays, because it is true of the real campaign too. */""}
       <p class="form-note">Registering your interest does not create a reservation, assign a number, hold a build slot, or guarantee availability.</p>
     </section>
-    <section class="section--tight narrow">
-      <div class="disclosures">
+    <section class="section--tight narrow centered">
+      <div class="disclosures disclosures--centered">
         ${eyebrow("AVAILABILITY")}
         <p>Only ${campaign.totalUnits} Santarosa Launch Edition vehicles will be built. Do not miss the opportunity to be part of the Santarosa debut.</p>
         ${scope.notes()}

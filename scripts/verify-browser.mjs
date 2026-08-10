@@ -2243,15 +2243,17 @@ await page.goto(`${base}/santarosa/launch-edition/`, { waitUntil: "networkidle" 
 report.v19PageBalance.launch = await page.evaluate(() => {
   const lede = document.querySelector(".launch-lede");
   const items = [...document.querySelectorAll(".launch-highlights li")];
+  const availability = document.querySelector(".disclosures--centered");
   return {
     ledeCentered: getComputedStyle(lede).alignItems === "center" && getComputedStyle(lede).textAlign === "center",
+    availabilityCentered: availability && getComputedStyle(availability).alignItems === "center" && getComputedStyle(availability).textAlign === "center",
     items: items.length,
     rowTops: [...new Set(items.map((item) => Math.round(item.getBoundingClientRect().top)))],
     noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1,
   };
 });
 const launchBalance = report.v19PageBalance.launch;
-if (!launchBalance.ledeCentered || launchBalance.items !== 10 || launchBalance.rowTops.length !== 5 || !launchBalance.noHorizontalScroll) failures.push(`The Launch Edition desktop balance is wrong: ${JSON.stringify(launchBalance)}`);
+if (!launchBalance.ledeCentered || !launchBalance.availabilityCentered || launchBalance.items !== 10 || launchBalance.rowTops.length !== 5 || !launchBalance.noHorizontalScroll) failures.push(`The Launch Edition desktop balance is wrong: ${JSON.stringify(launchBalance)}`);
 
 await page.setViewportSize({ width: 390, height: 844 });
 await page.goto(`${base}/brawley/gts/`, { waitUntil: "networkidle" });
