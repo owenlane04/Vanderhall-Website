@@ -1320,6 +1320,10 @@ for (const route of ["/", "/brawley/gts/", "/privacy/", "/concepts/indio/"]) {
   report.interactions.footer[route] = await page.evaluate(() => {
     const hrefs = (selector) => [...document.querySelectorAll(selector)].map((anchor) => anchor.getAttribute("href"));
     const social = [...document.querySelectorAll(".footer-follow a")];
+    const legalRow = document.querySelector(".footer-legal");
+    const legalLinks = document.querySelector(".footer-legal__links");
+    const legalRowRect = legalRow.getBoundingClientRect();
+    const legalLinksRect = legalLinks.getBoundingClientRect();
     return {
       social: hrefs(".footer-follow a"),
       socialNames: social.map((anchor) => ({ visible: anchor.textContent, accessible: anchor.getAttribute("aria-label") })),
@@ -1335,6 +1339,7 @@ for (const route of ["/", "/brawley/gts/", "/privacy/", "/concepts/indio/"]) {
       ownerManuals: [...document.querySelectorAll(".footer-links a")].filter((anchor) => anchor.getAttribute("href") === "/owners/").map((anchor) => anchor.textContent),
       experience: hrefs(".footer-links a").filter((href) => href === "/experience/" || href === "/blog/"),
       vehiclesColumn: hrefs(".footer-links > div:first-child a"),
+      legalSplit: getComputedStyle(legalRow).textAlign === "left" && getComputedStyle(legalLinks).justifyContent === "flex-end" && Math.abs(legalLinksRect.right - legalRowRect.right) <= 1,
     };
   });
   const footer = report.interactions.footer[route];
@@ -1345,6 +1350,7 @@ for (const route of ["/", "/brawley/gts/", "/privacy/", "/concepts/indio/"]) {
   if (JSON.stringify(footer.vehiclesColumn.slice(-2)) !== JSON.stringify(["/concepts/", "/experience/"])) failures.push(`${route}: the Vehicles column must end Concepts then Experience, found ${footer.vehiclesColumn.join(", ")}`);
   // V13: the three legal destinations are internal routes now, not two external hosts.
   if (JSON.stringify(footer.legal) !== JSON.stringify(["/safety/", "/careers/", "/privacy/"])) failures.push(`${route}: the footer legal row must be the three internal routes, got ${footer.legal.join(", ")}`);
+  if (!footer.legalSplit) failures.push(`${route}: the footer legal row must keep the logo and company line left and the three links right`);
   if (footer.app.length !== 2) failures.push(`${route}: expected two app store links, found ${footer.app.length}`);
   if (footer.tracked.length) failures.push(`${route}: a footer link carries tracking parameters: ${footer.tracked.join(", ")}`);
   if (footer.focusable !== 6) failures.push(`${route}: ${6 - footer.focusable} social links are not reachable by keyboard`);
