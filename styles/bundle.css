@@ -626,10 +626,16 @@ p { color: var(--text-secondary); }
 /* V19. The purchase page's long reference block is a grid of native disclosures. The first group
    opens with the page; every other group stays one click away without depending on JavaScript. */
 .spec-table { display: grid; grid-template-columns: 1fr; gap: var(--s-4); }
-.spec-group { border-top: var(--hairline) solid var(--line); border-bottom: var(--hairline) solid var(--line-faint); }
-.spec-group summary { display: flex; min-height: var(--hit-target); align-items: center; padding-block: var(--s-3); color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); text-transform: uppercase; cursor: pointer; }
+.spec-group { overflow: hidden; border: var(--hairline) solid var(--line); border-radius: var(--r-2); }
+.spec-group summary { display: flex; min-height: var(--hit-target); align-items: center; justify-content: space-between; gap: var(--s-4); padding: var(--s-3) var(--s-4); background: var(--surface-1); color: var(--text-secondary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); text-transform: uppercase; cursor: pointer; transition: background var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out); }
+.spec-group summary::-webkit-details-marker { display: none; }
+.spec-group summary::marker { content: ""; }
+.spec-group summary::after { content: "View details  +"; flex: 0 0 auto; color: var(--accent); font-size: var(--fs-caption); letter-spacing: var(--ls-caps-tight); }
+.spec-group summary:hover { background: var(--surface-2); color: var(--text-primary); }
+.spec-group summary:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: calc(var(--focus-w) * -1); }
 .spec-group[open] summary { color: var(--text-primary); }
-.spec-group .spec-rows { padding-bottom: var(--s-4); }
+.spec-group[open] summary::after { content: "Hide details  −"; }
+.spec-group .spec-rows { padding: 0 var(--s-4) var(--s-4); }
 .spec-row { display: grid; grid-template-columns: 1fr; gap: var(--s-1); border-bottom: var(--hairline) solid var(--line-faint); padding: var(--s-3) 0; font-size: var(--fs-body-sm); }
 .spec-row > span { color: var(--text-secondary); }
 .spec-row strong { font-weight: var(--wt-medium); font-variant-numeric: tabular-nums; }
@@ -734,6 +740,7 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 .gts-open__descriptor { max-width: var(--w-text); font-size: var(--fs-body-lg); }
 .gts-section > .section-heading { align-items: center; text-align: center; }
 .gts-section > .section-heading p { margin-inline: auto; }
+.gts-section > .cluster { justify-content: center; }
 
 /* One component, one string, always visible: never a tooltip, never behind a hover. */
 .price { display: flex; flex-direction: column; gap: var(--s-1); }
@@ -802,6 +809,8 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 
 .disclosures { display: flex; flex-direction: column; gap: var(--s-4); border-top: var(--hairline) solid var(--line); padding-top: var(--sf-s); }
 .disclosures p { max-width: var(--w-text); color: var(--text-tertiary); font-size: var(--fs-caption); }
+.disclosures--centered { align-items: center; text-align: center; }
+.disclosures--centered .footnotes { align-items: center; }
 
 /* Concept detail. The wordmark is the page title, so it renders at heading scale and the duplicate
    sans h1 is gone. The artwork is drawn dark on transparency.
@@ -849,21 +858,18 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
    the top border it already had. That is a distinction, not a panel. */
 .site-footer { display: grid; gap: var(--sf-m); padding: var(--sf-l) var(--gutter) var(--sf-m); border-top: var(--hairline) solid var(--line); background: var(--surface-1); }
 .footer-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sf-m); width: min(100%, var(--w-content)); margin-inline: auto; }
-.footer-links > div { display: flex; flex-direction: column; gap: var(--s-3); }
+.footer-links > div { display: flex; flex-direction: column; align-items: center; gap: var(--s-3); text-align: center; }
 .footer-links h2 { color: var(--text-tertiary); }
 .footer-links a { color: var(--text-secondary); font-size: var(--fs-body-sm); text-decoration: none; }
 .footer-links a:hover { color: var(--text-primary); }
-.footer-legal { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-3) var(--s-5); width: min(100%, var(--w-content)); margin-inline: auto; border-top: var(--hairline) solid var(--ink-24); padding-top: var(--s-5); color: var(--text-tertiary); font-size: var(--fs-caption); }
+.footer-legal { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--s-3) var(--s-5); width: min(100%, var(--w-content)); margin-inline: auto; border-top: var(--hairline) solid var(--ink-24); padding-top: var(--s-5); color: var(--text-tertiary); font-size: var(--fs-caption); text-align: center; }
 .footer-lockup { width: auto; height: 1.5rem; }
 
 /* V10 footer rows. The list resets its own styling rather than relying on a global reset the site
    does not have; the policy page's lists are the only ones that want markers.
    V11-I retires .footer-social: the six destinations are a fourth column of .footer-links now, so
    they inherit that column's type and spacing and need no rules of their own. */
-.footer-legal__links { display: flex; flex-wrap: wrap; gap: var(--s-3) var(--s-5); margin: 0; padding: 0; list-style: none; }
-/* Pushed to the end of the legal row on wide screens and dropped to its own line when the row wraps,
-   so the copyright and the policy links never collide mid-line. */
-.footer-legal__links { margin-left: auto; }
+.footer-legal__links { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--s-3) var(--s-5); margin: 0; padding: 0; list-style: none; }
 .footer-legal__links a { color: var(--text-tertiary); text-decoration: none; }
 .footer-legal__links a:hover { color: var(--text-primary); }
 
@@ -1326,13 +1332,6 @@ html[data-intro-seen] .intro-veil { display: none; }
    Edition's opening. */
 .stack { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-5); }
 .stack p { max-width: var(--w-text); }
-
-/* V19. Current availability belongs to the current model it qualifies. The hairline and caps label
-   keep it quieter than both the description above and the model action below. */
-.vehicle-status { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-2); width: 100%; border-top: var(--hairline) solid var(--line); padding-top: var(--s-3); }
-.vehicle-status__label { color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); line-height: var(--lh-caps); text-transform: uppercase; }
-.vehicle-status__statement { color: var(--text-secondary); font-size: var(--fs-body-sm); }
-.vehicle-status__statement .text-link { margin-left: var(--s-2); white-space: nowrap; }
 
 /* Past models on /vehicles/. Quieter than a vehicle section by construction: two compact cards in a
    grid rather than two full-bleed alternating rows. */

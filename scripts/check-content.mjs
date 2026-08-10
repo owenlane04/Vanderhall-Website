@@ -423,23 +423,10 @@ if (homeHtml.includes('href="/vehicles/#past-models"')) failures.push("The retir
 for (const slug of PAST_SLUGS) {
   if (!withoutFooter(homeHtml).includes(`href="/${slug}/"`)) failures.push(`The homepage lineup must link to the past model ${slug}`);
 }
-// V19: the two operational statements now live with the current models they qualify. The legacy
-// sections and the fuller /vehicles/ lineup carry none, and the retired full-width band is banned above.
-const homeVehicleBlocks = withoutFooter(homeHtml).split('<section class="vehicle-section').slice(1);
-const homeVehicleBlock = (slug) => homeVehicleBlocks.find((block) => block.includes(`href="/${slug}/"`)) || "";
-const expectedStatuses = {
-  brawley: ["Brawley deliveries are underway.", "/brawley/", "Explore Brawley"],
-  santarosa: ["Santarosa Launch Edition registration of interest is open.", "/santarosa/launch-edition/", "View Launch Edition"],
-};
-for (const [slug, [label, href, action]] of Object.entries(expectedStatuses)) {
-  const block = homeVehicleBlock(slug);
-  if ((block.match(/class="vehicle-status"/g) || []).length !== 1) failures.push(`The homepage ${slug} section must carry exactly one current-availability line`);
-  if (!block.includes(`<p class="vehicle-status__statement">${label} <a class="text-link" href="${href}">${action}`)) failures.push(`The homepage ${slug} status must carry its campaign statement and action`);
-}
-for (const slug of PAST_SLUGS) {
-  if (homeVehicleBlock(slug).includes('class="vehicle-status"')) failures.push(`The homepage ${slug} legacy section must carry no current-availability line`);
-}
-if (withoutFooter(vehiclesHtml).includes('class="vehicle-status"')) failures.push("/vehicles/ must not repeat the homepage campaign statements");
+// Availability notes are intentionally absent from both lineup surfaces. Time-sensitive campaign
+// copy belongs on its destination page instead of interrupting the model summaries here.
+if (withoutFooter(homeHtml).includes('class="vehicle-status"')) failures.push("The homepage must not carry availability notes");
+if (withoutFooter(vehiclesHtml).includes('class="vehicle-status"')) failures.push("/vehicles/ must not carry availability notes");
 if (/shown here in/i.test(withoutFooter(homeHtml))) failures.push('The homepage legacy summaries must not describe a photograph with "shown here in"');
 
 // The V9 homepage front of page. Owen supplied the h1 and the descriptor verbatim; the retired

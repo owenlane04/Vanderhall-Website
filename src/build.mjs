@@ -57,7 +57,6 @@ import {
 } from "./components.mjs";
 import {
   formatDate,
-  getBrawleyDeliveryStatus,
   getDealerFilters,
   getDealers,
   getEqualOpportunityStatement,
@@ -216,7 +215,7 @@ const brawleyGtsPage = (model) => {
       ${actions("primary")}
     </section>
     <section class="section--tight narrow centered">
-      <div class="disclosures">
+      <div class="disclosures disclosures--centered">
         ${eyebrow("DISCLOSURES")}
         <p>${gts.priceDisclaimer}</p>
         ${gts.safety.map((paragraph) => `<p>${paragraph}</p>`).join("")}
@@ -258,10 +257,6 @@ const lineupIndex = (model) => LINEUP_ORDER.indexOf(model);
 const homePage = () => {
   const indio = concepts[0];
   const scope = footnoteScope();
-  const modelStatus = {
-    brawley: getBrawleyDeliveryStatus(),
-    santarosa: campaignStatement(getSantarosaLaunchCampaign()),
-  };
   // Owen's copy, unchanged since V9 apart from the brand eyebrow, which V13 shortens to the public name.
   const heroContent = `${eyebrow(BRAND.toUpperCase())}
       <h1>Handcrafted electric vehicles.</h1>
@@ -295,7 +290,7 @@ const homePage = () => {
             under each family's h3. */""}
       ${VEHICLE_FAMILIES.map(({ title, models: group }) => `<div class="lineup-group">
         ${groupHeading(title, { level: 3 })}
-        <div class="vehicle-scroll">${group.map((model) => vehicleSection(model, { index: lineupIndex(model), copy: model.summary, level: 4, scope, status: modelStatus[model.slug] })).join("")}</div>
+        <div class="vehicle-scroll">${group.map((model) => vehicleSection(model, { index: lineupIndex(model), copy: model.summary, level: 4, scope })).join("")}</div>
       </div>`).join("")}
     </section>
     <section class="section split split--media-first">

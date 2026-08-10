@@ -212,7 +212,7 @@ const splitMedia = (image, { eager = false, sizes = SPLIT_SIZES } = {}) => {
 // One section per vehicle, media on one side and content on the other, alternating down the
 // page. The homepage passes one photograph and the vehicles page passes three, which is the
 // only difference between the short version of this scroll and the fuller one.
-export const vehicleSection = (model, { index, copy, eager = false, level = 3, withSupport = false, scope = null, status = null } = {}) => {
+export const vehicleSection = (model, { index, copy, eager = false, level = 3, withSupport = false, scope = null } = {}) => {
   // Each frame is a link to the model page, so the photograph answers a hover the way the concept
   // cards already do. It is removed from the tab order and hidden from assistive technology,
   // because the text link below says the same thing and should stay the one stop per section.
@@ -236,11 +236,7 @@ export const vehicleSection = (model, { index, copy, eager = false, level = 3, w
             sentences carry torque, power and travel figures, and a note on the model page cannot qualify
             a sentence on the homepage, so the mark goes on the paragraph here and the lineup section
             prints the note itself. */""}
-      <p>${escapeHtml(copy)}${model.copyNoteIds?.length && scope ? scope.mark(model.copyNoteIds) : ""}</p>${status ? `
-      <div class="vehicle-status" aria-label="Current availability">
-        <p class="vehicle-status__label">Current availability</p>
-        <p class="vehicle-status__statement">${escapeHtml(status.label)} ${textLink(status.action.label, status.action.href)}</p>
-      </div>` : ""}
+      <p>${escapeHtml(copy)}${model.copyNoteIds?.length && scope ? scope.mark(model.copyNoteIds) : ""}</p>
       ${textLink(`Explore ${model.name}`, `/${model.slug}/`)}
     </div>
   </section>`;

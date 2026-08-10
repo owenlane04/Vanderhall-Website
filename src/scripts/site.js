@@ -232,7 +232,7 @@ const REVEAL_SELECTORS = [
   ".lead-form > .field", ".lead-form > .form-fieldset:not(.form-step)", ".lead-form:not([data-form-id='contact']) > .form-submit-row",
   // V13 coverage for the new page types. Every new route has to mark something, or it has no scroll motion
   // at all, which is the regression the coverage suite exists to catch.
-  ".vehicle-status", ".past-card", ".photo-gallery__figure", ".post-card", ".record-card", ".record-section",
+  ".past-card", ".photo-gallery__figure", ".post-card", ".record-card", ".record-section",
   ".launch-highlights li", ".launch-fact", ".article-hero", ".prose", ".empty-state", ".sample-note",
   // The dealer cards, and the locator clears the start state on any card it un-hides. See the note there: a
   // hidden element never intersects, so a card filtered out and back in without a scroll would otherwise keep
@@ -259,7 +259,6 @@ const revealDelay = (element) => {
   // the concept cards and the specification rows already have. The highlight list is capped like the rest, so
   // a ten-item list does not wait on a queue.
   if (element.matches(".card-grid--posts .post-card, .past-grid .past-card, .record-list .record-card, .launch-highlights li")) return step(position());
-  if (element.matches(".vehicle-status")) return step(position());
   return 0;
 };
 

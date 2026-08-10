@@ -931,7 +931,7 @@ const REVEAL_SELECTOR = [
   ".photo-module__specs .spec-row", ".vehicle-section__row .vehicle-section__support",
   ".policy__section", ".lede", ".spec-note", ".form-heading",
   ".lead-form > .field", ".lead-form > .form-fieldset:not(.form-step)", ".lead-form > .form-submit-row",
-  ".vehicle-status", ".past-card", ".photo-gallery__figure", ".post-card", ".record-card", ".record-section",
+  ".past-card", ".photo-gallery__figure", ".post-card", ".record-card", ".record-section",
   ".launch-highlights li", ".launch-fact", ".article-hero", ".prose", ".empty-state",
 ].join(", ");
 
@@ -2180,59 +2180,35 @@ for (const width of [1440, 390]) {
 }
 await page.setViewportSize({ width: 1440, height: 1000 });
 
-// homepageCampaignStatus. V19 moves each operational statement inside the current model it qualifies.
-// The fuller /vehicles/ lineup and the two legacy homepage sections stay free of campaign content.
+// Homepage availability notes are intentionally removed. Campaign timing remains on the campaign
+// destination instead of interrupting any of the four model summaries.
 await page.goto(`${base}/`, { waitUntil: "networkidle" });
-report.homepageCampaignStatus = await page.evaluate(() => {
+report.homepageAvailabilityNotes = await page.evaluate(() => {
   const sections = [...document.querySelectorAll("#vehicles .vehicle-section")];
-  const shape = (section) => {
-    const status = section.querySelector(".vehicle-status");
-    const copy = section.querySelector(".vehicle-section__body > p:not(.model-tag)");
-    const explore = [...section.querySelectorAll(":scope > .vehicle-section__body > .text-link")].at(-1);
-    const labelStyle = status ? getComputedStyle(status.querySelector(".vehicle-status__label")) : null;
-    return {
-      model: section.querySelector(".model-headline h4").textContent,
-      statuses: section.querySelectorAll(".vehicle-status").length,
-      statement: status?.querySelector(".vehicle-status__statement")?.childNodes[0]?.textContent.trim() ?? null,
-      action: status?.querySelector("a")?.getAttribute("href") ?? null,
-      actionLabel: status?.querySelector("a")?.textContent.trim().replace(/\s*→$/, "") ?? null,
-      betweenCopyAndExplore: Boolean(status && copy.compareDocumentPosition(status) & Node.DOCUMENT_POSITION_FOLLOWING && status.compareDocumentPosition(explore) & Node.DOCUMENT_POSITION_FOLLOWING),
-      capsLabel: labelStyle?.textTransform === "uppercase",
-      hairline: status ? getComputedStyle(status).borderTopStyle === "solid" : false,
-    };
-  };
   return {
-    sections: sections.map(shape),
+    models: sections.map((section) => section.querySelector(".model-headline h4").textContent),
     retiredBand: document.querySelectorAll(".campaign-band").length,
     statusCount: document.querySelectorAll("#vehicles .vehicle-status").length,
     h1: document.querySelector("h1").textContent,
-  };
-});
-const campaign = report.homepageCampaignStatus;
-if (campaign.retiredBand !== 0 || campaign.statusCount !== 2) failures.push(`The homepage must carry two in-section statuses and no retired band: ${JSON.stringify(campaign)}`);
-const [brawleyStatus, santarosaStatus, carmelStatus, veniceStatus] = campaign.sections;
-if (brawleyStatus?.model !== "Brawley" || brawleyStatus.statement !== "Brawley deliveries are underway." || brawleyStatus.action !== "/brawley/" || brawleyStatus.actionLabel !== "Explore Brawley") failures.push(`The Brawley section status is wrong: ${JSON.stringify(brawleyStatus)}`);
-if (santarosaStatus?.model !== "Santarosa" || santarosaStatus.statement !== "Santarosa Launch Edition registration of interest is open." || santarosaStatus.action !== "/santarosa/launch-edition/" || santarosaStatus.actionLabel !== "View Launch Edition") failures.push(`The Santarosa section status is wrong: ${JSON.stringify(santarosaStatus)}`);
-for (const status of [brawleyStatus, santarosaStatus]) {
-  if (!status?.betweenCopyAndExplore || !status.capsLabel || !status.hairline) failures.push(`A current-model status is not in the quiet in-section register: ${JSON.stringify(status)}`);
-}
-if (carmelStatus?.statuses || veniceStatus?.statuses) failures.push("Legacy homepage sections must carry no campaign status");
-if (campaign.h1 !== "Handcrafted electric vehicles.") failures.push(`The campaign placement changed the homepage h1 to ${campaign.h1}`);
-
-// At 390px both status lines stay inside their own sections without widening the page.
-await page.setViewportSize({ width: 390, height: 844 });
-await page.goto(`${base}/`, { waitUntil: "networkidle" });
-report.homepageCampaignStatus.mobile = await page.evaluate(() => {
-  const items = [...document.querySelectorAll("#vehicles .vehicle-status")];
-  return {
-    count: items.length,
-    models: items.map((item) => item.closest(".vehicle-section").querySelector(".model-headline h4").textContent),
-    contained: items.every((item) => item.getBoundingClientRect().right <= innerWidth + 1),
     noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1,
   };
 });
-const bandMobile = report.homepageCampaignStatus.mobile;
-if (bandMobile.count !== 2 || JSON.stringify(bandMobile.models) !== JSON.stringify(["Brawley", "Santarosa"]) || !bandMobile.contained || !bandMobile.noHorizontalScroll) failures.push(`At 390px the in-section statuses are wrong: ${JSON.stringify(bandMobile)}`);
+const availabilityNotes = report.homepageAvailabilityNotes;
+if (availabilityNotes.retiredBand !== 0 || availabilityNotes.statusCount !== 0) failures.push(`The homepage must carry no availability notes: ${JSON.stringify(availabilityNotes)}`);
+if (JSON.stringify(availabilityNotes.models) !== JSON.stringify(["Brawley", "Santarosa", "Carmel", "Venice"])) failures.push(`Removing availability notes changed the homepage lineup: ${JSON.stringify(availabilityNotes)}`);
+if (availabilityNotes.h1 !== "Handcrafted electric vehicles." || !availabilityNotes.noHorizontalScroll) failures.push(`The homepage changed while removing availability notes: ${JSON.stringify(availabilityNotes)}`);
+
+// At 390px the simplified lineup remains contained.
+await page.setViewportSize({ width: 390, height: 844 });
+await page.goto(`${base}/`, { waitUntil: "networkidle" });
+report.homepageAvailabilityNotes.mobile = await page.evaluate(() => {
+  return {
+    count: document.querySelectorAll("#vehicles .vehicle-status").length,
+    noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1,
+  };
+});
+const availabilityMobile = report.homepageAvailabilityNotes.mobile;
+if (availabilityMobile.count !== 0 || !availabilityMobile.noHorizontalScroll) failures.push(`At 390px the availability notes are not fully removed: ${JSON.stringify(availabilityMobile)}`);
 await page.setViewportSize({ width: 1440, height: 1000 });
 
 // V19 page balance. The GTS reference groups are two-up native disclosures with only the first
