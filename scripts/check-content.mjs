@@ -1763,6 +1763,38 @@ else {
   const requiredFields = (launchHtml.match(/required aria-required="true"/g) || []).length;
   if (requiredFields !== 8) failures.push(`/santarosa/launch-edition/ must require all eight supplied fields, found ${requiredFields}`);
   if (/type="checkbox"/.test(launchHtml)) failures.push("/santarosa/launch-edition/ carries a consent checkbox whose wording legal has not supplied");
+  // V20, D-V20-1. Owen on 2026-08-11: "it looks really cluttery right now." Four caps eyebrows across six
+  // sections was the loudest single contributor, and one of them repeated the heading directly beneath it.
+  // The page keeps exactly one, in the hero, where it identifies a page whose h1 does not name the vehicle.
+  const launchEyebrows = (launchHtml.match(/<p class="eyebrow">([^<]*)<\/p>/g) || []);
+  if (launchEyebrows.length !== 1 || !launchEyebrows[0].includes("SANTAROSA LAUNCH EDITION")) {
+    failures.push(`/santarosa/launch-edition/ must carry exactly one eyebrow, the hero's: found ${launchEyebrows.join(" / ") || "none"}`);
+  }
+  for (const retired of ['<p class="eyebrow">LAUNCH EDITION</p>', '<p class="eyebrow">STAY INFORMED</p>', '<p class="eyebrow">AVAILABILITY</p>']) {
+    if (launchHtml.includes(retired)) failures.push(`/santarosa/launch-edition/ still carries a retired eyebrow: ${retired}`);
+  }
+  // Both section titles take the marked treatment instead, which is the same answer /experience/ and the
+  // homepage concepts section already use for a title that needs no category word above it.
+  for (const marked of ["Launch Edition highlights", "Register your interest"]) {
+    if (!launchHtml.includes(`<div class="section-heading section-heading--marked"><h2>${marked}</h2>`)) {
+      failures.push(`/santarosa/launch-edition/ must give "${marked}" the marked heading treatment`);
+    }
+  }
+  // D-V20-7. The registration disclaimer moved out of the form and into the closing block, where it is the
+  // last word on registering rather than a caption under a button. It must still be exactly one sentence on
+  // the page, and it must sit inside the centered disclosures block that V19's probe reads.
+  // Position, and exactly one copy of it. The sentence used to sit in the form section under the submit
+  // button; leaving a second copy behind would say the same thing twice on one page, which is the shape of
+  // clutter this version removed.
+  const disclaimers = (launchHtml.match(/Registering your interest does not create a reservation/g) || []).length;
+  if (disclaimers !== 1) failures.push(`/santarosa/launch-edition/ must state the registration disclaimer exactly once, found ${disclaimers}`);
+  if (!/<div class="disclosures disclosures--centered">\s*<p class="form-note">Registering your interest does not create/.test(launchHtml)) {
+    failures.push("/santarosa/launch-edition/ must open its closing disclosures block with the registration disclaimer");
+  }
+  // The closing sentence is a closer, not fine print. It reads at lede scale above the disclosures block.
+  if (!/<p class="lede launch-close">Only 50 Santarosa Launch Edition vehicles will be built\./.test(launchHtml)) {
+    failures.push("/santarosa/launch-edition/ must close on its own line rather than inside the fine print");
+  }
 }
 
 // The approved homepage h1 is untouched by the status placement change.

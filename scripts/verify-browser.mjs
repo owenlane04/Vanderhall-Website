@@ -2250,16 +2250,33 @@ report.v19PageBalance.launch = await page.evaluate(() => {
   const lede = document.querySelector(".launch-lede");
   const items = [...document.querySelectorAll(".launch-highlights li")];
   const availability = document.querySelector(".disclosures--centered");
+  const left = (node) => Math.round(node.getBoundingClientRect().left);
+  const bands = [...document.querySelectorAll(".launch-band")];
   return {
     ledeCentered: getComputedStyle(lede).alignItems === "center" && getComputedStyle(lede).textAlign === "center",
     availabilityCentered: availability && getComputedStyle(availability).alignItems === "center" && getComputedStyle(availability).textAlign === "center",
     items: items.length,
     rowTops: [...new Set(items.map((item) => Math.round(item.getBoundingClientRect().top)))],
     noHorizontalScroll: document.documentElement.scrollWidth <= innerWidth + 1,
+    // V20. The cleanup's own invariants, asserted rather than merely applied.
+    eyebrows: document.querySelectorAll(".eyebrow").length,
+    markedHeadings: document.querySelectorAll(".section-heading--marked").length,
+    // D-V20-4: column-wise reading order. Items one through five share the left column and six through
+    // ten the right, which is what makes the eye read down and down instead of zig-zagging.
+    columnLefts: [...new Set(items.map(left))],
+    firstColumn: items.slice(0, 5).every((item) => left(item) === left(items[0])),
+    secondColumn: items.slice(5).every((item) => left(item) === left(items[5])) && left(items[5]) > left(items[0]),
+    // D-V20-3: both wide bands share one measure, and it is the measure the lede already uses.
+    bands: bands.length,
+    bandWidths: [...new Set(bands.map((band) => Math.round(band.getBoundingClientRect().width)))],
+    ledeWidth: Math.round(lede.getBoundingClientRect().width),
   };
 });
 const launchBalance = report.v19PageBalance.launch;
 if (!launchBalance.ledeCentered || !launchBalance.availabilityCentered || launchBalance.items !== 10 || launchBalance.rowTops.length !== 5 || !launchBalance.noHorizontalScroll) failures.push(`The Launch Edition desktop balance is wrong: ${JSON.stringify(launchBalance)}`);
+if (launchBalance.eyebrows !== 1 || launchBalance.markedHeadings !== 2) failures.push(`The Launch Edition must paint one eyebrow and two marked headings: ${JSON.stringify(launchBalance)}`);
+if (launchBalance.columnLefts.length !== 2 || !launchBalance.firstColumn || !launchBalance.secondColumn) failures.push(`The Launch Edition highlights must read down one column and then the next: ${JSON.stringify(launchBalance)}`);
+if (launchBalance.bands !== 2 || launchBalance.bandWidths.length !== 1 || launchBalance.bandWidths[0] !== launchBalance.ledeWidth) failures.push(`Both Launch Edition bands must share the lede's measure: ${JSON.stringify(launchBalance)}`);
 
 await page.setViewportSize({ width: 390, height: 844 });
 await page.goto(`${base}/brawley/gts/`, { waitUntil: "networkidle" });

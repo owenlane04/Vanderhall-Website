@@ -1449,19 +1449,38 @@ html[data-intro-seen] .intro-veil { display: none; }
 .policy-toc__title { color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); text-transform: uppercase; }
 
 /* The Launch Edition page. Typography-led on purpose: no supplied photograph proves numbered badging or
-   a carbon-fiber part, so the page states the equipment in type rather than implying it with imagery. */
-.launch-market { color: var(--pure-white); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); text-transform: uppercase; }
+   a carbon-fiber part, so the page states the equipment in type rather than implying it with imagery.
+   V20: the page carries exactly one caps eyebrow, in the hero. Both wide bands share one measure so the
+   reading column stops changing width on the way down, and the highlights read as a list rather than as
+   ten headlines. */
+/* D-V20-2. The market qualifier, not a second eyebrow. Same text, held by two suites; a hairline chip in
+   secondary ink instead of a full-width pure-white caps line. Styled on its own class rather than by
+   borrowing .model-tag, which three suites count sitewide and which this is not. */
+.launch-market { align-self: start; border: var(--hairline) solid color-mix(in srgb, var(--pure-white) 45%, transparent); border-radius: var(--r-pill); padding: var(--s-1) var(--s-3); color: color-mix(in srgb, var(--pure-white) 80%, transparent); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); line-height: var(--lh-caps); text-transform: uppercase; }
 .launch-lede { align-items: center; text-align: center; }
 .launch-lede p { margin-inline: auto; }
+/* D-V20-3. Both wide bands come in from the 1200px content width to --w-narrow, the measure the lede and
+   the closing block already use. Two things follow. The hairline rules hug their text instead of running
+   580px past it, and the page settles onto two widths, 800 for everything that is reading and 640 for the
+   form, instead of stepping 800 / 1200 / 1200 / 640 / 800 on the way down. */
+.launch-band { max-width: var(--w-narrow); margin-inline: auto; }
 .launch-highlights { display: grid; grid-template-columns: 1fr; gap: 0; margin: 0; padding: 0; list-style: none; }
-.launch-highlights li { border-top: var(--hairline) solid var(--line); padding-block: var(--s-4); color: var(--text-primary); font-size: var(--fs-body-lg); }
+/* D-V20-5. --fs-body, not --fs-body-lg: ten rows at the larger step read as ten headlines. text-wrap keeps
+   the one item long enough to wrap from dropping "50" onto a line of its own; where it is unsupported the
+   line simply breaks as it did before. */
+.launch-highlights li { border-top: var(--hairline) solid var(--line); padding-block: var(--s-4); color: var(--text-primary); font-size: var(--fs-body); text-wrap: pretty; }
 .launch-highlights li:last-child { border-bottom: var(--hairline) solid var(--line); }
 .launch-more { margin-top: var(--sf-s); color: var(--text-tertiary); font-size: var(--fs-caption); }
 .launch-facts { display: grid; grid-template-columns: 1fr; gap: var(--sf-m); border-top: var(--hairline) solid var(--line); padding-top: var(--sf-m); }
-.launch-fact h2 { margin-bottom: var(--s-4); font-size: var(--fs-display-s); }
+/* D-V20-6. The h2 element and the heading order stay; the display step comes down so the two facts stop
+   competing with the section headings above them. The V18 lineup names took the same treatment. */
+.launch-fact h2 { margin-bottom: var(--s-3); font-size: var(--fs-body-lg); font-weight: var(--wt-medium); }
 .launch-priority { max-width: var(--w-text); margin: var(--s-3) 0 0; padding-left: var(--s-5); color: var(--text-secondary); }
 .launch-priority li + li { margin-top: var(--s-2); }
 .launch-state { color: var(--text-primary); font-weight: var(--wt-medium); }
+/* D-V20-7. The closing sentence is a closer, not a legal note. The fine print below it keeps the
+   .disclosures--centered treatment, which is what V19 centered and what its probe still reads. */
+.launch-close { margin-inline: auto; text-align: center; }
 
 /* Contact. The progressive form is one document with visible step headings; the step navigation and the
    branch hiding are both site.js's, so without script this is a long, complete, usable form. */
@@ -1555,8 +1574,14 @@ html[data-intro-seen] .intro-veil { display: none; }
 }
 
 @media (min-width: 768px) {
-  .launch-highlights { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--sf-m); }
-  .launch-highlights li:nth-last-child(-n + 2) { border-bottom: var(--hairline) solid var(--line); }
+  /* D-V20-4. Column flow, not row flow. Five explicit rows filled down column one and then down column
+     two, so the eye reads down and down instead of zig-zagging across ten items whose six carbon-fiber
+     entries otherwise scatter over both columns. Still ten items on exactly five row tops, which is what
+     V19's balance probe asserts. */
+  .launch-highlights { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(5, auto); grid-auto-flow: column; column-gap: var(--sf-m); }
+  /* The last row of each column, which is what nth-last-child can no longer identify once the flow runs
+     column-wise. Items five and ten sit at the foot of their own column. */
+  .launch-highlights li:nth-child(5n) { border-bottom: var(--hairline) solid var(--line); }
   .launch-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .locator__search { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto; align-items: end; }
 }

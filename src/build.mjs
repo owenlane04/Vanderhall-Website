@@ -637,13 +637,21 @@ const launchEditionPage = () => {
       <p class="lede">A new chapter is about to begin.</p>
       <p>The Santarosa Launch Edition will be limited to just ${campaign.totalUnits} individually numbered vehicles. Each will be built with exclusive features available only on this inaugural edition.</p>
     </section>
-    <section class="section launch-highlights-section">
-      ${sectionHeading("LAUNCH EDITION", "Launch Edition highlights")}
-      <ul class="launch-highlights">${campaign.highlights.map((highlight) => `<li>${escapeHtml(highlight.text)}${highlight.noteIds?.length ? scope.mark(highlight.noteIds) : ""}</li>`).join("")}</ul>
-      <p class="launch-more">More details will be announced as we get closer to launch.</p>
+    ${/* D-V20-3: --sf-m like every other section below the hero. At --sf-l the highlights left 160px of
+          near-empty column between "More details will be announced" and the facts hairline, with nothing
+          in it. The band no longer needs extra padding to read as the centre of the page. */""}
+    <section class="section--tight launch-highlights-section">
+      ${/* D-V20-1: the marked treatment, not a LAUNCH EDITION eyebrow above a heading reading Launch
+            Edition highlights. That is the same word twice, which is what sectionHeading's null-eyebrow
+            branch exists for, and what V10 retired from the page headers and V15-H from the GTS block. */""}
+      <div class="launch-band">
+        ${sectionHeading("", "Launch Edition highlights")}
+        <ul class="launch-highlights">${campaign.highlights.map((highlight) => `<li>${escapeHtml(highlight.text)}${highlight.noteIds?.length ? scope.mark(highlight.noteIds) : ""}</li>`).join("")}</ul>
+        <p class="launch-more">More details will be announced as we get closer to launch.</p>
+      </div>
     </section>
     <section class="section--tight">
-      <div class="launch-facts">
+      <div class="launch-facts launch-band">
         <div class="launch-fact">
           <h2>Expected deliveries</h2>
           <p>Initial customer deliveries are expected to begin during the ${escapeHtml(campaign.expectedDelivery.label.toLowerCase())}.</p>
@@ -656,21 +664,29 @@ const launchEditionPage = () => {
       </div>
     </section>
     <section class="section--tight narrow form-shell form-stack" id="santarosa-launch-interest">
-      ${sectionHeading("STAY INFORMED", "Register your interest")}
+      ${/* D-V20-1: no STAY INFORMED label. "Register your interest" already says what the section is,
+            and the caps line above it was the page's third eyebrow. */""}
+      ${sectionHeading("", "Register your interest")}
       <p>Register your interest to receive Launch Edition updates, reservation announcements, exclusive previews, and important milestones as production approaches.</p>
       ${/* The action's own label comes from the campaign phase, never from a date. In interest-open it says
             register, and it will not say Reserve until the phase is public-reservations AND a verified
             reservation destination exists. */""}
       <p class="launch-state">${escapeHtml(statement.label)}</p>
       ${launchInterestForm()}
-      ${/* V15-F: the "not connected" sentence is gone with the rest of the scaffolding language. The
-            one fact a registrant must not misread stays, because it is true of the real campaign too. */""}
-      <p class="form-note">Registering your interest does not create a reservation, assign a number, hold a build slot, or guarantee availability.</p>
     </section>
+    ${/* D-V20-7: one ending instead of two. The page used to close with four separate blocks of grey
+          text across two section boundaries: the required-fields key, the registration disclaimer, an
+          AVAILABILITY label, the closing sentence styled as fine print, and the footnote. Now the
+          closing sentence reads as a closing sentence, and the fine print that qualifies it sits
+          together beneath it. The disclaimer moved here from inside the form section, which is where it
+          reads as the last word on registering rather than as a caption under a button.
+
+          V15-F: the "not connected" sentence is gone with the rest of the scaffolding language. The one
+          fact a registrant must not misread stays, because it is true of the real campaign too. */""}
     <section class="section--tight narrow centered">
+      <p class="lede launch-close">Only ${campaign.totalUnits} Santarosa Launch Edition vehicles will be built. Do not miss the opportunity to be part of the Santarosa debut.</p>
       <div class="disclosures disclosures--centered">
-        ${eyebrow("AVAILABILITY")}
-        <p>Only ${campaign.totalUnits} Santarosa Launch Edition vehicles will be built. Do not miss the opportunity to be part of the Santarosa debut.</p>
+        <p class="form-note">Registering your interest does not create a reservation, assign a number, hold a build slot, or guarantee availability.</p>
         ${scope.notes()}
       </div>
     </section>
