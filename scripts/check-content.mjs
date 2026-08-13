@@ -212,6 +212,15 @@ const formCount = (id) => (combinedHtml.match(new RegExp(`data-form-id="${id}"`,
 for (const id of ["contact", "recommend-dealer", "international-dealer-inquiry", "santarosa-launch-interest", "brawley-order"]) {
   if (formCount(id) !== 1) failures.push(`Expected one ${id} form, found ${formCount(id)}`);
 }
+// V21. The reservation forms are the first identities on this site that render more than once, and the
+// counts are the assertion that says how many times. Three of them appear on both reservation pages
+// because the same write serves both routes: a customer's contact details and a dealer reassignment are
+// per-customer facts, not per-vehicle ones. The payment identity is Brawley's alone, because only the
+// Brawley reservation has a payment card, and a count of two here would mean one had appeared on the
+// Santarosa page where no fee is owed.
+for (const [id, expected] of [["reservation-contact", 2], ["reservation-selection", 2], ["reservation-dealer", 2], ["reservation-payment", 1]]) {
+  if (formCount(id) !== expected) failures.push(`Expected ${expected} ${id} forms, found ${formCount(id)}`);
+}
 if (formCount("request-info") !== 0) failures.push(`The retired request-info form identity survives on ${formCount("request-info")} pages`);
 if (combinedHtml.includes('id="request-info"')) failures.push("The retired #request-info section anchor remains");
 
@@ -219,7 +228,11 @@ if (combinedHtml.includes('id="request-info"')) failures.push("The retired #requ
 // components.mjs, so a key could be added, renamed, or given a live destination with nothing noticing. The
 // list here is written out rather than derived, for the reason every other independent expectation in this
 // file is: an expectation read from the thing it checks agrees with a mistake in it.
-const EXPECTED_ENDPOINT_KEYS = ["contact", "recommend-dealer", "international-dealer-inquiry", "santarosa-launch-interest", "brawley-order"];
+const EXPECTED_ENDPOINT_KEYS = ["contact", "recommend-dealer", "international-dealer-inquiry", "santarosa-launch-interest", "brawley-order",
+  // V21. Four reservation writes, four keys. Separate because they are separate requests against a live
+  // reservation, and one endpoint standing in for all four would let a contact update post to whatever
+  // the dealer reassignment is wired to.
+  "reservation-contact", "reservation-selection", "reservation-dealer", "reservation-payment"];
 const endpointKeys = Object.keys(FORM_ENDPOINTS).sort();
 if (JSON.stringify(endpointKeys) !== JSON.stringify([...EXPECTED_ENDPOINT_KEYS].sort())) {
   failures.push(`The form endpoint map must hold exactly ${EXPECTED_ENDPOINT_KEYS.join(", ")}, found ${endpointKeys.join(", ")}`);
@@ -667,9 +680,19 @@ const GTS_AMOUNTS = ["$49,950", "$0", "$750", "$1,050"];
 // boilerplate cites "$1 trillion" in annual incident cost, whose "$1" the pattern above matches. The
 // exception is written out per page and per amount, so a price cannot reach a notice page by accident
 // and no other page gains an inch: the order page itself still fails on any dollar sign at all.
+// V21-D-V21-3. The reservation pages quote Vanderhall's own portal, and its fee copy is the substance
+// of two of their sections: the tracker names the $100 reservation fee and the $900 order fee as step
+// labels, and the Brawley payment card is an instruction to pay $900 against a $100 deposit for a
+// $1,000 total. Paraphrasing a payment obligation is not a house-style decision this build gets to
+// make, so the amounts are reproduced and allowed here by name. The Brawley route additionally carries
+// the three paint tier prices, which are the same figures /brawley/gts/ publishes under Owen's
+// approval of 2026-08-05 and are read from the same records. Written out per page and per amount, so
+// no other page gains an inch and neither reservation page may grow a price nobody approved.
 const VERBATIM_AMOUNTS = {
   "/safety/sn-00003/index.html": ["$50,000", "$1"],
   "/safety/sn-00001/index.html": ["$1"],
+  "/brawley/reservation-status/index.html": ["$0", "$750", "$1,050", "$100", "$900", "$1,000"],
+  "/santarosa/reservation-status/index.html": ["$100", "$900"],
 };
 const gtsHtml = pageBySuffix(GTS_PATH);
 for (const page of builtPages) {
@@ -864,6 +887,9 @@ const BACK_TARGETS = {
   "/careers/index.html": "/",
   "/safety/index.html": "/",
   "/santarosa/launch-edition/index.html": "/santarosa/",
+  // V21. Each reservation page nests under its own model, as the order page does.
+  "/brawley/reservation-status/index.html": "/brawley/",
+  "/santarosa/reservation-status/index.html": "/santarosa/",
 };
 // The detail levels fall through by pattern, the way the concept routes already do.
 const BACK_PATTERNS = [
@@ -1113,6 +1139,9 @@ const SITEMAP_ROUTES = [
   // V17: the three real notice routes, named by the portal's own notice ids.
   "careers/customer-experience-specialist", "safety", "safety/sn-00003", "safety/sn-00001", "safety/sn-00002",
   "recommend-dealer", "dealer-inquiry", "privacy",
+  // V21: the two reservation status routes. Noindex, and still in the sitemap on purpose: the noindex
+  // is what keeps them out of an index, and omitting them here would only hide them from us.
+  "brawley/reservation-status", "santarosa/reservation-status",
 ];
 for (const route of SITEMAP_ROUTES) {
   if (!sitemap.includes(`<loc>https://vanderhall-website.vercel.app/${route}/</loc>`)) failures.push(`sitemap.xml is missing /${route}/`);
@@ -1717,6 +1746,11 @@ const NOINDEX_EXPECTED = new Set([
   "/careers/index.html", "/careers/assembly-technician/index.html", "/careers/customer-experience-specialist/index.html",
   "/safety/index.html", "/safety/sn-00003/index.html", "/safety/sn-00001/index.html", "/safety/sn-00002/index.html",
   "/santarosa/launch-edition/index.html",
+  // V21-D-V21-4. These two are personal account pages, which is a different reason from every other
+  // route in this set: in production each is reached by a private tokenized link, and a page showing
+  // one customer's reservation, dealer and payment state does not belong in a search index whether
+  // its records are real or invented.
+  "/brawley/reservation-status/index.html", "/santarosa/reservation-status/index.html",
 ]);
 for (const page of builtPages) {
   const relative = page.path.replace(root, "");
@@ -1858,6 +1892,130 @@ for (const relative of ARTICLE_ROUTES) {
 // they are rather than as new claims.
 for (const date of ['datetime="2025-11-12"', 'datetime="2025-10-25"']) {
   if (!blogHtml.includes(date)) failures.push(`/blog/ must print the original publication date ${date}`);
+}
+
+// ---------------------------------------------------------------------------------------------
+// V21. The reservation status pages.
+// ---------------------------------------------------------------------------------------------
+// Rebuilt from Vanderhall's reservation portal, read on 2026-08-13. Two routes, one per model, per
+// Owen's call that day, and everything on them is fictional including the customer.
+const reservationFixture = await readFile(resolve(root, "src/data/mock/reservations.mjs"), "utf8");
+const brawleyStatusHtml = pageBySuffix("/brawley/reservation-status/index.html");
+const santarosaStatusHtml = pageBySuffix("/santarosa/reservation-status/index.html");
+const RESERVATION_SURFACES = [
+  ["src/data/mock/reservations.mjs", reservationFixture],
+  ["/brawley/reservation-status/", brawleyStatusHtml],
+  ["/santarosa/reservation-status/", santarosaStatusHtml],
+];
+if (!brawleyStatusHtml) failures.push("/brawley/reservation-status/ was not built");
+if (!santarosaStatusHtml) failures.push("/santarosa/reservation-status/ was not built");
+
+// THE ONE THAT MATTERS MOST. The portal page these were built from belonged to a real customer, and
+// the capture carried their name, email address, telephone number and street address.
+//
+// This is an allowlist and not a denylist, deliberately, because a denylist would mean writing the
+// real person's details into a file in a public repository in order to forbid them, which is the leak
+// it claims to prevent. So the rule is positive instead: on these surfaces every email address is at
+// example.com and every telephone number is in the 555-01xx range reserved for fiction. A real
+// address or a real number fails whoever it belongs to, which is the property a denylist cannot have.
+const ALLOWED_RESERVATION_EMAILS = ["@example.com", INQUIRY_EMAIL];
+for (const [name, text] of RESERVATION_SURFACES) {
+  for (const address of new Set(text.match(/[\w.+-]+@[\w-]+\.[\w.-]+\w/g) || [])) {
+    if (!ALLOWED_RESERVATION_EMAILS.some((allowed) => address === allowed || address.endsWith(allowed))) {
+      failures.push(`${name}: an email address outside the fiction-reserved hosts reaches a reservation surface`);
+    }
+  }
+  // Ten digits or more, which is what separates a dialable North American number from the ISO dates
+  // and version strings that share its punctuation. An eight-digit ISO date cannot reach this test.
+  // Link targets are scanned for addresses above but not for numbers: the footer's App Store link
+  // carries a ten-digit application id, which is a URL and not something anybody can ring.
+  const dialable = text.replace(/(?:href|src)="[^"]*"/g, "");
+  for (const number of new Set(dialable.match(/\+?\d[\d\s().-]{8,}\d/g) || [])) {
+    if (number.replace(/\D/g, "").length < 10) continue;
+    if (!/555[\s.-]?01\d\d/.test(number.replace(/[()]/g, ""))) {
+      failures.push(`${name}: a telephone number outside the reserved 555-01xx block reaches a reservation surface`);
+    }
+  }
+}
+// And the positive half, so the rule above cannot be satisfied by publishing no contact details at all.
+for (const [name, html] of [["/brawley/reservation-status/", brawleyStatusHtml], ["/santarosa/reservation-status/", santarosaStatusHtml]]) {
+  if (!html.includes("jordan.avery@example.com")) failures.push(`${name}: the contact panel must prefill the fixture customer's example.com address`);
+  if (!html.includes("555 0142")) failures.push(`${name}: the contact panel must prefill a reserved 555-01xx telephone number`);
+}
+
+// The portal names ten real Vanderhall stores as reservation-authorized dealers, and this build
+// deliberately reproduces none of them: naming a real store as the delivery point for an invented
+// customer's invented reservation is a claim about that store. The picker reads getDealers() instead.
+for (const [name, text] of RESERVATION_SURFACES) {
+  if (/Vanderhall of /.test(text)) failures.push(`${name}: a real Vanderhall store name reaches a reservation surface; the picker reads getDealers()`);
+}
+
+// Both pages, the same frame. One contact panel, one reservation, one tracker of four steps with two
+// of them complete, and the portal's page-foot line exactly once.
+for (const [name, html] of [["/brawley/reservation-status/", brawleyStatusHtml], ["/santarosa/reservation-status/", santarosaStatusHtml]]) {
+  const sections = (html.match(/<section class="reservation">/g) || []).length;
+  if (sections !== 1) failures.push(`${name}: expected one reservation section, found ${sections}`);
+  const trackers = (html.match(/<ol class="reservation-track"/g) || []).length;
+  if (trackers !== 1) failures.push(`${name}: expected one progress tracker, found ${trackers}`);
+  const steps = (html.match(/class="reservation-track__step/g) || []).length;
+  if (steps !== 4) failures.push(`${name}: the tracker must carry four steps, found ${steps}`);
+  const complete = (html.match(/class="reservation-track__step is-complete"/g) || []).length;
+  if (complete !== 2) failures.push(`${name}: the fixture reservations stand at two completed steps, found ${complete}`);
+  // The completed state is never carried by the accent mark alone.
+  if ((html.match(/<span class="sr-only">(?:Complete|Not yet complete)<\/span>/g) || []).length !== 4) {
+    failures.push(`${name}: every tracker step must state its completion in text, not only in colour`);
+  }
+  // The four step labels, verbatim from the portal. Written out rather than read from the fixture,
+  // because an expectation read from the thing it checks agrees with a mistake in it.
+  for (const label of ["Information Added", "Availability Determined", "$100 Non-Refundable", "Reservation Order Fee", "Production is Close", "Additional $900 Order Fee", "Vehicle has Been Delivered", "Arrange for Pickup and Payment"]) {
+    if (!html.includes(label)) failures.push(`${name}: the tracker is missing the portal's step wording "${label}"`);
+  }
+  const disclaimer = (html.match(/Model, color, and dealer selection are not final until \$900 order fee is made\./g) || []).length;
+  if (disclaimer !== 1) failures.push(`${name}: expected the portal's closing line once, found ${disclaimer}`);
+  // The two toggling panels are native disclosures, so they open with no script. A visitor without
+  // JavaScript must never meet a control that cannot work.
+  if (!/<details class="reservation-panel">\s*<summary>Update contact information<\/summary>/.test(html)) {
+    failures.push(`${name}: the contact panel must be a native details disclosure`);
+  }
+  if (!html.includes("<summary>Edit selection</summary>")) failures.push(`${name}: the selection panel must be a native details disclosure`);
+  // The portal repeats four Base/GT/GTS/GTS+ description lines in every section. They are omitted:
+  // they are not needed to operate the picker, and they carry the claims article-claim-review gates.
+  for (const claim of ["303 horsepower", "404 horsepower", "140 mile range", "eCrawl"]) {
+    if (html.includes(claim)) failures.push(`${name}: the portal's model-description boilerplate carries "${claim}", which article-claim-review gates`);
+  }
+  // Owen's call on 2026-08-13: no Yuma section. Yuma is a concept on this site, not a current model.
+  if (/Yuma/i.test(html)) failures.push(`${name}: the portal's Yuma Utility section is deliberately not built`);
+}
+
+// The Brawley page alone owes a fee, and the Santarosa page alone has a dealer that cannot receive the
+// vehicle. Each block asserted present on its own page and absent from the other, because the failure
+// worth catching is a payment instruction appearing beside a reservation that owes nothing.
+if (!brawleyStatusHtml.includes("Submit $900 Brawley Final Payment")) failures.push("/brawley/reservation-status/ must carry the portal's final payment card");
+if (!brawleyStatusHtml.includes("Due to outsized demand, we are limiting foreseeable production to Brawley GTS models only.")) {
+  failures.push("/brawley/reservation-status/ must carry the portal's GTS-only production notice verbatim");
+}
+if (!brawleyStatusHtml.includes("Vehicle will be delivered to:")) failures.push("/brawley/reservation-status/ must render the assigned-dealer state");
+if (santarosaStatusHtml.includes("reservation-payment")) failures.push("/santarosa/reservation-status/ must carry no payment card: that reservation owes no fee");
+if (santarosaStatusHtml.includes("Final Payment")) failures.push("/santarosa/reservation-status/ must not name a final payment");
+if (!santarosaStatusHtml.includes("Vehicle can not be delivered to:")) failures.push("/santarosa/reservation-status/ must render the unauthorized-dealer state");
+if (!santarosaStatusHtml.includes("reservation-dealer--blocked")) failures.push("/santarosa/reservation-status/ must mark the blocked dealer state");
+if (brawleyStatusHtml.includes("reservation-dealer--blocked")) failures.push("/brawley/reservation-status/ has an assigned dealer and must not render the blocked state");
+
+// The paint picker. Brawley reads the same nine records /brawley/gts/ renders, under the same three
+// tier labels, so the two surfaces cannot disagree about what a Brawley is painted. Santarosa takes a
+// select, because the site holds no Santarosa swatch art and inventing colour chips for one would be
+// inventing the colours.
+const brawleyChips = (brawleyStatusHtml.match(/class="reservation-paint__chip"/g) || []).length;
+if (brawleyChips !== 9) failures.push(`/brawley/reservation-status/ must offer the nine approved paint options, found ${brawleyChips}`);
+for (const tier of ["Standard color", "Specialty color", "Metallic color"]) {
+  if (!brawleyStatusHtml.includes(tier)) failures.push(`/brawley/reservation-status/ is missing the ${tier} tier heading`);
+}
+if (santarosaStatusHtml.includes("reservation-paint")) failures.push("/santarosa/reservation-status/ must not render paint swatches: no Santarosa swatch art exists");
+// The portal's Santarosa select concatenates every model's list into twenty-three options over nine
+// colours and misspells one. Deduplicated in the fixture; the typo must never reach a page.
+if (santarosaStatusHtml.includes("Emeral Green")) failures.push("/santarosa/reservation-status/ reproduces the portal's colour-name typo");
+for (const model of ["Santarosa GTS+", "Santarosa Launch"]) {
+  if (!santarosaStatusHtml.includes(model)) failures.push(`/santarosa/reservation-status/ is missing the portal's ${model} option`);
 }
 
 if (failures.length) {

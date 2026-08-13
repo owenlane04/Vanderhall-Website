@@ -1198,6 +1198,104 @@ html[data-intro-seen] .intro-veil { display: none; }
    .disclosures--centered treatment, which is what V19 centered and what its probe still reads. */
 .launch-close { margin-inline: auto; text-align: center; }
 
+/* V21. Reservation status.
+   One measure for the whole page, --w-narrow, which is what V20 settled the Launch Edition onto for the
+   same reason: a page that steps 800 / 640 / 800 on the way down reads as three pages. The forms inside
+   a panel give up their own --w-form cap and fill it, so a bordered box never contains a narrower box. */
+/* A definite width, not a max-width, for the reason layout.css records above .narrow: auto margins on
+   a grid item turn off stretch, so a max-width box collapses to its own max-content. That is exactly
+   what happened here on the first pass. The contact panel's section shrank to 347px while the two
+   sections below it, whose max-content happens to exceed the cap, sat at the full 800, and the page
+   read as three different documents stacked. .form-shell above is written the same way. */
+.reservation-shell { width: min(100%, var(--w-narrow)); margin-inline: auto; }
+.reservation-shell .lead-form { width: 100%; max-width: none; }
+
+/* The disclosures. Native details/summary, styled to the specification groups: the same hairline box,
+   the same caps-register summary, the same accent affordance on the right. Nothing here needs script,
+   which is the whole reason the portal's two toggling panels became these. */
+.reservation-panel { overflow: hidden; border: var(--hairline) solid var(--line); border-radius: var(--r-2); }
+.reservation-panel summary { display: flex; min-height: var(--hit-target); align-items: center; justify-content: space-between; gap: var(--s-4); padding: var(--s-3) var(--s-4); background: var(--surface-1); color: var(--text-secondary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); line-height: var(--lh-caps); text-transform: uppercase; cursor: pointer; transition: background var(--dur-2) var(--ease-out), color var(--dur-2) var(--ease-out); }
+.reservation-panel summary::-webkit-details-marker { display: none; }
+.reservation-panel summary::marker { content: ""; }
+.reservation-panel summary::after { content: "Open  +"; flex: 0 0 auto; color: var(--accent); font-size: var(--fs-caption); letter-spacing: var(--ls-caps-tight); }
+.reservation-panel summary:hover { background: var(--surface-2); color: var(--text-primary); }
+.reservation-panel summary:focus-visible { outline: var(--focus-w) solid var(--focus-color); outline-offset: calc(var(--focus-w) * -1); }
+.reservation-panel[open] summary { color: var(--text-primary); }
+.reservation-panel[open] summary::after { content: "Close  \2212"; }
+.reservation-panel__body { display: flex; flex-direction: column; gap: var(--s-5); padding: var(--card-pad); }
+
+/* One reservation. The head, the picker, the dates, the dealer, the tracker, and what is owed, in that
+   order and separated by space rather than by more boxes: the panels are already boxes, and nesting
+   them inside another one is how a status page starts looking like a form builder. */
+.reservation { display: flex; flex-direction: column; gap: var(--sf-s); }
+.reservation__title { font-size: var(--fs-display-s); }
+/* One labelled fact, so it reads as a line rather than as a table. .notice-facts is a two-column grid
+   built for a notice's six rows; with a single row it left the date parked at a tab stop halfway
+   across the page with nothing above or below it. The dt keeps its caps treatment from that class. */
+.reservation-facts { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-2) var(--s-3); margin-top: var(--s-2); }
+.reservation-facts dd { margin: 0; }
+/* The dealer block is the one form on the site with two actions, so it is the one place the submit row
+   is a row. Everywhere else it holds a single button and a row direction changes nothing. */
+.reservation-shell .form-submit-row { flex-direction: row; flex-wrap: wrap; gap: var(--s-3); }
+.reservation-dealer { display: flex; flex-direction: column; gap: var(--s-4); }
+.reservation-dealer p { max-width: var(--w-text); }
+.reservation-dealer__state { color: var(--text-primary); }
+/* The blocked state is the one place on this page where the colour has to carry meaning, and it does
+   not carry it alone: the sentence says "can not be delivered" in words directly beside the rule. */
+.reservation-dealer--blocked .reservation-dealer__state { border-left: var(--focus-w) solid var(--danger); padding-left: var(--s-4); }
+.reservation-assign { display: flex; flex-direction: column; gap: var(--s-5); border: var(--hairline) solid var(--line); border-radius: var(--r-2); padding: var(--card-pad); }
+.reservation-assign__lede { color: var(--text-secondary); font-size: var(--fs-body-sm); }
+
+/* The paint picker. Native radios with a colour chip beside each name, so the colour is never the only
+   thing identifying an option: the name is always printed. Chips are decorative and aria-hidden. */
+.reservation-paint { gap: var(--s-5); }
+.reservation-paint__tier { display: flex; flex-direction: column; gap: var(--s-3); }
+.reservation-paint__tier-name { color: var(--text-tertiary); font-size: var(--fs-eyebrow); font-weight: var(--wt-medium); letter-spacing: var(--ls-caps-tight); line-height: var(--lh-caps); text-transform: uppercase; }
+.reservation-paint__options { display: grid; grid-template-columns: 1fr; gap: var(--s-2); }
+.reservation-paint__option { display: flex; min-height: var(--hit-target); align-items: center; gap: var(--s-3); }
+.reservation-paint__option input { width: var(--icon-size); min-height: var(--icon-size); flex: 0 0 auto; }
+.reservation-paint__chip { width: var(--s-5); height: var(--s-5); flex: 0 0 auto; border: var(--hairline) solid var(--line-strong); border-radius: var(--r-pill); background: var(--chip-color); }
+.reservation-paint__name { font-size: var(--fs-body-sm); }
+
+/* The four-step tracker. A vertical ladder on a phone with the rule running down the marks, and one row
+   of four above 640px with the rule running across them. The rule is a pseudo-element on each step
+   rather than a background on the list, so the completed run ends where the completed steps end. */
+.reservation-track { display: grid; grid-template-columns: 1fr; gap: 0; margin: 0; padding: 0; list-style: none; }
+.reservation-track__step { position: relative; display: grid; grid-template-columns: var(--s-5) minmax(0, 1fr); column-gap: var(--s-4); align-items: start; padding-bottom: var(--s-5); }
+.reservation-track__step:last-child { padding-bottom: 0; }
+.reservation-track__mark { grid-row: 1 / span 2; width: var(--s-5); height: var(--s-5); border: var(--hairline) solid var(--line-strong); border-radius: var(--r-pill); background: var(--surface-1); }
+.reservation-track__step.is-complete .reservation-track__mark { border-color: var(--accent); background: var(--accent); }
+.reservation-track__step:not(:last-child)::before { content: ""; position: absolute; top: var(--s-5); bottom: 0; left: calc(var(--s-5) / 2); border-left: var(--hairline) solid var(--line-strong); }
+.reservation-track__step.is-complete:not(:last-child)::before { border-color: var(--accent); }
+.reservation-track__title { color: var(--text-primary); font-size: var(--fs-body-sm); font-weight: var(--wt-medium); }
+.reservation-track__detail { color: var(--text-tertiary); font-size: var(--fs-caption); }
+
+/* The final payment card. Vanderhall's own wording, so the block's job is to be readable rather than
+   persuasive: a plain bordered field, and the production notice inside it marked as the thing that
+   needs an answer. */
+.reservation-payment { display: flex; flex-direction: column; gap: var(--s-4); border: var(--hairline) solid var(--line); border-radius: var(--r-2); padding: var(--card-pad); }
+.reservation-payment p { max-width: var(--w-text); color: var(--text-secondary); }
+.reservation-payment__heading { font-size: var(--fs-body-lg); font-weight: var(--wt-medium); }
+.reservation-payment__notice { display: flex; flex-direction: column; gap: var(--s-5); border-top: var(--hairline) solid var(--line); padding-top: var(--s-5); }
+.reservation-payment__notice > p:first-child { color: var(--text-primary); }
+
+/* The reservation breakpoint sits here rather than in the shared 640px block further up the file,
+   and that placement is load-bearing rather than tidy: the base rules above are declared after that
+   block, so at equal specificity they win, and the tracker stayed a ladder at every width. Media
+   queries add no specificity. Anything that overrides a rule declared here has to come after it. */
+@media (min-width: 640px) {
+  /* The tracker turns from a ladder into a row of four, and the rule turns with it: the mark leads
+     its own column and the connector runs from the mark's right edge to the next step. Both
+     orientations are the same markup and the same pseudo-element, moved to the other side. */
+  .reservation-track { grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: var(--s-4); }
+  .reservation-track__step { grid-template-columns: minmax(0, 1fr); row-gap: var(--s-2); padding-bottom: 0; }
+  .reservation-track__mark { grid-row: auto; }
+  .reservation-track__step:not(:last-child)::before { top: calc(var(--s-5) / 2); bottom: auto; left: var(--s-5); right: calc(var(--s-4) * -1); border-left: 0; border-top: var(--hairline) solid var(--line-strong); }
+  .reservation-track__step.is-complete:not(:last-child)::before { border-top-color: var(--accent); }
+  /* Nine colour options read as one long column on a phone and as three tidy rows here. */
+  .reservation-paint__options { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-2) var(--s-5); }
+}
+
 /* Contact. The progressive form is one document with visible step headings; the step navigation and the
    branch hiding are both site.js's, so without script this is a long, complete, usable form. */
 .form-step + .form-step { border-top: var(--hairline) solid var(--line); padding-top: var(--sf-m); }

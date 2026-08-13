@@ -45,6 +45,8 @@ import {
   prose,
   recommendDealerForm,
   relatedPosts,
+  reservationContactPanel,
+  reservationSection,
   safetyCard,
   sectionHeading,
   shell,
@@ -67,6 +69,12 @@ import {
   getPostRoutes,
   getPosts,
   getPrivacyPolicy,
+  getReservation,
+  getReservationAuthorizedDealers,
+  getReservationCustomer,
+  getReservationDealer,
+  getReservationDisclaimer,
+  getReservationSteps,
   getSafetyFallbackUrl,
   getSafetyNoticeRoutes,
   getSafetyNotices,
@@ -124,6 +132,11 @@ const PARENTS = {
   // V17. The order page nests under the model, not under the GTS page it is usually reached from:
   // the back link follows the URL, so a visitor who arrived from a search result gets the same way out.
   "brawley/order": { label: "Brawley", href: "/brawley/" },
+  // V21. Each reservation page nests under its own model, for the reason the order page does: the
+  // back link follows the URL, so a customer who arrived from the portal's email gets the same way
+  // out as one who walked in from the model page.
+  "brawley/reservation-status": { label: "Brawley", href: "/brawley/" },
+  "santarosa/reservation-status": { label: "Santarosa", href: "/santarosa/" },
   "santarosa/launch-edition": { label: "Santarosa", href: "/santarosa/" },
   concept: { label: "All concepts", href: "/concepts/" },
   "recommend-dealer": { label: "Dealers", href: "/dealers/" },
@@ -430,6 +443,58 @@ const brawleyOrderPage = () => {
     </section>
   </div>`;
   return shell({ title: "Order your Brawley", description: "Start a Brawley order with Vanderhall.", path: "/brawley/order", body });
+};
+
+// ---------------------------------------------------------------------------------------------
+// V21. The reservation status pages, rebuilt from Vanderhall's reservation portal.
+// ---------------------------------------------------------------------------------------------
+// The portal serves one page per customer holding every reservation they have, stacked. Owen's call
+// on 2026-08-13 was two pages, one per model, so a Brawley holder is never scrolled past a Santarosa
+// they do not own. One template builds both: the reservation record decides which of the portal's
+// states renders, and the two pages differ in nothing else.
+//
+// Both routes are noindex and both are personal. In production each is reached by the tokenized link
+// the portal mails out, which is also where the customer and their reservations come from; today
+// that read is the reservation-status-hookup blocker and the records are one fictional customer.
+const reservationStatusPage = (slug) => {
+  const model = modelBySlug[slug];
+  const reservation = getReservation(slug);
+  const customer = getReservationCustomer();
+  const parent = PARENTS[`${slug}/reservation-status`];
+  const id = `reservation-${slug}`;
+  const body = `<div class="page">
+    ${pageHeader(
+      "Reservation status.",
+      `Welcome back, ${customer.firstName}. Review and update your ${model.name} reservation below.`,
+      "reservation-shell page-header--tight",
+      parent,
+    )}
+    <section class="section--tight reservation-shell form-stack">
+      ${reservationContactPanel(customer, { id: `${id}-contact` })}
+    </section>
+    <section class="section--tight reservation-shell">
+      ${reservation
+        ? reservationSection(reservation, {
+          dealer: getReservationDealer(reservation.dealerSlug),
+          authorizedDealers: getReservationAuthorizedDealers(),
+          steps: getReservationSteps(),
+          id,
+        })
+        : emptyState(`No ${model.name} reservation is held under this link.`, `<div class="cluster">${buttonLink("Contact Vanderhall", "/contact/", "secondary")}</div>`)}
+    </section>
+    <section class="section--tight reservation-shell">
+      <div class="disclosures">
+        <p>${escapeHtml(getReservationDisclaimer())}</p>
+        <p>Changes made here reach Vanderhall, not your dealer. To arrange payment or collection, ${textLink("contact your dealer", "/dealers/")}.</p>
+      </div>
+    </section>
+  </div>`;
+  return shell({
+    title: `${model.name} reservation status`,
+    description: `Review and update your Vanderhall ${model.name} reservation, delivery dealer, and contact information.`,
+    path: `/${slug}/reservation-status`,
+    body,
+  });
 };
 
 const recommendDealerPage = () => {
@@ -802,7 +867,9 @@ const routes = [
   ...models.map((model) => model.slug),
   "brawley/gts",
   "brawley/order",
+  "brawley/reservation-status",
   "santarosa/launch-edition",
+  "santarosa/reservation-status",
   "concepts",
   ...concepts.map((concept) => `concepts/${concept.slug}`),
   "experience",
@@ -843,7 +910,9 @@ const pages = new Map([
   ...models.map((model) => [`${model.slug}/index.html`, modelPage(model)]),
   ["brawley/gts/index.html", brawleyGtsPage(modelBySlug.brawley)],
   ["brawley/order/index.html", brawleyOrderPage()],
+  ["brawley/reservation-status/index.html", reservationStatusPage("brawley")],
   ["santarosa/launch-edition/index.html", launchEditionPage()],
+  ["santarosa/reservation-status/index.html", reservationStatusPage("santarosa")],
 ]);
 
 for (const [relativePath, html] of pages) {

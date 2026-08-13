@@ -25,7 +25,11 @@ const conceptRoutes = conceptSlugs.map((slug) => `/concepts/${slug}/`);
 const articleRoutes = ["/blog/what-is-a-side-by-side-experience-the-future-with-the-vanderhall-brawley/", "/blog/electric-off-road-vehicles-the-future-of-adventure-driving/"];
 const careerRoutes = ["/careers/assembly-technician/", "/careers/customer-experience-specialist/"];
 const noticeRoutes = ["/safety/sn-00003/", "/safety/sn-00001/", "/safety/sn-00002/"];
-const routes = ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/brawley/order/", "/santarosa/", "/santarosa/launch-edition/", "/carmel/", "/venice/", "/concepts/", ...conceptRoutes, "/experience/", "/blog/", ...articleRoutes, "/dealers/", "/contact/", "/careers/", ...careerRoutes, "/safety/", ...noticeRoutes, "/recommend-dealer/", "/dealer-inquiry/", "/owners/", "/privacy/", "/404/"];
+// V21 adds the two reservation status routes, and they join all three arrays for the same reason
+// V13's twelve did: a route that is not in the smoke pass, the axe pass, and the reveal coverage is a
+// route nobody is checking.
+const reservationRoutes = ["/brawley/reservation-status/", "/santarosa/reservation-status/"];
+const routes = ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/brawley/order/", ...reservationRoutes, "/santarosa/", "/santarosa/launch-edition/", "/carmel/", "/venice/", "/concepts/", ...conceptRoutes, "/experience/", "/blog/", ...articleRoutes, "/dealers/", "/contact/", "/careers/", ...careerRoutes, "/safety/", ...noticeRoutes, "/recommend-dealer/", "/dealer-inquiry/", "/owners/", "/privacy/", "/404/"];
 
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 const page = await context.newPage();
@@ -114,7 +118,7 @@ await probeContext.close();
 // V17 adds the order page and all three notice details. All three, not one representative: each is a
 // different length of running legal copy with its own list and heading structure, and this is the one
 // place on the site where a visitor may be reading under stress.
-for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/brawley/order/", "/santarosa/", "/santarosa/launch-edition/", "/venice/", "/carmel/", "/recommend-dealer/", "/dealer-inquiry/", "/concepts/", ...conceptRoutes, "/owners/", "/dealers/", "/contact/", "/experience/", "/blog/", ...articleRoutes, "/careers/", "/careers/assembly-technician/", "/safety/", ...noticeRoutes, "/privacy/", "/404/"]) {
+for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/brawley/order/", ...reservationRoutes, "/santarosa/", "/santarosa/launch-edition/", "/venice/", "/carmel/", "/recommend-dealer/", "/dealer-inquiry/", "/concepts/", ...conceptRoutes, "/owners/", "/dealers/", "/contact/", "/experience/", "/blog/", ...articleRoutes, "/careers/", "/careers/assembly-technician/", "/safety/", ...noticeRoutes, "/privacy/", "/404/"]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   await page.addScriptTag({ content: axe.source });
   const result = await page.evaluate(async () => axe.run(document, { resultTypes: ["violations"] }));
@@ -936,7 +940,7 @@ const REVEAL_SELECTOR = [
 ].join(", ");
 
 report.motion.coverage = {};
-for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/brawley/order/", "/carmel/", "/venice/", "/santarosa/launch-edition/", "/concepts/", "/concepts/indio/", "/owners/", "/dealers/", "/contact/", "/experience/", "/blog/", articleRoutes[0], "/careers/", "/careers/assembly-technician/", "/safety/", noticeRoutes[0], "/privacy/", "/recommend-dealer/", "/dealer-inquiry/"]) {
+for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/brawley/order/", ...reservationRoutes, "/carmel/", "/venice/", "/santarosa/launch-edition/", "/concepts/", "/concepts/indio/", "/owners/", "/dealers/", "/contact/", "/experience/", "/blog/", articleRoutes[0], "/careers/", "/careers/assembly-technician/", "/safety/", noticeRoutes[0], "/privacy/", "/recommend-dealer/", "/dealer-inquiry/"]) {
   await motionPage.goto(`${base}${route}`, { waitUntil: "networkidle" });
   await motionPage.waitForTimeout(400);
   const shape = await motionPage.evaluate(async (revealSelector) => {
@@ -1710,7 +1714,7 @@ if (report.noJs.vehiclesHref !== "/vehicles/") failures.push("No-JS Vehicles nav
 // V13: without JavaScript the Contact form shows every step and every branch, with nothing disabled, which is
 // exactly what this audit asserts. /dealers/ leaves the list because its only form is the locator's search,
 // which ships hidden.
-for (const route of ["/contact/", "/recommend-dealer/", "/dealer-inquiry/", "/brawley/order/"]) {
+for (const route of ["/contact/", "/recommend-dealer/", "/dealer-inquiry/", "/brawley/order/", ...reservationRoutes]) {
   await noJsPage.goto(`${base}${route}`, { waitUntil: "load" });
   const formAudit = await noJsPage.locator("[data-site-form]").last().evaluate((form) => {
     const controls = [...form.querySelectorAll("input:not([type=hidden]), select, textarea")];
@@ -3088,6 +3092,122 @@ report.mockProductionGuard.productionBuild = await new Promise((done) => {
 const guard = report.mockProductionGuard.productionBuild;
 if (!guard.failed) failures.push("A production build succeeded while mock records and null endpoints are still live");
 if (!guard.namesBlockers) failures.push(`The production gate failed without naming the blockers: ${guard.output}`);
+
+// ---------------------------------------------------------------------------------------------
+// V21. The reservation status pages.
+// ---------------------------------------------------------------------------------------------
+// Three things this suite has to prove that check-content cannot, because all three are geometry or
+// behaviour rather than markup: the disclosures actually open from the keyboard, the tracker lays out
+// as one row of four here and a ladder on a phone, and each write action answers with the one true
+// sentence about not being connected rather than appearing to have sent something.
+report.reservationStatus = {};
+for (const route of reservationRoutes) {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+
+  // Every panel ships closed, which is the portal's state and the reason nothing on this page is a
+  // control a visitor has to dismiss.
+  const closedAtLoad = await page.locator("details.reservation-panel[open]").count();
+
+  // Keyboard, not a click: a disclosure that only opens under a mouse is a disclosure half the
+  // visitors cannot use. Tab to the contact summary and press Enter.
+  const contactSummary = page.locator("details.reservation-panel > summary").first();
+  await contactSummary.focus();
+  await page.keyboard.press("Enter");
+  const openedByKeyboard = await page.locator("details.reservation-panel").first().evaluate((node) => node.open);
+  const fieldsVisible = await page.locator("details.reservation-panel").first().locator("input:not([type=hidden]), select").evaluateAll((nodes) => nodes.filter((node) => node.checkVisibility()).length);
+
+  // One measure for the whole page. This is V19's page-balance probe applied to a new route, and it
+  // is here because the first build of these pages failed it: `.reservation-shell` was written with a
+  // max-width and auto margins, which layout.css warns turns off grid stretch, so the contact panel's
+  // section collapsed to 347px while the two below it sat at 800 and the page read as three separate
+  // documents. Measured as one set of left edges and one set of widths rather than as a class name.
+  const measure = await page.evaluate(() => {
+    const blocks = [document.querySelector(".page-header"), ...document.querySelectorAll("main > .page > section")];
+    const boxes = blocks.filter(Boolean).map((node) => node.getBoundingClientRect());
+    return {
+      blocks: boxes.length,
+      lefts: [...new Set(boxes.map((box) => Math.round(box.left)))],
+      widths: [...new Set(boxes.map((box) => Math.round(box.width)))],
+    };
+  });
+
+  // The tracker, measured rather than asserted by class name. Four steps on one row top here.
+  const trackDesktop = await page.evaluate(() => {
+    const steps = [...document.querySelectorAll(".reservation-track__step")];
+    return {
+      count: steps.length,
+      complete: steps.filter((step) => step.classList.contains("is-complete")).length,
+      rowTops: [...new Set(steps.map((step) => Math.round(step.getBoundingClientRect().top)))].length,
+      // The connector must actually be drawn, and only BETWEEN steps: three rules for four marks,
+      // never a fourth trailing off the end of the last one.
+      connectors: steps.filter((step) => getComputedStyle(step, "::before").content !== "none").length,
+    };
+  });
+
+  // Each write action answers honestly. The timestamp is pushed back because site.js rejects a
+  // submission inside two seconds as a bot, which is the same reason the other form suites do it.
+  const statuses = [];
+  const formCount = await page.locator("[data-site-form]").count();
+  for (let index = 0; index < formCount; index += 1) {
+    const form = page.locator("[data-site-form]").nth(index);
+    await form.evaluate((node) => {
+      node.closest("details")?.setAttribute("open", "");
+      node.querySelector("[name='render_timestamp']").value = String(Date.now() - 3000);
+      // Fill whatever is empty and required, so the submit reaches the endpoint branch rather than
+      // stopping at the error summary. What is being measured here is the answer, not the validation.
+      node.querySelectorAll("input[required], select[required]").forEach((control) => {
+        if (control.type === "radio") { control.checked = true; return; }
+        if (control.value) return;
+        control.value = control.tagName === "SELECT" ? [...control.options].map((option) => option.value).find(Boolean) ?? "" : "Test";
+      });
+    });
+    await form.locator("button[type='submit']").first().click();
+    statuses.push(await form.locator(".form-status").innerText());
+  }
+
+  // And the phone. The tracker turns into a ladder, and nothing runs off the side.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
+  const trackMobile = await page.evaluate(() => {
+    const steps = [...document.querySelectorAll(".reservation-track__step")];
+    return {
+      rowTops: [...new Set(steps.map((step) => Math.round(step.getBoundingClientRect().top)))].length,
+      noHorizontalScroll: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+    };
+  });
+
+  report.reservationStatus[route] = { closedAtLoad, openedByKeyboard, fieldsVisible, measure, trackDesktop, trackMobile, statuses };
+  const expected = "Online submissions are not open yet. Email inquiry@vanderhall.com and the team will follow up.";
+  if (measure.blocks !== 4 || measure.lefts.length !== 1 || measure.widths.length !== 1 || measure.widths[0] !== 800) {
+    failures.push(`${route}: the header and all three sections must share one left edge and the 800px measure: ${JSON.stringify(measure)}`);
+  }
+  if (closedAtLoad !== 0) failures.push(`${route}: every reservation panel must ship closed, found ${closedAtLoad} open`);
+  if (!openedByKeyboard || !fieldsVisible) failures.push(`${route}: the contact panel must open from the keyboard and reveal its fields`);
+  if (trackDesktop.count !== 4 || trackDesktop.complete !== 2) failures.push(`${route}: the tracker must show four steps with two complete: ${JSON.stringify(trackDesktop)}`);
+  if (trackDesktop.rowTops !== 1) failures.push(`${route}: the four tracker steps must sit on one row at 1440: ${JSON.stringify(trackDesktop)}`);
+  if (trackDesktop.connectors !== 3) failures.push(`${route}: the tracker rule must be drawn between the four steps and not past the last: ${JSON.stringify(trackDesktop)}`);
+  if (trackMobile.rowTops !== 4 || !trackMobile.noHorizontalScroll) failures.push(`${route}: the tracker must become a ladder at 390 with no horizontal scroll: ${JSON.stringify(trackMobile)}`);
+  if (!statuses.length || statuses.some((status) => status !== expected)) failures.push(`${route}: every reservation action must answer that submissions are not open: ${JSON.stringify(statuses)}`);
+}
+// The paint picker is Brawley's alone, and every option must be reachable and identified by name as
+// well as by colour: a chip a visitor cannot see must still be a choice they can make.
+await page.setViewportSize({ width: 1440, height: 1000 });
+await page.goto(`${base}/brawley/reservation-status/`, { waitUntil: "networkidle" });
+report.reservationStatus.paint = await page.evaluate(() => {
+  const options = [...document.querySelectorAll(".reservation-paint__option")];
+  return {
+    count: options.length,
+    disabled: options.filter((option) => option.querySelector("input").disabled).length,
+    named: options.filter((option) => option.querySelector(".reservation-paint__name")?.textContent.trim()).length,
+    labelled: options.filter((option) => option.querySelector("input").labels?.length).length,
+    tiers: document.querySelectorAll(".reservation-paint__tier").length,
+  };
+});
+const paint = report.reservationStatus.paint;
+if (paint.count !== 9 || paint.disabled || paint.named !== 9 || paint.labelled !== 9 || paint.tiers !== 3) {
+  failures.push(`The Brawley reservation paint picker must offer nine labelled, named, enabled options in three tiers: ${JSON.stringify(paint)}`);
+}
 
 report.consoleErrors = [...new Set(report.consoleErrors)];
 if (report.consoleErrors.length) failures.push(`Console errors: ${report.consoleErrors.join(" | ")}`);

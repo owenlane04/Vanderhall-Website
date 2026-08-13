@@ -162,6 +162,72 @@ Needed: endpoint, CRM and campaign field mapping, **deduplication against existi
 campaign phase source, state and territory eligibility, spam protection, analytics, confirmation email, error
 handling, retention rules, and approved success and response copy.
 
+### `reservation-status-hookup` (John)
+
+Routes `/brawley/reservation-status/` and `/santarosa/reservation-status/`, both `noindex`. Added in V21,
+rebuilt from Vanderhall's reservation portal at
+`dealer.vanderhallusa.com/reservation_status/index/<token>/<token>`, read on 2026-08-13 **without
+submitting, clicking, or changing anything on the live system**. `Plans/V21-plan.md` section 2 is the only
+record of what that page contains, because it lives on a subdomain no earlier audit crawled.
+
+**Every record on both pages is fictional, including the customer.** The capture carried a real person's
+name, email, telephone number, and street address, and none of it is in this repository. The fixture
+customer is invented and provably so by construction (a reserved `555-01xx` number, an `example.com`
+address), and `scripts/check-content.mjs` bans the real customer's surname and email address outright, so
+a careless paste fails the build rather than reaching a deployment.
+
+Five contracts are missing. One read:
+
+| Needed | Shape today |
+|---|---|
+| Resolve a tokenized link to a customer and their reservations | `getReservationCustomer()` and `getReservation(slug)` in `src/data/adapters.mjs`. The production read takes the token as an argument; keeping the return shape makes that a signature change, not a rewrite. |
+
+And four writes, each with its own `data-form-id` and its own null endpoint:
+
+| Action | `data-form-id` | Fields | Where |
+|---|---|---|---|
+| Update contact details | `reservation-contact` | `customer_email`, `customer_phone`, `customer_country` (ISO 3166 alpha-2, `ORDER_COUNTRIES`), `customer_address`, `customer_city`, `customer_state` (`US_REGIONS`), `customer_zip` | both routes |
+| Confirm model and color | `reservation-selection` | `reservation_model`, `reservation_color` | both routes |
+| Assign or change dealer | `reservation-dealer` | `reservation_dealer` (dealer slug), plus `reservation_action=assign-closest` when the secondary button is used | both routes |
+| Update payment color | `reservation-payment` | `reservation_color` | Brawley only |
+
+Three of the four render on both routes, because a contact update and a dealer reassignment are
+per-customer facts rather than per-vehicle ones and the same endpoint serves both pages. `check-content`
+asserts those counts (2, 2, 2, 1) so a form cannot quietly appear or disappear from one page.
+
+Structural departures from the portal, all deliberate:
+
+- The portal's **"Update Contact Information" button and "Edit Selection" links toggle panels with
+  JavaScript**. Ours are native `details`/`summary`, so they open with no script and are keyboard-operable
+  for free. Same pattern as the specification groups on `/brawley/gts/`.
+- The portal's dealer card carries **two buttons that perform the same write**: `ASSIGN` takes the closest
+  authorized store and `CONFIRM` takes the select's value. Ours preselects the closest store and keeps
+  Assign as a second submit posting `reservation_action=assign-closest`, so both paths survive and Enter
+  activates Confirm rather than whichever button came first in the markup.
+- The portal lists **ten real Vanderhall stores** as reservation-authorized dealers. This build does not
+  reproduce them: every other record on the page is fictional, and naming a real store as the delivery
+  point for an invented customer's invented reservation is a claim about that store. The picker reads
+  `getDealers()` instead, so it starts naming real stores the moment the dealer adapter is replaced. The
+  portal's ten names are in `Plans/V21-plan.md` section 2.2.
+- The portal repeats **four Base/GT/GTS/GTS+ description lines** in every section. They are omitted: they
+  are not needed to operate the picker, and they carry the 140-mile range and dual-motor claims already
+  gated behind `article-claim-review`.
+- The portal's **Yuma Utility section** is not built. Owen's call on 2026-08-13; Yuma is a concept on this
+  site. The section template is data-driven, so adding it is a record and a route.
+- The **Santarosa color select** on the portal concatenates every model's list into twenty-three options
+  over nine distinct colors, repeating Obsidian Black four times and misspelling one as
+  "Emeral Green Metallic". Deduplicated and corrected in the fixture. The live list replaces it.
+
+Fee copy is reproduced **verbatim**, including `$100`, `$900`, and `$1,000`, and `check-content` allows
+those amounts on these two routes by name and nowhere else. That copy is Vanderhall's own published text
+from Vanderhall's own portal, but **nobody has confirmed in writing that the marketing site may restate a
+payment obligation**. Same standing as the safety notice republication rights.
+
+Needed: the tokenized read contract and its failure modes (expired token, unknown token, a customer with
+no reservations), the four write endpoints and their responses, whether a write is applied immediately or
+queued for a dealer to approve, confirmation and error copy, and how a customer whose reservation changes
+in the portal learns of it here.
+
 ### `brawley-order-endpoint` (John)
 
 `id="brawley-order-form"`, `data-form-id="brawley-order"`, `FORM_ENDPOINTS["brawley-order"]` is `null`.

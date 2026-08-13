@@ -317,7 +317,17 @@ if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
     requestAnimationFrame(sweep);
   };
 
+  // V21. The same exclusion V13 made for the Contact form's steps and V16-B for its submit row, now
+  // for content inside a collapsed disclosure, because the reservation status pages put whole forms
+  // inside one. A closed <details> still reports a laid-out box for its contents in Chrome, so the
+  // rect test above waves them through, but nothing in there is rendered: the element never
+  // intersects, the observer never fires, and it keeps the start state. Open the panel and the
+  // visitor gets an empty box. Skipped here rather than fixed in CSS, so the panel's contents render
+  // in their final state the moment the disclosure opens, which is the behaviour a disclosure should
+  // have anyway: it has just been asked for, so there is no arrival left to animate.
+  const inCollapsedDisclosure = (element) => Boolean(element.closest("details:not([open])"));
   for (const element of document.querySelectorAll(REVEAL_SELECTORS)) {
+    if (inCollapsedDisclosure(element)) continue;
     if (element.getBoundingClientRect().top < innerHeight) continue;
     const delay = revealDelay(element);
     if (delay) element.style.setProperty("--reveal-delay", `${delay}ms`);

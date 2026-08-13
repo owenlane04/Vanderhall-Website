@@ -17,6 +17,15 @@ export const FORM_ENDPOINTS = Object.freeze({
   // dealer.vanderhallusa.com/reserve/index/brawley on 2026-08-07 without submitting anything, so
   // connecting it is a destination change rather than a mapping exercise. INTEGRATION.md carries the map.
   "brawley-order": null,
+  // V21. The reservation status pages. Four actions, four destinations, and each one is a write
+  // against a live reservation in Vanderhall's portal rather than a lead landing in a CRM, which is
+  // why they are separate keys: a contact update and a dealer reassignment are not the same request
+  // and must not be able to inherit each other's endpoint. Each key is rendered on both reservation
+  // pages except the payment one, which exists on the Brawley route alone.
+  "reservation-contact": null,
+  "reservation-selection": null,
+  "reservation-dealer": null,
+  "reservation-payment": null,
 });
 
 // The one direct-inquiry address, declared once so the footer cannot drift between pages. It is a

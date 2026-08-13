@@ -20,6 +20,13 @@ import { ARTICLES, FEATURED_ARTICLE_ID } from "./articles.mjs";
 import { MOCK_JOBS, EQUAL_OPPORTUNITY_STATEMENT } from "./mock/careers.mjs";
 import { SAFETY_NOTICES, SAFETY_PORTAL_URL, SAFETY_RETRIEVED_AT } from "./safety.mjs";
 import { santarosaLaunchCampaign, brawleyDeliveryStatus, CAMPAIGN_PHASES } from "./mock/campaign.mjs";
+import {
+  MOCK_RESERVATION_CUSTOMER,
+  MOCK_RESERVATIONS,
+  RESERVATION_AUTHORIZED_DEALER_SLUGS,
+  RESERVATION_DISCLAIMER,
+  RESERVATION_STEPS,
+} from "./mock/reservations.mjs";
 import { privacySections, PRIVACY_SOURCE_LINE } from "./privacy.mjs";
 import { IS_PROTOTYPE } from "./prototype.mjs";
 
@@ -173,6 +180,52 @@ export const getSantarosaLaunchCampaign = () => {
   return santarosaLaunchCampaign;
 };
 export const getBrawleyDeliveryStatus = () => brawleyDeliveryStatus;
+
+// ---------------------------------------------------------------------------------------------
+// V21. Reservation status
+// ---------------------------------------------------------------------------------------------
+// The customer whose reservations these are. In production this is resolved from the tokenized link
+// the portal mails out, so the real getReservationCustomer(token) takes an argument this one does
+// not; keeping the shape identical is what makes that a signature change rather than a rewrite.
+export const getReservationCustomer = () => required(
+  { id: "reservation-customer", ...MOCK_RESERVATION_CUSTOMER },
+  "Reservation customer",
+  ["firstName", "lastName", "email", "phone", "country", "address", "city", "state", "postalCode"],
+);
+
+// The tracker's four steps and the page-foot line. Both are Vanderhall's own portal copy, so they
+// travel through the adapter with everything else rather than being typed into a template: when the
+// portal rewords a step, one file changes.
+export const getReservationSteps = () => RESERVATION_STEPS;
+export const getReservationDisclaimer = () => RESERVATION_DISCLAIMER;
+
+// One reservation, by model slug. Returns null when the customer holds none for that model, which is
+// the ordinary case rather than an error: a Brawley holder has no Santarosa reservation, and the
+// page has to render that honestly rather than invent one.
+export const getReservation = (slug) => {
+  const reservation = MOCK_RESERVATIONS.find((record) => record.slug === slug);
+  if (!reservation) return null;
+  return required(reservation, "Reservation", ["id", "slug", "modelName", "title", "reservedAt", "dealerState", "dealerSlug", "modelOptions"]);
+};
+
+// The stores that may receive a reservation vehicle, read from the site's one dealer source so the
+// picker starts naming real stores the moment getDealers() is replaced. An unknown slug throws
+// rather than silently shortening the list: a dealer quietly missing from a picker is how somebody
+// ends up unable to choose the store they wanted.
+export const getReservationAuthorizedDealers = () => RESERVATION_AUTHORIZED_DEALER_SLUGS.map((slug) => {
+  const dealer = getDealers().find((record) => record.slug === slug);
+  if (!dealer) throw new Error(`Reservation-authorized dealer ${slug} is not in the dealer records`);
+  return dealer;
+});
+
+// The store currently named on a reservation, authorized or not. The unauthorized case is a real
+// portal state, not an error: a reservation can be assigned to a store that cannot receive it, and
+// telling the customer so is the whole point of that screen.
+export const getReservationDealer = (slug) => {
+  const dealer = getDealers().find((record) => record.slug === slug);
+  if (!dealer) throw new Error(`Reservation dealer ${slug} is not in the dealer records`);
+  return dealer;
+};
 
 // ---------------------------------------------------------------------------------------------
 // Submissions

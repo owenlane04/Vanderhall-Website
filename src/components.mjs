@@ -444,12 +444,16 @@ const countryOptions = `<option value="">Select a country</option>${COUNTRIES.ma
 // The order form's own options, carrying the legacy ISO codes as values. See ORDER_COUNTRIES.
 const orderCountryOptions = `<option value="">Select a country</option>${ORDER_COUNTRIES.map(([code, name]) => `<option value="${code}">${escapeHtml(name)}</option>`).join("")}`;
 
-const integrationFields = (formId, submitLabel) => `
+// V21 adds `secondary`, an optional second submit that posts the same form under a different action
+// value. It renders AFTER the primary in tree order, which is the whole reason it is a parameter
+// rather than markup a caller appends: the first submit in the tree is what Enter activates, so the
+// primary action has to stay first for a keyboard visitor no matter which caller adds the second.
+const integrationFields = (formId, submitLabel, secondary = "") => `
   <div class="honeypot" aria-hidden="true"><label>Company<input name="honeypot" tabindex="-1" autocomplete="off"></label></div>
   <input type="hidden" name="render_timestamp" value="">
   <input type="hidden" name="form_id" value="${formId}">
   <input type="hidden" name="page" value="">
-  <div class="form-submit-row"><button class="button button--primary" type="submit" data-submit-label="${submitLabel}">${submitLabel}</button></div>
+  <div class="form-submit-row"><button class="button button--primary" type="submit" data-submit-label="${submitLabel}">${submitLabel}</button>${secondary}</div>
   ${/* V15-F: the pre-submit "not connected" note is gone. The form still transmits nothing; on
         submit, site.js answers with one true sentence directing the visitor to the inquiry address,
         so nobody's message silently disappears and nothing pretends to have sent. */""}
@@ -880,7 +884,11 @@ export const blogPostingSchema = (post) => jsonLd({
 // indexed while believing it is hidden.
 // V15: /experience and /blog leave the list. Their records are now the two real, previously
 // published Vanderhall articles, so there is nothing fictional left to keep out of an index.
-const NOINDEX_ROUTES = ["/dealers", "/careers", "/safety", "/santarosa/launch-edition"];
+// V21-D-V21-4: both reservation status routes join the set, and for a reason none of the others
+// have. These are personal account pages: in production each one is reached by a private tokenized
+// link the portal mails to one customer, and a page showing somebody's reservation, dealer and
+// payment state has no business in a search index whether its records are real or invented.
+const NOINDEX_ROUTES = ["/dealers", "/careers", "/safety", "/santarosa/launch-edition", "/brawley/reservation-status", "/santarosa/reservation-status"];
 const isNoindex = (path) => IS_PROTOTYPE && NOINDEX_ROUTES.some((route) => path === route || path.startsWith(`${route}/`));
 
 // V16-C: the homepage opens through a veil. The animation is entirely CSS and self-removing (the
@@ -1284,6 +1292,173 @@ export const dealerMap = (dealers) => {
     ${pins}
   </svg>`;
 };
+
+// ---------------------------------------------------------------------------------------------
+// V21. Reservation status
+// ---------------------------------------------------------------------------------------------
+// Rebuilt from Vanderhall's reservation portal, read on 2026-08-13 without submitting, clicking, or
+// changing anything on the live system. Plans/V21-plan.md section 2 records what that page contains.
+//
+// Two structural departures from the portal, both deliberate and both the same departures V17 made
+// from the legacy order form.
+//
+// The portal's "Update Contact Information" button and its "Edit Selection" links toggle hidden
+// panels with JavaScript. Here they are native details/summary disclosures, which is the pattern the
+// specification groups and the privacy contents already use: the panel opens with no script, it is
+// operable from the keyboard for free, and nothing on the page ships in a state a visitor cannot get
+// out of. Collapsed by default, exactly as the portal's panels are.
+//
+// And the portal's dealer card carries two buttons that perform the same write: ASSIGN takes the
+// closest authorized store, and CONFIRM takes whatever the select holds. Here the closest store is
+// the select's preselected option and there is one Confirm, with Assign kept as a second submit that
+// posts the same form under `reservation_action=assign-closest`. Both portal paths survive, and a
+// keyboard visitor pressing Enter gets Confirm rather than whichever button happened to be first.
+const reservationField = (id, text, control, { required: isRequired = false, help = "" } = {}) =>
+  `<div class="field">${label(id, text, isRequired)}${control}${help ? `<span class="field__help" id="${id}-help">${escapeHtml(help)}</span>` : ""}${error(id)}</div>`;
+
+const reservationSelect = (id, name, options, { required: isRequired = false, placeholder = "None selected", selected = null } = {}) =>
+  `<select id="${id}" name="${name}"${isRequired ? ' required aria-required="true"' : ""}>${[
+    `<option value="">${escapeHtml(placeholder)}</option>`,
+    ...options.map((option) => {
+      const [value, text] = Array.isArray(option) ? option : [option, option];
+      return `<option value="${escapeHtml(value)}"${value === selected ? " selected" : ""}>${escapeHtml(text)}</option>`;
+    }),
+  ].join("")}</select>`;
+
+// The contact panel. Every field carries the portal's own prefilled value, because that is what the
+// screen does: it shows a customer what Vanderhall holds and lets them correct it. The `customer_`
+// name prefix is the order form's convention, so the two surfaces submit one vocabulary.
+export const reservationContactPanel = (customer, { id, open = false }) => `<details class="reservation-panel"${open ? " open" : ""}>
+  <summary>Update contact information</summary>
+  <div class="reservation-panel__body">
+    <p class="field__help">Please complete your information below to proceed with viewing your reservation.</p>
+    ${formOpen(`${id}-form`, "reservation-contact")}
+      <div class="form-grid form-grid--pairs">
+        ${reservationField(`${id}-email`, "Email", `<input id="${id}-email" name="customer_email" type="email" inputmode="email" autocomplete="email" value="${escapeHtml(customer.email)}" required aria-required="true">`, { required: true })}
+        ${reservationField(`${id}-phone`, "Phone", `<input id="${id}-phone" name="customer_phone" type="tel" inputmode="tel" autocomplete="tel" value="${escapeHtml(customer.phone)}" required aria-required="true">`, { required: true })}
+      </div>
+      ${reservationField(`${id}-country`, "Country", reservationSelect(`${id}-country`, "customer_country", ORDER_COUNTRIES.map(([code, name]) => [code, name]), { required: true, placeholder: "Select a country", selected: customer.country }), { required: true })}
+      ${reservationField(`${id}-address`, "Address", `<input id="${id}-address" name="customer_address" autocomplete="street-address" value="${escapeHtml(customer.address)}" required aria-required="true">`, { required: true })}
+      <div class="form-grid form-grid--pairs">
+        ${reservationField(`${id}-city`, "City", `<input id="${id}-city" name="customer_city" autocomplete="address-level2" value="${escapeHtml(customer.city)}" required aria-required="true">`, { required: true })}
+        ${reservationField(`${id}-state`, "State", reservationSelect(`${id}-state`, "customer_state", US_REGIONS, { required: true, placeholder: "Select a state", selected: customer.state }), { required: true })}
+      </div>
+      ${reservationField(`${id}-zip`, "Zip code", `<input id="${id}-zip" name="customer_zip" autocomplete="postal-code" inputmode="numeric" value="${escapeHtml(customer.postalCode)}" required aria-required="true">`, { required: true })}
+      ${integrationFields("reservation-contact", "Update")}
+    </form>
+  </div>
+</details>`;
+
+// The four-step tracker. An ordered list, because the steps are a sequence and a screen reader
+// should be able to say so; the connecting rule and the marks are CSS on the list items.
+//
+// The completed state is never conveyed by the mark alone. Each step carries a visually hidden word,
+// so a visitor who cannot see the accent dots is told which stage a reservation has actually reached
+// rather than reading four steps with no state at all.
+export const reservationTracker = (steps, completedSteps) => `<ol class="reservation-track" aria-label="Reservation progress">
+  ${steps.map((step, index) => {
+    const complete = index < completedSteps;
+    return `<li class="reservation-track__step${complete ? " is-complete" : ""}">
+      <span class="reservation-track__mark" aria-hidden="true"></span>
+      <span class="reservation-track__title">${escapeHtml(step.title)}</span>
+      <span class="reservation-track__detail">${escapeHtml(step.detail)}</span>
+      <span class="sr-only">${complete ? "Complete" : "Not yet complete"}</span>
+    </li>`;
+  }).join("")}
+</ol>`;
+
+// The model and color picker. Brawley takes the swatch grid its purchase page already uses, reading
+// the same paint records, so the two surfaces cannot disagree about what a Brawley is painted;
+// Santarosa takes a plain select, because the site holds no Santarosa swatch art and inventing color
+// chips for one would be inventing the colors. Native radios rather than the purchase page's
+// scripted swatch group: nothing here needs a viewer to drive, so nothing here needs a script.
+const reservationPaint = (id, paint, tiers) => `<fieldset class="field-group reservation-paint">
+  <legend>Color${requiredMark}</legend>
+  ${tiers.map((tier) => `<div class="reservation-paint__tier">
+    <p class="reservation-paint__tier-name">${escapeHtml(tier.label)} color<span aria-hidden="true"> · </span><span class="sr-only">, </span>${tier.price}</p>
+    <div class="reservation-paint__options">${paint.filter((option) => option.tier === tier.key).map((option) => `<label class="reservation-paint__option">
+      <input type="radio" name="reservation_color" value="${escapeHtml(option.slug)}" required aria-required="true">
+      <span class="reservation-paint__chip" style="--chip-color:${option.hex}" aria-hidden="true"></span>
+      <span class="reservation-paint__name">${escapeHtml(option.name)}</span>
+    </label>`).join("")}</div>
+  </div>`).join("")}
+  <span class="field__error" id="${id}-color-error"></span>
+</fieldset>`;
+
+const reservationSelectionPanel = (reservation, { id }) => `<details class="reservation-panel">
+  <summary>Edit selection</summary>
+  <div class="reservation-panel__body">
+    ${formOpen(`${id}-form`, "reservation-selection")}
+      ${reservationField(`${id}-model`, "Model", reservationSelect(`${id}-model`, "reservation_model", reservation.modelOptions, { required: true }), { required: true })}
+      ${reservation.paint
+        ? reservationPaint(id, reservation.paint, reservation.paintTiers)
+        : reservationField(`${id}-color`, "Color", reservationSelect(`${id}-color`, "reservation_color", reservation.colorOptions, { required: true }), { required: true })}
+      ${integrationFields("reservation-selection", "Confirm selection")}
+    </form>
+  </div>
+</details>`;
+
+// The dealer block, in whichever of the portal's two states the reservation is in. Assigned prints
+// one sentence and offers a change; unauthorized says so plainly and asks for a choice, with the
+// closest authorized store already selected so the common answer is one click either way.
+const reservationDealer = (reservation, { id, dealer, authorizedDealers }) => {
+  const closest = authorizedDealers[0];
+  const options = authorizedDealers.map((option) => [option.slug, `${option.name} - ${option.city} ${option.region}${option.slug === closest.slug ? " (closest option)" : ""}`]);
+  const picker = `${formOpen(`${id}-form`, "reservation-dealer")}
+      ${reservationField(`${id}-dealer`, "Reservation-authorized dealers", reservationSelect(`${id}-dealer`, "reservation_dealer", options, { required: true, selected: closest.slug }), { required: true })}
+      ${integrationFields("reservation-dealer", "Confirm dealer", `<button class="button button--secondary" type="submit" name="reservation_action" value="assign-closest">Assign closest</button>`)}
+    </form>`;
+  if (reservation.dealerState === "assigned") {
+    return `<div class="reservation-dealer">
+      <p class="reservation-dealer__state">Vehicle will be delivered to: <strong>${escapeHtml(dealer.name)}</strong></p>
+      <details class="reservation-panel">
+        <summary>Change delivery dealer</summary>
+        <div class="reservation-panel__body">${picker}</div>
+      </details>
+    </div>`;
+  }
+  return `<div class="reservation-dealer reservation-dealer--blocked">
+    <p class="reservation-dealer__state">Vehicle can not be delivered to: <strong>${escapeHtml(dealer.name)}</strong></p>
+    <p>Please select from the list below to choose a reservation-authorized dealer.</p>
+    <div class="reservation-assign">
+      <p class="reservation-assign__lede"><strong>${escapeHtml(closest.name)}</strong> is the closest reservation-authorized dealer, and is already selected below. Choose another from the list if you would rather collect elsewhere.</p>
+      ${picker}
+    </div>
+  </div>`;
+};
+
+// The Brawley final payment card. Every sentence is Vanderhall's own, quoted rather than rewritten,
+// and that includes the fee figures: a payment obligation is not copy this build gets to paraphrase.
+// check-content allows these amounts on this one route by name.
+const reservationPayment = (payment, { id }) => `<section class="reservation-payment" aria-labelledby="${id}-heading">
+  <h3 class="reservation-payment__heading" id="${id}-heading">${escapeHtml(payment.heading)}</h3>
+  <p>${escapeHtml(payment.body)}</p>
+  <div class="reservation-payment__notice">
+    <p>${escapeHtml(payment.notice)}</p>
+    ${formOpen(`${id}-form`, "reservation-payment")}
+      ${reservationField(`${id}-color`, `${payment.noticeLabel} color`, reservationSelect(`${id}-color`, "reservation_color", payment.colorOptions, { required: true, placeholder: "Select available color" }), { required: true })}
+      ${integrationFields("reservation-payment", "Update")}
+    </form>
+    <p class="field__help">${escapeHtml(payment.keepSelection)}</p>
+  </div>
+</section>`;
+
+// One reservation, whole. The order is the portal's: identity, what has been chosen, when it was
+// reserved, where it is going, how far along it is, and what is owed.
+// D-V21-13: no model pill beside the title. Both titles already name the vehicle ("Select your
+// Brawley model", "Santarosa"), so a pill reading Brawley beside them is the same duplication V20
+// retired from the Launch Edition page and V10 from the page headers. It is also deliberately not
+// `.model-tag`: that pill means a lineup classification, and three suites count it sitewide.
+export const reservationSection = (reservation, { dealer, authorizedDealers, steps, id }) => `<section class="reservation">
+  <h2 class="reservation__title">${escapeHtml(reservation.title)}</h2>
+  ${reservationSelectionPanel(reservation, { id: `${id}-selection` })}
+  <dl class="notice-facts reservation-facts">
+    <dt>Reserved</dt><dd><time datetime="${reservation.reservedAt}">${escapeHtml(formatDate(reservation.reservedAt))}</time></dd>
+  </dl>
+  ${reservationDealer(reservation, { id: `${id}-dealer`, dealer, authorizedDealers })}
+  ${reservationTracker(steps, reservation.completedSteps)}
+  ${reservation.finalPayment ? reservationPayment(reservation.finalPayment, { id: `${id}-payment` }) : ""}
+</section>`;
 
 export const dealerLocator = (dealers, filters, { mapKey = "", mapId = "" } = {}) => `<section class="locator" data-locator data-map="${mapKey ? "google" : "none"}"${mapKey ? ` data-map-key="${escapeHtml(mapKey)}"` : ""}${mapId ? ` data-map-id="${escapeHtml(mapId)}"` : ""}>
   <form class="locator__search" data-locator-search>
