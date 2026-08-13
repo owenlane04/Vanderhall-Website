@@ -48,11 +48,13 @@ the only version this site may use.
    `check-content.mjs` fails the build if this file names a wordmark asset.
 3. **White only.** White is an approved rendering for all six. Grey is approved by Instagram alone, so
    the row must not adopt the footer's grey text tone; the build asserts the computed fill is white.
-   **Known size deviation:** the marks render at 24px, below Instagram's stated 29x29px minimum, on
-   Owen's explicit request on 2026-08-13 to make them smaller. They clear YouTube's 20px and
-   Facebook's 16px. Instagram's figure is a legibility guideline, not a condition of the permission
-   quoted above, but it is a documented deviation and should be raised if Vanderhall ever asks
-   Instagram to review the footer.
+   **Known size deviation.** The marks render at **20px**, after Owen asked twice on 2026-08-13 for
+   smaller logos (30px originally, then 24, then 20). That is below Instagram's stated 29x29px
+   minimum and exactly ON YouTube's stated 20px minimum; only Facebook's 16px is cleared with room.
+   These are legibility guidelines rather than conditions of the permissions quoted above, and the
+   request was explicit, so the size ships. But the row is now at the smallest size that does not
+   break a published brand minimum outright: **do not shrink it further without a decision**, and
+   raise this if Vanderhall ever asks Instagram or YouTube to review the footer.
 4. **Do not recolour or reshape.** These files keep their published fills. The build wraps them, it
    does not edit them. An earlier version stripped fill attributes to force `currentColor` and made
    the Facebook and Instagram marks render as invisible boxes while every automated assertion still

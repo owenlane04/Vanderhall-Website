@@ -590,19 +590,21 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 
    Three numbers here are brand requirements, not taste, and the browser suite asserts all three:
 
-   - The glyph renders at 24px, Owen's call on 2026-08-13 ("make the logos smaller"). NOTE that this is
-     below Instagram's stated floor of 29x29px, which V22 originally sat just above at 30px. It clears
-     YouTube's 20px and Facebook's 16px. Instagram's minimum is a size guideline rather than a
-     permission condition, and the request to shrink them was explicit, so the smaller size ships and
-     the deviation is recorded here and in RIGHTS.md rather than left for someone to find.
+   - The glyph renders at 20px, after two rounds of Owen asking for smaller marks on 2026-08-13 (30px
+     originally, then 24, then this). NOTE the size floors it now sits against: it is well below
+     Instagram's stated 29x29px, and exactly ON YouTube's stated 20px minimum, clearing only
+     Facebook's 16px with room. 20px is therefore the last step this row can take without breaking a
+     brand's published minimum outright. Those are legibility guidelines rather than conditions of the
+     permissions the artwork relies on, and the request was explicit, so it ships with the deviation
+     recorded here and in RIGHTS.md. Anything smaller is a new decision, not a tweak.
    - The anchor is 44x44. That is the WCAG 2.5.5 target size, and the padding it puts around the mark
      doubles as brand clear space.
-   - The gap is 24px from 480px up, Owen asking for the row "a little bit more spaced out", and 16px
-     below that. It has to step down, because six 44px anchors with 24px between them measure 384px
-     and a 390px phone only offers about 350px inside its gutters: at one width the row would have
-     silently become two. At 16px it measures 344px and stays one row. Either way the marks clear X's
-     clear-space rule ("minimum equal to the logo's width on all sides"): the 24px mark sits 10px
-     inside its anchor, so adjacent marks are 36px apart at the narrow gap and 44px at the wide one.
+   - The gap is 20px from 480px up ("more spaced out", then "just a tiny bit tighter"), and 16px below
+     that. It has to step down, because six 44px anchors need to fit the roughly 350px a 390px phone
+     offers inside its gutters, and at one width the row would otherwise have silently become two.
+     Both values clear X's clear-space rule ("minimum equal to the logo's width on all sides") by a
+     wide margin now: the 20px mark sits 12px inside its anchor, so adjacent marks are 40px apart at
+     the narrow gap and 44px at the wide one, against a 20px mark.
 
    Colour is pure white, deliberately, and NOT the --text-secondary the retired text links used. Grey
    is an approved rendering for exactly one of these six brands (Instagram, "any solid colour"); for
@@ -613,16 +615,22 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 /* Immediately after its own base rule, not in a shared breakpoint block further down: a media query
    adds no specificity, so one declared before these rules would lose to them. V21 lost a whole
    afternoon to exactly that. */
-@media (min-width: 480px) { .footer-social { gap: var(--s-5); } }
+@media (min-width: 480px) { .footer-social { gap: 1.25rem; } }
 .footer-social a { display: flex; align-items: center; justify-content: center; width: 2.75rem; height: 2.75rem; border-radius: 50%; color: var(--brand-white); transition: background-color 120ms ease; }
 .footer-social a:hover { background: var(--ink-24); }
-.footer-social__glyph { display: block; width: 1.5rem; height: 1.5rem; }
+.footer-social__glyph { display: block; width: 1.25rem; height: 1.25rem; }
 /* The anchor is 44px so the touch target clears WCAG 2.5.5, which leaves the 24px mark inset by 10px
    inside it. Left-aligning the row is not enough on its own: without this the first glyph would sit
    10px right of VEHICLES and the lockup below it, which is the misalignment the row was moved left to
    fix. The offset is derived from the two sizes rather than typed, so it stays correct if either
    changes. */
-.footer-social > li:first-child { margin-inline-start: calc((2.75rem - 1.5rem) / -2); }
+.footer-social > li:first-child { margin-inline-start: calc((2.75rem - 1.25rem) / -2); }
+/* Owen on 2026-08-13: "I want it pushed down a bit closer to the line". The footer is a grid with one
+   --sf-m gap between every band, which left the marks floating midway between the columns and the
+   legal hairline. Half that gap comes back off the bottom so the row sits with the rule it belongs to
+   rather than in the middle of the space. The 44px anchor is untouched: the row reads tighter, and
+   the touch target still clears WCAG 2.5.5. */
+.footer-social { margin-bottom: calc(var(--sf-m) / -2); }
 
 /* V10 footer rows. The list resets its own styling rather than relying on a global reset the site
    does not have; the policy page's lists are the only ones that want markers. */
