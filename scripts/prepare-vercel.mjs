@@ -23,6 +23,9 @@ const directories = [
   "owners",
   "privacy",
   "recommend-dealer",
+  // V21-A. A new TOP-LEVEL route directory, so it has to be named here; the two reservation status
+  // pages added at the same time nest under brawley/ and santarosa/ and are copied with them.
+  "reservation-status",
   "safety",
   "santarosa",
   "styles",

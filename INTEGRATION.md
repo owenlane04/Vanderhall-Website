@@ -176,13 +176,30 @@ customer is invented and provably so by construction (a reserved `555-01xx` numb
 address), and `scripts/check-content.mjs` bans the real customer's surname and email address outright, so
 a careless paste fails the build rather than reaching a deployment.
 
-Five contracts are missing. One read:
+Six contracts are missing. One read:
 
 | Needed | Shape today |
 |---|---|
 | Resolve a tokenized link to a customer and their reservations | `getReservationCustomer()` and `getReservation(slug)` in `src/data/adapters.mjs`. The production read takes the token as an argument; keeping the return shape makes that a signature change, not a rewrite. |
 
-And four writes, each with its own `data-form-id` and its own null endpoint:
+One send, and it carries a hard constraint:
+
+| Action | `data-form-id` | Fields | Where |
+|---|---|---|---|
+| Email a customer their reservation link | `reservation-lookup` | `customer_email` | `/reservation-status/`, linked from the footer's Connect column on every page |
+
+**This endpoint must answer identically whether or not the address matches a reservation.** A lookup
+that says "no reservation found" for one address and "check your email" for another is a public oracle
+for whether a named person holds a Vanderhall reservation, and anybody can ask it about anybody. The page
+states that promise in its own copy before the visitor types anything, `check-content` asserts the
+sentence and bans found-or-not-found language, and `verify-browser` submits a matching and a
+non-matching address and fails if the two answers differ by a character. Honour it in the endpoint too:
+one response body, one status code, one timing profile, and the link goes only to the address on the
+reservation. The form deliberately asks for **one field**; do not add a name, an order number, or a VIN,
+because each one sharpens the lookup into a question about a specific person. Rate-limit it, because an
+identical response is not by itself protection against someone walking a list of addresses.
+
+And four writes against a reservation the visitor has already proved they hold by arriving on its link, each with its own `data-form-id` and its own null endpoint:
 
 | Action | `data-form-id` | Fields | Where |
 |---|---|---|---|

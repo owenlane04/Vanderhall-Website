@@ -218,7 +218,7 @@ for (const id of ["contact", "recommend-dealer", "international-dealer-inquiry",
 // per-customer facts, not per-vehicle ones. The payment identity is Brawley's alone, because only the
 // Brawley reservation has a payment card, and a count of two here would mean one had appeared on the
 // Santarosa page where no fee is owed.
-for (const [id, expected] of [["reservation-contact", 2], ["reservation-selection", 2], ["reservation-dealer", 2], ["reservation-payment", 1]]) {
+for (const [id, expected] of [["reservation-lookup", 1], ["reservation-contact", 2], ["reservation-selection", 2], ["reservation-dealer", 2], ["reservation-payment", 1]]) {
   if (formCount(id) !== expected) failures.push(`Expected ${expected} ${id} forms, found ${formCount(id)}`);
 }
 if (formCount("request-info") !== 0) failures.push(`The retired request-info form identity survives on ${formCount("request-info")} pages`);
@@ -232,7 +232,7 @@ const EXPECTED_ENDPOINT_KEYS = ["contact", "recommend-dealer", "international-de
   // V21. Four reservation writes, four keys. Separate because they are separate requests against a live
   // reservation, and one endpoint standing in for all four would let a contact update post to whatever
   // the dealer reassignment is wired to.
-  "reservation-contact", "reservation-selection", "reservation-dealer", "reservation-payment"];
+  "reservation-lookup", "reservation-contact", "reservation-selection", "reservation-dealer", "reservation-payment"];
 const endpointKeys = Object.keys(FORM_ENDPOINTS).sort();
 if (JSON.stringify(endpointKeys) !== JSON.stringify([...EXPECTED_ENDPOINT_KEYS].sort())) {
   failures.push(`The form endpoint map must hold exactly ${EXPECTED_ENDPOINT_KEYS.join(", ")}, found ${endpointKeys.join(", ")}`);
@@ -245,6 +245,12 @@ for (const [key, value] of Object.entries(FORM_ENDPOINTS)) {
 }
 
 const pageBySuffix = (suffix) => builtPages.find((page) => page.path.endsWith(suffix))?.text || "";
+// V21-A. An exact-route lookup, because pageBySuffix cannot tell a top-level route from a nested one
+// that ends the same way: "/brawley/reservation-status/index.html" ends with
+// "/reservation-status/index.html", so asking for the public lookup by suffix silently returned the
+// Brawley customer page and every assertion below ran against the wrong document. Any route whose
+// last segment repeats another route's must be fetched with this.
+const pageByRoute = (relative) => builtPages.find((page) => page.path.replace(root, "") === relative)?.text || "";
 // V6 order: the flagship leads, then the other electric vehicle, then the two roadsters.
 const MODEL_SLUGS = ["brawley", "santarosa", "carmel", "venice"];
 // V13-D. The lineup is the current models only. Written out rather than filtered from the data, because a
@@ -888,6 +894,7 @@ const BACK_TARGETS = {
   "/safety/index.html": "/",
   "/santarosa/launch-edition/index.html": "/santarosa/",
   // V21. Each reservation page nests under its own model, as the order page does.
+  "/reservation-status/index.html": "/",
   "/brawley/reservation-status/index.html": "/brawley/",
   "/santarosa/reservation-status/index.html": "/santarosa/",
 };
@@ -1142,6 +1149,9 @@ const SITEMAP_ROUTES = [
   // V21: the two reservation status routes. Noindex, and still in the sitemap on purpose: the noindex
   // is what keeps them out of an index, and omitting them here would only hide them from us.
   "brawley/reservation-status", "santarosa/reservation-status",
+  // V21-A: the public lookup, and unlike the two personal pages above it this one IS indexable. It
+  // carries no records and behaves like Contact.
+  "reservation-status",
 ];
 for (const route of SITEMAP_ROUTES) {
   if (!sitemap.includes(`<loc>https://vanderhall-website.vercel.app/${route}/</loc>`)) failures.push(`sitemap.xml is missing /${route}/`);
@@ -1456,13 +1466,15 @@ else {
 // wordmark title does not.
 const MARKED_HEADERS = ["/vehicles/index.html", "/concepts/index.html", "/dealers/index.html", "/recommend-dealer/index.html", "/dealer-inquiry/index.html", "/owners/index.html", "/privacy/index.html",
   // V17: the order page takes Contact's tight form header, and a notice detail takes the record header.
-  "/brawley/order/index.html", "/safety/sn-00003/index.html",
+  "/brawley/order/index.html", "/safety/sn-00003/index.html", "/reservation-status/index.html",
   // V13's new page types take the same header treatment, which is most of what makes them read as part of the
   // same site rather than as pages added later.
   "/contact/index.html", "/experience/index.html", "/blog/index.html", "/careers/index.html", "/safety/index.html",
   "/blog/what-is-a-side-by-side-experience-the-future-with-the-vanderhall-brawley/index.html", "/careers/assembly-technician/index.html"];
 for (const relative of MARKED_HEADERS) {
-  const html = pageBySuffix(relative);
+  // pageByRoute, not pageBySuffix: this list holds exact routes, and V21-A added one whose last
+  // segment repeats a nested route's, which a suffix match resolves to the wrong page.
+  const html = pageByRoute(relative);
   const header = html.match(/<header class="page-header[^"]*">[\s\S]*?<\/header>/)?.[0];
   if (!header) { failures.push(`${relative}: has no page header`); continue; }
   if (!header.includes("page-header--marked")) failures.push(`${relative}: the page header must take the marked treatment`);
@@ -1900,8 +1912,8 @@ for (const date of ['datetime="2025-11-12"', 'datetime="2025-10-25"']) {
 // Rebuilt from Vanderhall's reservation portal, read on 2026-08-13. Two routes, one per model, per
 // Owen's call that day, and everything on them is fictional including the customer.
 const reservationFixture = await readFile(resolve(root, "src/data/mock/reservations.mjs"), "utf8");
-const brawleyStatusHtml = pageBySuffix("/brawley/reservation-status/index.html");
-const santarosaStatusHtml = pageBySuffix("/santarosa/reservation-status/index.html");
+const brawleyStatusHtml = pageByRoute("/brawley/reservation-status/index.html");
+const santarosaStatusHtml = pageByRoute("/santarosa/reservation-status/index.html");
 const RESERVATION_SURFACES = [
   ["src/data/mock/reservations.mjs", reservationFixture],
   ["/brawley/reservation-status/", brawleyStatusHtml],
@@ -1909,6 +1921,50 @@ const RESERVATION_SURFACES = [
 ];
 if (!brawleyStatusHtml) failures.push("/brawley/reservation-status/ was not built");
 if (!santarosaStatusHtml) failures.push("/santarosa/reservation-status/ was not built");
+
+// V21-A. The public lookup at /reservation-status/, reached from the footer's Connect column.
+//
+// This page is a privacy surface before it is anything else. A lookup that answers "no reservation
+// found" for one address and "check your email" for another is a public oracle for whether a named
+// person holds a Vanderhall reservation, and anybody could ask it about anybody. Three assertions
+// hold that shut, and they are here rather than left to the page's wording because the wording is
+// exactly what a later edit would soften.
+const lookupHtml = pageByRoute("/reservation-status/index.html");
+if (!lookupHtml) failures.push("/reservation-status/ was not built");
+else {
+  // One field, and it is the email. Every additional identifying field a lookup asks for makes the
+  // oracle more precise, so a name, a VIN, an order number or a postcode appearing here is a design
+  // change that has to be argued for rather than typed.
+  const lookupForm = lookupHtml.match(/<form class="lead-form"[\s\S]*?<\/form>/)?.[0] || "";
+  const visibleControls = (lookupForm.match(/<(?:input|select|textarea)\b(?![^>]*type="hidden")(?![^>]*name="honeypot")/g) || []).length;
+  if (visibleControls !== 1) failures.push(`/reservation-status/ must ask for one field and only the email, found ${visibleControls}`);
+  if (!/name="customer_email"[^>]*type="email"|type="email"[^>]*name="customer_email"/.test(lookupForm)) {
+    failures.push("/reservation-status/ must ask for the email under the customer_email name the order form already uses");
+  }
+  for (const banned of ["order number", "VIN", "Last name", "Reservation number"]) {
+    if (lookupForm.includes(banned)) failures.push(`/reservation-status/ asks for "${banned}", which sharpens the lookup into an oracle about a named person`);
+  }
+  // The promise that the answer never differs. Asserted as the sentence, because the sentence is the
+  // commitment the endpoint has to honour and INTEGRATION.md carries it into the contract.
+  if (!lookupHtml.includes("Every request is answered the same way, whether or not the address matches a reservation, so this page never reveals who holds one.")) {
+    failures.push("/reservation-status/ must state that every request is answered identically");
+  }
+  // And the language a found-or-not-found page would use. None of it may appear.
+  for (const tell of ["no reservation was found", "No reservation found", "could not find a reservation", "is not associated with", "no reservation exists", "that address has no"]) {
+    if (lookupHtml.toLowerCase().includes(tell.toLowerCase())) failures.push(`/reservation-status/ carries found-or-not-found language: "${tell}"`);
+  }
+}
+// The footer link, on every page, exactly once, and inside the Connect column rather than loose in
+// another. This is the only way into the lookup from the chrome, the same standing the Owners link has.
+for (const page of builtPages) {
+  const relative = page.path.replace(root, "");
+  const footer = page.text.match(/<footer class="site-footer">[\s\S]*?<\/footer>/)?.[0] || "";
+  const links = (footer.match(/<a href="\/reservation-status\/">Reservation status<\/a>/g) || []).length;
+  if (links !== 1) failures.push(`${relative}: expected one Reservation status footer link, found ${links}`);
+  if (!footer.includes(`<a class="footer-email" href="mailto:${INQUIRY_EMAIL}">${INQUIRY_EMAIL}</a><a href="/reservation-status/">Reservation status</a>`)) {
+    failures.push(`${relative}: Reservation status must sit in the Connect column directly after the inquiry address`);
+  }
+}
 
 // THE ONE THAT MATTERS MOST. The portal page these were built from belonged to a real customer, and
 // the capture carried their name, email address, telephone number and street address.

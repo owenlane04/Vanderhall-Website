@@ -46,6 +46,7 @@ import {
   recommendDealerForm,
   relatedPosts,
   reservationContactPanel,
+  reservationLookupForm,
   reservationSection,
   safetyCard,
   sectionHeading,
@@ -139,6 +140,9 @@ const PARENTS = {
   "santarosa/reservation-status": { label: "Santarosa", href: "/santarosa/" },
   "santarosa/launch-edition": { label: "Santarosa", href: "/santarosa/" },
   concept: { label: "All concepts", href: "/concepts/" },
+  // V21-A. The public lookup is a child of Home, like Contact: it is a site utility rather than
+  // something below a model, and a visitor arrives at it from the footer on any page.
+  "reservation-status": { label: "Home", href: "/" },
   "recommend-dealer": { label: "Dealers", href: "/dealers/" },
   "dealer-inquiry": { label: "Dealers", href: "/dealers/" },
   privacy: { label: "Home", href: "/" },
@@ -440,6 +444,9 @@ const brawleyOrderPage = () => {
       ${/* Each link closes its own sentence, so the inline arrows land at a full stop rather than
             mid-clause. Two short sentences beat one that wraps three times on a phone. */""}
       <p class="form-note">Specifications and colors are on ${textLink("the Brawley GTS", "/brawley/gts/")}. With a question about an order, ${textLink("contact Vanderhall", "/contact/?category=product-information&amp;model=brawley")}.</p>
+      ${/* V21-A: the way back to an order already placed. Owen asked for this path on 2026-08-13, and
+            the order page is where somebody who has just used this form will look for it later. */""}
+      <p class="form-note">Already reserved? ${textLink("Find your reservation", "/reservation-status/")}.</p>
     </section>
   </div>`;
   return shell({ title: "Order your Brawley", description: "Start a Brawley order with Vanderhall.", path: "/brawley/order", body });
@@ -493,6 +500,42 @@ const reservationStatusPage = (slug) => {
     title: `${model.name} reservation status`,
     description: `Review and update your Vanderhall ${model.name} reservation, delivery dealer, and contact information.`,
     path: `/${slug}/reservation-status`,
+    body,
+  });
+};
+
+// V21-A. The public reservation lookup, reached from the footer's Connect column on every page.
+//
+// The two reservation status pages above are personal and are reached by a tokenized link the portal
+// mails out. This is the page for somebody who has that reservation and not that email: they ask
+// Vanderhall to send the link again, to the address already on the reservation.
+//
+// THE COPY BELOW IS A PRIVACY DECISION, NOT A STYLE ONE. A lookup that says "no reservation found"
+// for one address and "check your email" for another is a public oracle for whether a given person
+// holds a Vanderhall reservation, and anybody could ask it about anybody. So the page states up
+// front, before the visitor types anything, that the answer is the same either way, and the sentence
+// under the form says what happens next without ever confirming a match. That promise binds the
+// endpoint too: whatever John wires this to must send to the address on file and return one response.
+// It is written into INTEGRATION.md as part of the reservation-status-hookup contract rather than
+// left as an implication of this page's wording.
+const reservationLookupPage = () => {
+  const body = `<div class="page">
+    ${pageHeader(
+      "Find your reservation.",
+      "Enter the email address on your reservation and Vanderhall will send you a link to your reservation status.",
+      "form-shell page-header--tight",
+      PARENTS["reservation-status"],
+    )}
+    <section class="section--tight form-shell form-stack">
+      ${reservationLookupForm()}
+      <p class="form-note">Every request is answered the same way, whether or not the address matches a reservation, so this page never reveals who holds one. If a reservation is found, the link goes to that address and to no other.</p>
+      <p class="form-note">No email after a few minutes? Check your spam folder, then ${textLink("contact Vanderhall", "/contact/")}.</p>
+    </section>
+  </div>`;
+  return shell({
+    title: "Find your reservation",
+    description: "Request a link to your Vanderhall reservation status.",
+    path: "/reservation-status",
     body,
   });
 };
@@ -882,6 +925,7 @@ const routes = [
   ...jobRoutes.map((job) => `careers/${job.slug}`),
   "safety",
   ...noticeRoutes.map((notice) => `safety/${notice.slug}`),
+  "reservation-status",
   "recommend-dealer",
   "dealer-inquiry",
   "privacy",
@@ -902,6 +946,7 @@ const pages = new Map([
   ["safety/index.html", safetyPage()],
   ...noticeRoutes.map((notice) => [`safety/${notice.slug}/index.html`, safetyNoticePage(notice)]),
   ["owners/index.html", ownersPage()],
+  ["reservation-status/index.html", reservationLookupPage()],
   ["recommend-dealer/index.html", recommendDealerPage()],
   ["dealer-inquiry/index.html", dealerInquiryPage()],
   ["privacy/index.html", privacyPage()],

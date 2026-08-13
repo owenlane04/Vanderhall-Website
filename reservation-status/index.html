@@ -4,14 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <meta name="description" content="Safety and recall information for Vanderhall vehicles.">
-  <meta name="robots" content="noindex, follow">
-  <title>Safety notices | Vanderhall</title>
+  <meta name="description" content="Request a link to your Vanderhall reservation status.">
+  <title>Find your reservation | Vanderhall</title>
   <link rel="icon" href="/assets/brand/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/assets/brand/favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="/assets/brand/apple-touch-icon.png">
   <link rel="manifest" href="/site.webmanifest">
-  <link rel="canonical" href="https://vanderhall-website.vercel.app/safety/">
+  <link rel="canonical" href="https://vanderhall-website.vercel.app/reservation-status/">
   <link rel="stylesheet" href="/styles/bundle.css">
   
   <noscript><style>[data-locator-search],[data-dealer-select]{display:none}</style></noscript>
@@ -40,53 +39,24 @@
   </div>
   <div class="sheet-backdrop" data-sheet-backdrop hidden></div>
   <main id="main"><div class="page">
-    <header class="page-header page-header--marked"><nav class="back-nav" aria-label="Breadcrumb"><a href="/"><span aria-hidden="true">← </span>Home</a></nav><h1>Safety notices</h1><p>Safety and recall information for Vanderhall vehicles.</p></header>
-    <section class="section--tight narrow stack">
-      <p class="lede">The notices below affect Vanderhall vehicles. Read the one that names your model and year, then contact your dealer with any safety question.</p>
-      <p class="record-legal">Republished from Vanderhall's official safety notices portal, read on August 7, 2026. The portal is the authoritative copy.</p>
-      <div class="cluster"><a class="button button--primary" href="https://portal.vanderhallusa.com/safety_notices">Search the safety notices portal</a><a class="button button--secondary" href="/contact/">Contact Us</a></div>
-    </section>
-    <section class="section--tight">
-      <div class="record-list"><article class="record-card record-card--notice">
-    <div class="record-card__head">
-      <h2 class="record-card__title"><a href="/safety/sn-00003/">Vanderhall North America Recalls Brawley GTS Electric Recreational Off Highway Vehicles (ROVs) Due to Risk of Serious Injury or Death from Crash Hazard</a></h2>
-    </div>
-    <dl class="notice-facts">
-      <dt>Notice</dt><dd>SN-00003</dd>
-      <dt>Posted</dt><dd><time datetime="2026-08-06">August 6, 2026</time></dd>
-      
-      <dt>Affected</dt><dd>Vanderhall Brawley GTS electric recreational off highway vehicles</dd>
-      <dt>Hazard</dt><dd>The recalled recreational off highway vehicle can maintain speed or accelerate when the accelerator pedal is released, posing a risk of serious injury or death from a crash hazard.</dd>
-      <dt>Remedy</dt><dd>Repair</dd>
-    </dl>
-    <a class="text-link" href="/safety/sn-00003/">Read this notice<span aria-hidden="true"> →</span></a>
-  </article><article class="record-card record-card--notice">
-    <div class="record-card__head">
-      <h2 class="record-card__title"><a href="/safety/sn-00001/">Vanderhall North America LLC recalls all 2024, 2025, 2026 Brawley electric recreational off highway vehicles (ROV) due to tie rods breaking.</a></h2>
-    </div>
-    <dl class="notice-facts">
-      <dt>Notice</dt><dd>SN-00001</dd>
-      <dt>Posted</dt><dd><time datetime="2026-02-02">February 2, 2026</time></dd>
-      
-      <dt>Affected</dt><dd>All 2024, 2025, and 2026 Brawley models</dd>
-      <dt>Hazard</dt><dd>The tie rods on affected Brawley models may break during certain off-road driving situations, which can lead to a sudden loss of steering control. These tie rods can fail when a strong sideways force is applied to the tire, increasing the risk of a crash.</dd>
-      <dt>Remedy</dt><dd>Affected Brawley vehicles should not be used or operated until all four tie rods have been replaced. Vanderhall will provide the tie rod replacement free of charge through authorized Vanderhall dealers.</dd>
-    </dl>
-    <a class="text-link" href="/safety/sn-00001/">Read this notice<span aria-hidden="true"> →</span></a>
-  </article><article class="record-card record-card--notice">
-    <div class="record-card__head">
-      <h2 class="record-card__title"><a href="/safety/sn-00002/">Vanderhall North America LLC recalls all 2024 Brawley electric recreational off highway vehicles (ROV) due to potential loss of stability and electric shock hazards</a></h2>
-    </div>
-    <dl class="notice-facts">
-      <dt>Notice</dt><dd>SN-00002</dd>
-      <dt>Posted</dt><dd><time datetime="2025-03-03">March 3, 2025</time></dd>
-      
-      <dt>Affected</dt><dd>All 2024 Brawley models</dd>
-      <dt>Hazard</dt><dd>Software faults for rear steer mode and electrical shock risk.</dd>
-      <dt>Remedy</dt><dd>Affected Brawley vehicles should not be used or operated until the software has been updated. Vanderhall will provide a software update for customer download using the Vanderhall customer app.</dd>
-    </dl>
-    <a class="text-link" href="/safety/sn-00002/">Read this notice<span aria-hidden="true"> →</span></a>
-  </article></div>
+    <header class="page-header page-header--marked form-shell page-header--tight"><nav class="back-nav" aria-label="Breadcrumb"><a href="/"><span aria-hidden="true">← </span>Home</a></nav><h1>Find your reservation.</h1><p>Enter the email address on your reservation and Vanderhall will send you a link to your reservation status.</p></header>
+    <section class="section--tight form-shell form-stack">
+      <form class="lead-form" id="reservation-lookup-form" novalidate data-site-form data-form-id="reservation-lookup" data-endpoint="">
+  <div class="form-error-summary" role="alert" tabindex="-1" hidden></div>
+  <div class="field"><label for="reservation-lookup-form-email">Email address<span aria-hidden="true"> *</span><span class="sr-only"> required</span></label><input id="reservation-lookup-form-email" name="customer_email" type="email" inputmode="email" autocomplete="email" required aria-required="true" aria-describedby="reservation-lookup-form-email-help reservation-lookup-form-email-error"><span class="field__help" id="reservation-lookup-form-email-help">Use the address on your reservation.</span><span class="field__error" id="reservation-lookup-form-email-error"></span></div>
+  
+  <div class="honeypot" aria-hidden="true"><label>Company<input name="honeypot" tabindex="-1" autocomplete="off"></label></div>
+  <input type="hidden" name="render_timestamp" value="">
+  <input type="hidden" name="form_id" value="reservation-lookup">
+  <input type="hidden" name="page" value="">
+  <div class="form-submit-row"><button class="button button--primary" type="submit" data-submit-label="Email my link">Email my link</button></div>
+  
+  
+  <p class="form-key">Fields marked * are required.</p>
+  <p class="form-status" tabindex="-1" aria-live="polite"></p>
+</form>
+      <p class="form-note">Every request is answered the same way, whether or not the address matches a reservation, so this page never reveals who holds one. If a reservation is found, the link goes to that address and to no other.</p>
+      <p class="form-note">No email after a few minutes? Check your spam folder, then <a class="text-link" href="/contact/">contact Vanderhall<span aria-hidden="true"> →</span></a>.</p>
     </section>
   </div></main>
   <footer class="site-footer">

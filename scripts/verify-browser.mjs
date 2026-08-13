@@ -29,7 +29,7 @@ const noticeRoutes = ["/safety/sn-00003/", "/safety/sn-00001/", "/safety/sn-0000
 // V13's twelve did: a route that is not in the smoke pass, the axe pass, and the reveal coverage is a
 // route nobody is checking.
 const reservationRoutes = ["/brawley/reservation-status/", "/santarosa/reservation-status/"];
-const routes = ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/brawley/order/", ...reservationRoutes, "/santarosa/", "/santarosa/launch-edition/", "/carmel/", "/venice/", "/concepts/", ...conceptRoutes, "/experience/", "/blog/", ...articleRoutes, "/dealers/", "/contact/", "/careers/", ...careerRoutes, "/safety/", ...noticeRoutes, "/recommend-dealer/", "/dealer-inquiry/", "/owners/", "/privacy/", "/404/"];
+const routes = ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/brawley/order/", ...reservationRoutes, "/santarosa/", "/santarosa/launch-edition/", "/carmel/", "/venice/", "/concepts/", ...conceptRoutes, "/experience/", "/blog/", ...articleRoutes, "/dealers/", "/contact/", "/careers/", ...careerRoutes, "/safety/", ...noticeRoutes, "/reservation-status/", "/recommend-dealer/", "/dealer-inquiry/", "/owners/", "/privacy/", "/404/"];
 
 const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
 const page = await context.newPage();
@@ -118,7 +118,7 @@ await probeContext.close();
 // V17 adds the order page and all three notice details. All three, not one representative: each is a
 // different length of running legal copy with its own list and heading structure, and this is the one
 // place on the site where a visitor may be reading under stress.
-for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/brawley/order/", ...reservationRoutes, "/santarosa/", "/santarosa/launch-edition/", "/venice/", "/carmel/", "/recommend-dealer/", "/dealer-inquiry/", "/concepts/", ...conceptRoutes, "/owners/", "/dealers/", "/contact/", "/experience/", "/blog/", ...articleRoutes, "/careers/", "/careers/assembly-technician/", "/safety/", ...noticeRoutes, "/privacy/", "/404/"]) {
+for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/brawley/order/", ...reservationRoutes, "/santarosa/", "/santarosa/launch-edition/", "/venice/", "/carmel/", "/recommend-dealer/", "/dealer-inquiry/", "/concepts/", ...conceptRoutes, "/owners/", "/dealers/", "/contact/", "/experience/", "/blog/", ...articleRoutes, "/careers/", "/careers/assembly-technician/", "/safety/", ...noticeRoutes, "/reservation-status/", "/privacy/", "/404/"]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   await page.addScriptTag({ content: axe.source });
   const result = await page.evaluate(async () => axe.run(document, { resultTypes: ["violations"] }));
@@ -940,7 +940,7 @@ const REVEAL_SELECTOR = [
 ].join(", ");
 
 report.motion.coverage = {};
-for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/brawley/order/", ...reservationRoutes, "/carmel/", "/venice/", "/santarosa/launch-edition/", "/concepts/", "/concepts/indio/", "/owners/", "/dealers/", "/contact/", "/experience/", "/blog/", articleRoutes[0], "/careers/", "/careers/assembly-technician/", "/safety/", noticeRoutes[0], "/privacy/", "/recommend-dealer/", "/dealer-inquiry/"]) {
+for (const route of ["/", "/vehicles/", "/brawley/", "/brawley/gts/", "/brawley/order/", ...reservationRoutes, "/carmel/", "/venice/", "/santarosa/launch-edition/", "/concepts/", "/concepts/indio/", "/owners/", "/dealers/", "/contact/", "/experience/", "/blog/", articleRoutes[0], "/careers/", "/careers/assembly-technician/", "/safety/", noticeRoutes[0], "/privacy/", "/recommend-dealer/", "/dealer-inquiry/", "/reservation-status/"]) {
   await motionPage.goto(`${base}${route}`, { waitUntil: "networkidle" });
   await motionPage.waitForTimeout(400);
   const shape = await motionPage.evaluate(async (revealSelector) => {
@@ -1714,7 +1714,7 @@ if (report.noJs.vehiclesHref !== "/vehicles/") failures.push("No-JS Vehicles nav
 // V13: without JavaScript the Contact form shows every step and every branch, with nothing disabled, which is
 // exactly what this audit asserts. /dealers/ leaves the list because its only form is the locator's search,
 // which ships hidden.
-for (const route of ["/contact/", "/recommend-dealer/", "/dealer-inquiry/", "/brawley/order/", ...reservationRoutes]) {
+for (const route of ["/contact/", "/recommend-dealer/", "/dealer-inquiry/", "/brawley/order/", "/reservation-status/", ...reservationRoutes]) {
   await noJsPage.goto(`${base}${route}`, { waitUntil: "load" });
   const formAudit = await noJsPage.locator("[data-site-form]").last().evaluate((form) => {
     const controls = [...form.querySelectorAll("input:not([type=hidden]), select, textarea")];
@@ -1727,12 +1727,12 @@ await noJsContext.close();
 
 // V13: /dealers/ carries no submission form, and /contact/ is exercised by its own suite above, because a
 // three-step form cannot be completed by walking a flat list of required controls.
-for (const route of ["/recommend-dealer/", "/dealer-inquiry/", "/brawley/order/"]) {
+for (const route of ["/recommend-dealer/", "/dealer-inquiry/", "/brawley/order/", "/reservation-status/"]) {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   const form = page.locator("[data-site-form]").last();
   await form.locator("[name='render_timestamp']").evaluate((input) => { input.value = String(Date.now() - 3000); });
-  await form.getByRole("button", { name: /send request|submit inquiry|submit/i }).click();
+  await form.getByRole("button", { name: /send request|submit inquiry|submit|email my link/i }).click();
   const summaryFocused = await page.evaluate(() => document.activeElement?.classList.contains("form-error-summary"));
   const firstAnchor = form.locator(".form-error-summary a").first();
   const target = await firstAnchor.getAttribute("href");
@@ -1754,7 +1754,7 @@ for (const route of ["/recommend-dealer/", "/dealer-inquiry/", "/brawley/order/"
     }
   }
   await form.locator("[name='render_timestamp']").evaluate((input) => { input.value = String(Date.now() - 3000); });
-  const submit = form.getByRole("button", { name: /send request|submit inquiry|submit/i });
+  const submit = form.getByRole("button", { name: /send request|submit inquiry|submit|email my link/i });
   await submit.focus();
   await page.keyboard.press("Enter");
   const notConnected = await form.locator(".form-status").innerText() === "Online submissions are not open yet. Email inquiry@vanderhall.com and the team will follow up.";
@@ -3190,6 +3190,35 @@ for (const route of reservationRoutes) {
   if (trackMobile.rowTops !== 4 || !trackMobile.noHorizontalScroll) failures.push(`${route}: the tracker must become a ladder at 390 with no horizontal scroll: ${JSON.stringify(trackMobile)}`);
   if (!statuses.length || statuses.some((status) => status !== expected)) failures.push(`${route}: every reservation action must answer that submissions are not open: ${JSON.stringify(statuses)}`);
 }
+// V21-A. The public lookup, and the one thing about it that is not a layout question: it must not be
+// able to tell anybody whether an address holds a reservation. Two addresses are submitted, one that
+// matches the fixture customer and one that cannot match anything, and the page must answer them
+// identically down to the character. Today both answers come from the null-endpoint branch, so this
+// passes trivially; it is here so that it stops passing the moment somebody wires a real endpoint and
+// lets the response vary, which is exactly when the mistake would otherwise ship.
+await page.setViewportSize({ width: 1280, height: 900 });
+const lookupAnswers = [];
+for (const address of ["jordan.avery@example.com", "nobody.here.at.all@example.com"]) {
+  await page.goto(`${base}/reservation-status/`, { waitUntil: "networkidle" });
+  const form = page.locator("[data-site-form]").first();
+  await form.locator("[name='customer_email']").fill(address);
+  await form.locator("[name='render_timestamp']").evaluate((input) => { input.value = String(Date.now() - 3000); });
+  await form.locator("button[type='submit']").click();
+  lookupAnswers.push(await form.locator(".form-status").innerText());
+}
+report.reservationStatus.lookup = {
+  answers: lookupAnswers,
+  identical: lookupAnswers.length === 2 && lookupAnswers[0] === lookupAnswers[1],
+  // One field only. Every extra identifying field sharpens the lookup into a question about a person.
+  visibleFields: await page.locator("[data-site-form] input:not([type=hidden]):not([name=honeypot]), [data-site-form] select, [data-site-form] textarea").count(),
+};
+if (!report.reservationStatus.lookup.identical || !lookupAnswers[0]) {
+  failures.push(`/reservation-status/ must answer a matching and a non-matching address identically: ${JSON.stringify(lookupAnswers)}`);
+}
+if (report.reservationStatus.lookup.visibleFields !== 1) {
+  failures.push(`/reservation-status/ must ask for one field only, found ${report.reservationStatus.lookup.visibleFields}`);
+}
+
 // The paint picker is Brawley's alone, and every option must be reachable and identified by name as
 // well as by colour: a chip a visitor cannot see must still be a choice they can make.
 await page.setViewportSize({ width: 1440, height: 1000 });

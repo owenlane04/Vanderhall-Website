@@ -609,6 +609,18 @@ export const brawleyOrderForm = (id = "brawley-order-form") => `${formOpen(id, "
   ${integrationFields("brawley-order", "Submit order")}
 </form>`;
 
+// V21-A. The public reservation lookup, reached from the footer's Connect column. One field, because
+// one field is the whole request: the visitor asks Vanderhall to mail the tokenized link to the address
+// already on their reservation, and everything else about them is already in the portal.
+//
+// Nothing on this page may reveal whether an address matches a reservation. That constraint is why the
+// form asks for an email and not a name, a VIN, or an order number, and it is why the page's own copy
+// promises the same outcome either way. See the note beside it in build.mjs.
+export const reservationLookupForm = (id = "reservation-lookup-form") => `${formOpen(id, "reservation-lookup")}
+  <div class="field">${label(`${id}-email`, "Email address", true)}<input id="${id}-email" name="customer_email" type="email" inputmode="email" autocomplete="email" required aria-required="true" aria-describedby="${id}-email-help ${id}-email-error"><span class="field__help" id="${id}-email-help">Use the address on your reservation.</span>${error(`${id}-email`)}</div>
+  ${integrationFields("reservation-lookup", "Email my link")}
+</form>`;
+
 export const recommendDealerForm = (id = "recommend-dealer-form") => `${formOpen(id, "recommend-dealer")}
   <div class="field">${label(`${id}-dealer-name`, "Recommended Dealer Name", true)}<input id="${id}-dealer-name" name="recommended_dealer_name" autocomplete="organization" required aria-required="true">${error(`${id}-dealer-name`)}</div>
   <div class="field">${label(`${id}-website`, "Website", true)}<input id="${id}-website" name="website" type="url" inputmode="url" autocomplete="url" required aria-required="true" aria-describedby="${id}-website-help ${id}-website-error"><span class="field__help" id="${id}-website-help">Include https://</span>${error(`${id}-website`)}</div>
@@ -767,7 +779,11 @@ export const footer = () => `<footer class="site-footer">
           under Concepts, and Blog leaves the footer entirely because the blog is part of Experience. */""}
     <div><h2>Vehicles</h2>${models.map((model) => `<a href="/${model.slug}/">${model.name}</a>`).join("")}<a href="/concepts/">Concepts</a><a href="/experience/">Experience</a></div>
     <div><h2>Owners</h2><a href="/owners/">Owner manuals</a><a href="https://shop.vanderhallusa.com/">Parts and apparel</a>${APP_LINKS.map(([label, href]) => `<a href="${href}">${escapeHtml(label)}</a>`).join("")}</div>
-    <div><h2>Connect</h2><a href="/dealers/">Dealers</a><a href="/contact/">Contact</a><a class="footer-email" href="mailto:${INQUIRY_EMAIL}">${escapeHtml(INQUIRY_EMAIL)}</a><a href="/recommend-dealer/">Recommend a dealer</a><a href="/dealer-inquiry/">Become a dealer</a></div>
+    ${/* V21-A: Reservation status joins Connect, after the address and before the two dealer-recruitment
+          links, so the four customer-facing destinations group together and the trade pair closes the
+          column. Owen asked for it on 2026-08-13: it is how somebody who has already reserved gets back
+          to their own status page without hunting for the email Vanderhall sent them. */""}
+    <div><h2>Connect</h2><a href="/dealers/">Dealers</a><a href="/contact/">Contact</a><a class="footer-email" href="mailto:${INQUIRY_EMAIL}">${escapeHtml(INQUIRY_EMAIL)}</a><a href="/reservation-status/">Reservation status</a><a href="/recommend-dealer/">Recommend a dealer</a><a href="/dealer-inquiry/">Become a dealer</a></div>
     <div class="footer-follow"><h2>Follow</h2>${SOCIAL_LINKS.map(([label, href]) => `<a href="${href}" aria-label="${BRAND} on ${escapeHtml(label)}">${escapeHtml(label)}</a>`).join("")}</div>
   </div>
   <div class="footer-legal">

@@ -22,6 +22,11 @@ export const FORM_ENDPOINTS = Object.freeze({
   // why they are separate keys: a contact update and a dealer reassignment are not the same request
   // and must not be able to inherit each other's endpoint. Each key is rendered on both reservation
   // pages except the payment one, which exists on the Brawley route alone.
+  // The public lookup at /reservation-status/. A different kind of request from the four below it:
+  // those write to a reservation the visitor has already proved they hold by arriving on its link,
+  // and this one is how they get that link in the first place. It must answer identically whether or
+  // not the address matches a reservation, or the page becomes a way to ask Vanderhall who owns one.
+  "reservation-lookup": null,
   "reservation-contact": null,
   "reservation-selection": null,
   "reservation-dealer": null,
