@@ -9,6 +9,12 @@
 
   --paper: #0E0E10;
   --ink: #F4F4F5;
+  /* V22. True white, and the one place on this site that uses it. --ink is #F4F4F5, which is the right
+     reading colour and the wrong brand colour: the six footer social marks ship under terms that name
+     white as an approved rendering, and an off-white is a very light grey. Grey is approved by one of
+     those six brands and by none of the other five, so this token exists to keep that row honest. Do
+     not use it for type. */
+  --brand-white: #FFFFFF;
   --accent: #E08A55;
   --danger: #FF9A8F;
 
@@ -858,17 +864,44 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
    the top border it already had. That is a distinction, not a panel. */
 .site-footer { display: grid; gap: var(--sf-m); padding: var(--sf-l) var(--gutter) var(--sf-m); border-top: var(--hairline) solid var(--line); background: var(--surface-1); }
 .footer-links { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sf-m); width: min(100%, var(--w-content)); margin-inline: auto; }
-.footer-links > div { display: flex; flex-direction: column; align-items: center; gap: var(--s-3); text-align: center; }
+/* V22, D-V22-5. Left, not centred. With Follow gone these are three columns of different lengths, and
+   centred ragged columns over a legal band that runs hard left from the content edge gave the footer
+   two conflicting alignments. Left-aligning puts every heading, every link, the lockup and the
+   copyright line on one edge, which is the whole of what "more professional" asked for here. */
+.footer-links > div { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s-3); text-align: left; }
 .footer-links h2 { color: var(--text-tertiary); }
 .footer-links a { color: var(--text-secondary); font-size: var(--fs-body-sm); text-decoration: none; }
 .footer-links a:hover { color: var(--text-primary); }
 .footer-legal { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: var(--s-3) var(--s-5); width: min(100%, var(--w-content)); margin-inline: auto; border-top: var(--hairline) solid var(--ink-24); padding-top: var(--s-5); color: var(--text-tertiary); font-size: var(--fs-caption); text-align: left; }
 .footer-lockup { width: auto; height: 1.5rem; }
 
+/* V22 restores .footer-social, which V11-I retired when the six destinations became a text column.
+   They are glyphs in their own centred strip again, so they need their own rules back.
+
+   Three numbers here are brand requirements, not taste, and the browser suite asserts all three:
+
+   - The glyph renders at 30px. Instagram's guidelines set a hard floor of 29x29px, the highest of the
+     six (YouTube asks 20px, Facebook 16px), so 30 clears every one of them at once.
+   - The anchor is 44x44. That is the WCAG 2.5.5 target size, and the padding it puts around the mark
+     doubles as brand clear space.
+   - The gap is --s-4, 16px, and it is 16 rather than 12 for a measured reason. X's clear-space rule is
+     "minimum equal to the logo's width on all sides", so adjacent marks want a glyph width between
+     them: 16px of gap plus the 7px of anchor padding on each side gives exactly 30px, edge to edge. At
+     12px it came to 26px and the browser suite failed it. The row still fits one line on a 390px
+     phone (6x44 + 5x16 = 344px inside a 350px measure) and wraps rather than overflows below that.
+
+   Colour is pure white, deliberately, and NOT the --text-secondary the retired text links used. Grey
+   is an approved rendering for exactly one of these six brands (Instagram, "any solid colour"); for
+   Facebook, X, LinkedIn and YouTube the approved single-colour options are white or black only. A
+   dimmed white is a grey, so opacity on the resting state is out for the same reason. Hover moves the
+   whole anchor's background instead, which changes what is behind the mark and never the mark. */
+.footer-social { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: var(--s-4); width: min(100%, var(--w-content)); margin: 0 auto; padding: 0; list-style: none; }
+.footer-social a { display: flex; align-items: center; justify-content: center; width: 2.75rem; height: 2.75rem; border-radius: 50%; color: var(--brand-white); transition: background-color 120ms ease; }
+.footer-social a:hover { background: var(--ink-24); }
+.footer-social__glyph { display: block; width: 1.875rem; height: 1.875rem; }
+
 /* V10 footer rows. The list resets its own styling rather than relying on a global reset the site
-   does not have; the policy page's lists are the only ones that want markers.
-   V11-I retires .footer-social: the six destinations are a fourth column of .footer-links now, so
-   they inherit that column's type and spacing and need no rules of their own. */
+   does not have; the policy page's lists are the only ones that want markers. */
 .footer-legal__links { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--s-3) var(--s-5); margin: 0 0 0 auto; padding: 0; list-style: none; }
 .footer-legal__links a { color: var(--text-tertiary); text-decoration: none; }
 .footer-legal__links a:hover { color: var(--text-primary); }
@@ -928,7 +961,8 @@ input:hover, select:hover, textarea:hover { border-color: var(--ink); }
 }
 
 @media (min-width: 1024px) {
-  .footer-links { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  /* V22: the footer's 4-column rule is gone with the Follow column. Three columns settle at 768px
+     and stay there, so there is no wider footer grid to declare here. */
   .brand img { height: 1.75rem; }
   .desktop-nav { display: flex; }
   .menu-button { display: none; }

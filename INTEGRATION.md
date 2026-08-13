@@ -434,6 +434,61 @@ Confirm **mailbox ownership, monitoring, and response responsibility** before la
 choice knowingly accepts ordinary address scraping in exchange for the access Owen asked for. It is a
 convenience route and not a submission endpoint.
 
+### `social-icon-rights` (Vanderhall marketing, via John)
+
+**V22 replaced the footer's six social text links with the platforms' own glyphs.** Four of the six are
+covered by permission the platform publishes for exactly this use and need nothing further. Two are not,
+and those two are what keeps this entry open.
+
+Four files (Facebook, Instagram, X, LinkedIn) are the platforms' own brand-centre artwork. **Two are not:
+TikTok and YouTube ship the CC0 Simple Icons glyph**, because both official packs were downloaded and
+neither contains a single-colour mark. TikTok's is multi-colour by design and its only vectors are
+wordmark buttons; YouTube's one live official vector is the full wordmark lockup. Deriving a monochrome
+glyph from either means editing the artwork, which every one of these licences forbids. CC0 settles the
+copyright in the drawing and grants no trademark permission, which is part of why both remain open below.
+
+Every file is recorded by source URL and retrieval date in `assets/brand/social/RIGHTS.md`.
+`src/data/social-icons.mjs` reads those files at build time rather than carrying pasted path data, so the
+artwork in the HTML derives from the manifested file and a missing file fails the build. Nothing inside
+the artwork is edited, including colour: the four official files were downloaded as their white variants,
+and the two CC0 files carry no fill and inherit `currentColor`, which the stylesheet sets to white. White
+is an approved rendering for all six; grey is approved by one (Instagram), which is why the browser suite
+asserts the computed fill is `rgb(255, 255, 255)` and `check-content.mjs` rejects any other fill value in
+the row.
+
+LinkedIn is delivered as a PNG. Its brand centre ships the "in" bug as PNG and EPS only, and tracing one
+into a vector is the alteration the licence forbids, so the published white raster ships as-is.
+
+Settled, no action needed:
+
+- **Facebook.** "You may also use the 'f' logo to drive to your presence on Facebook", and the correct-use
+  examples include a website footer. White secondary logo.
+- **Instagram.** "Use the glyph to point to your presence on Instagram." Any solid colour permitted.
+- **X.** The brand guide exists to help partners "signpost where your audience can find you". Black or
+  white only. Permission is revocable at X's discretion.
+- **LinkedIn.** The **"in" bug only**, expressly permitted "as a hyperlink to your... company page" and "in
+  a series of social media icons". The **LinkedIn wordmark is not permitted** and must never replace it;
+  `check-content.mjs` fails the build if the manifest names a wordmark asset. This corrects a V11-I note
+  that had recorded LinkedIn as prohibited outright: that restriction is on the wordmark, not the bug.
+
+**Open, and both are asks rather than build items:**
+
+- **YouTube.** Its guidelines illustrate this exact use ("Use the YouTube Icon within a social Icon
+  lineup", and an icon may be a link when "the destination URL is a YouTube channel"), but the same
+  document says every use of YouTube brand elements "must be approved" through the Brand Use Request Form.
+  Nobody has submitted it. **To clear: submit the form for the footer icon and record the response.**
+- **TikTok.** The only public statement is "You may not use TikTok logos, icons, symbols, or designs,
+  without our prior written permission", and the detailed brandbook is behind a login, so there is no
+  published permission to rely on. The delivered glyph is CC0 rather than TikTok's own file, which
+  settles the drawing's copyright and nothing about the trademark. **To clear: request written
+  permission for the footer icon and record it.**
+
+Neither ask blocks the current build, and the exposure is the ordinary one every company footer carries.
+Both are recorded here rather than assumed away, and both sit on the same unresolved-rights list as
+`brawley-film` and the safety notices. If either is refused, that platform's glyph comes out of
+`SOCIAL_GLYPH_FILES` and its destination out of `SOCIAL_LINKS`, and the independent record in
+`check-content.mjs` has to be changed in the same commit or the build fails.
+
 ### `brawley-film` (Vanderhall)
 
 **The film is delivered.** Owen instructed delivery in chat on 2026-08-06 and the homepage hero now carries

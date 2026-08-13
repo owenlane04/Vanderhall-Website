@@ -9,6 +9,12 @@
 
   --paper: #0E0E10;
   --ink: #F4F4F5;
+  /* V22. True white, and the one place on this site that uses it. --ink is #F4F4F5, which is the right
+     reading colour and the wrong brand colour: the six footer social marks ship under terms that name
+     white as an approved rendering, and an off-white is a very light grey. Grey is approved by one of
+     those six brands and by none of the other five, so this token exists to keep that row honest. Do
+     not use it for type. */
+  --brand-white: #FFFFFF;
   --accent: #E08A55;
   --danger: #FF9A8F;
 

@@ -92,7 +92,7 @@ const combinedHtml = builtPages.map((page) => page.text).join("\n");
 // hero button, leaving only the way back, which moved into the hero content. The word cascade and its
 // .word spans went with the scrubbed reveal path in V12-C. And .gts-note lost its only caller when the
 // purchase page stopped printing one disclaimer twice.
-for (const token of ["data-missing", "MISSING:", "data-vehicles-trigger", "data-mega-panel", "data-open-lead", "data-lead-sheet", "data-filter-pill", "class=\"chapter", "concepts-theme", "stat-band", "concept-feature", "concept-wide", "concept-tile", "card-grid--vehicles", "card-grid--related", "class=\"gallery", "chip--status", "faq-list", "concept-ring", "row-links", "unit-toggle", "data-unit", "data-spec-table", "unit-metric", "vhw.units", "spec-toolbar", "concept-back", "resource-row", "pathway", "class=\"ambient", "ambient__", "footer-social", "class=\"model-bar", "model-bar__", "class=\"word\"", "is-split", "data-split",
+for (const token of ["data-missing", "MISSING:", "data-vehicles-trigger", "data-mega-panel", "data-open-lead", "data-lead-sheet", "data-filter-pill", "class=\"chapter", "concepts-theme", "stat-band", "concept-feature", "concept-wide", "concept-tile", "card-grid--vehicles", "card-grid--related", "class=\"gallery", "chip--status", "faq-list", "concept-ring", "row-links", "unit-toggle", "data-unit", "data-spec-table", "unit-metric", "vhw.units", "spec-toolbar", "concept-back", "resource-row", "pathway", "class=\"ambient", "ambient__", "class=\"model-bar", "model-bar__", "class=\"word\"", "is-split", "data-split",
   // V13 retires the generic dealer lead form. Its identity is banned rather than merely unused: the endpoint
   // map is keyed on the form ID, so markup carrying the old one would route a materially different form's
   // submissions to whatever `request-info` eventually points at.
@@ -115,7 +115,7 @@ const bundleCss = await readFile(resolve(root, "styles/bundle.css"), "utf8");
 // exactly what this file is full of, and a check that forbids writing down the reason would push the
 // reason out of the code.
 const bundleRules = bundleCss.replace(/\/\*[\s\S]*?\*\//g, "");
-for (const token of [".pathway", ".ambient", ".footer-social", ".model-bar", ".is-split", ".word", ".gts-note", ".sample-note", ".sample-tag", ".lineup-past", ".post-card__category", ".article-header__category", ".locator__map-message", ".locator__mode", ".locator__modes", ".resource-group--media", ".resource-group__media", ".campaign-band"]) {
+for (const token of [".pathway", ".ambient", ".model-bar", ".is-split", ".word", ".gts-note", ".sample-note", ".sample-tag", ".lineup-past", ".post-card__category", ".article-header__category", ".locator__map-message", ".locator__mode", ".locator__modes", ".resource-group--media", ".resource-group__media", ".campaign-band"]) {
   if (new RegExp(`\\${token}[\\s{,:_]`).test(bundleRules)) failures.push(`Retired component styles remain in the bundle: ${token}`);
 }
 // V12-C. The reveals are no longer driven by view() at all: they are IntersectionObserver-triggered
@@ -1307,7 +1307,9 @@ const TRACKING_PARAMS = ["_gl=", "_ga=", "_gcl_au=", "utm_source=", "utm_medium=
 const EXPECTED_FOOTER_LINKS = [
   ["Facebook", "https://www.facebook.com/vanderhallusa/"],
   ["Instagram", "https://www.instagram.com/vanderhall/"],
-  ["Twitter", "https://twitter.com/vanderhallusa"],
+  // V22, D-V22-4. Twitter became X: the glyph, the accessible name and the destination move together.
+  // This is the independent copy, so it is changed here deliberately and not by reading the source.
+  ["X", "https://x.com/vanderhallusa"],
   ["LinkedIn", "https://www.linkedin.com/company/vanderhall"],
   ["TikTok", "https://www.tiktok.com/@vanderhallusa"],
   ["YouTube", "https://www.youtube.com/@VanderhallUSA"],
@@ -1321,9 +1323,20 @@ const EXPECTED_FOOTER_LINKS = [
 ];
 const EXPECTED_SOCIAL = 6;
 const EXPECTED_LEGAL = 3;
-// Vehicles, Owners, Connect, Follow. V15-G, Owen on 2026-08-06: "we have Vehicles, Owners, Connect,
-// and Follow. Those are the only four." Experience folds into the Vehicles column under Concepts.
-const EXPECTED_FOOTER_COLUMNS = 4;
+// V22, D-V22-1. Three columns now: Vehicles, Owners, Connect. V15-G's fourth, Follow, is retired
+// because its six destinations became the glyph strip below the columns, not because anything left the
+// footer. Every one of them is still asserted, by URL, further down.
+const EXPECTED_FOOTER_COLUMNS = 3;
+// The six glyph files, by name. Read from the same module the build reads, because here the shared
+// constant is the point: this list is asserting that the delivered artwork came from a file on disk
+// with an entry in RIGHTS.md, so it has to name the same files the renderer opened. The independent
+// record that protects against silent deletion is EXPECTED_FOOTER_LINKS above, which is written out.
+const { SOCIAL_GLYPH_FILES } = await import("../src/data/social-icons.mjs");
+// LinkedIn only, and asserted as a count so a second raster cannot appear unnoticed. Its brand centre
+// publishes the "in" bug as PNG and EPS with no SVG, and tracing one would be the alteration these
+// licences forbid, so the published white PNG ships as-is.
+const RASTER_GLYPHS = Object.values(SOCIAL_GLYPH_FILES).filter((file) => file.endsWith(".png")).length;
+if (RASTER_GLYPHS !== 1) failures.push(`Expected exactly one raster social glyph (LinkedIn), found ${RASTER_GLYPHS}`);
 // The generator must agree with the record, in both directions, so neither can drift alone.
 if (JSON.stringify([...SOCIAL_LINKS, ...APP_LINKS, ...LEGAL_LINKS]) !== JSON.stringify(EXPECTED_FOOTER_LINKS)) {
   failures.push("The footer's link data no longer matches this script's independent record of Owen's destinations");
@@ -1336,36 +1349,85 @@ for (const page of builtPages) {
   for (const [label, href] of FOOTER_LINKS) {
     if (!footer.includes(`href="${href}"`)) failures.push(`${relative}: the footer is missing the ${label} destination ${href}`);
   }
-  // V11-I. The six destinations are a fourth column of .footer-links now, not a horizontal caps row
-  // above the legal band, so they are matched in the column's own shape.
+  // V22, D-V22-1. The six destinations are a glyph strip between the columns and the legal band.
   const socialItems = (footer.match(/<a href="[^"]+" aria-label="Vanderhall on /g) || []).length;
   if (socialItems !== EXPECTED_SOCIAL) failures.push(`${relative}: expected ${EXPECTED_SOCIAL} social links, found ${socialItems}`);
-  const columns = (footer.match(/<div class="footer-links">([\s\S]*?)<\/div>\s*<div class="footer-legal">/) || [])[1];
+  const columns = (footer.match(/<div class="footer-links">([\s\S]*?)<\/div>\s*<ul class="footer-social">/) || [])[1];
   const columnCount = columns ? (columns.match(/<h2>/g) || []).length : 0;
   if (columnCount !== EXPECTED_FOOTER_COLUMNS) failures.push(`${relative}: expected ${EXPECTED_FOOTER_COLUMNS} footer columns, found ${columnCount}`);
-  if (!footer.includes('<div class="footer-follow"><h2>Follow</h2>')) failures.push(`${relative}: the social destinations must head their own Follow column`);
-  // The two app links stay in the Owners column and out of the Follow one. sameAs is the
-  // organization's own profiles, and an app listing is a product page.
-  const followColumn = (footer.match(/<div class="footer-follow">([\s\S]*?)<\/div>/) || [])[1] || "";
-  for (const [label, href] of EXPECTED_FOOTER_LINKS.slice(EXPECTED_SOCIAL, EXPECTED_SOCIAL + 2)) {
-    if (followColumn.includes(href)) failures.push(`${relative}: the ${label} link belongs in the Owners column, not in Follow`);
+  // The retired shape, banned by name in both directions so it cannot come back by accident.
+  if (footer.includes('class="footer-follow"')) failures.push(`${relative}: the retired Follow column remains`);
+  if (footer.includes("<h2>Follow</h2>")) failures.push(`${relative}: the retired Follow heading remains`);
+  const socialRow = (footer.match(/<ul class="footer-social">([\s\S]*?)<\/ul>/) || [])[1];
+  if (!socialRow) { failures.push(`${relative}: the footer has no social glyph row`); }
+  else {
+    // Order is asserted, not just membership: the row is read left to right and Owen chose this one.
+    const rowNames = [...socialRow.matchAll(/aria-label="Vanderhall on ([^"]+)"/g)].map((match) => match[1]);
+    const expectedNames = EXPECTED_FOOTER_LINKS.slice(0, EXPECTED_SOCIAL).map(([label]) => label);
+    if (JSON.stringify(rowNames) !== JSON.stringify(expectedNames)) {
+      failures.push(`${relative}: the social row must read ${expectedNames.join(", ")}, found ${rowNames.join(", ") || "nothing"}`);
+    }
+    // Exactly one glyph per anchor, and no visible text anywhere in the row. A stray character here
+    // would be a label the visitor can see but the accessible name does not contain, which is the
+    // WCAG 2.5.3 problem V11-I's text links were shaped to avoid.
+    const anchors = socialRow.match(/<a\b[\s\S]*?<\/a>/g) || [];
+    if (anchors.length !== EXPECTED_SOCIAL) failures.push(`${relative}: expected ${EXPECTED_SOCIAL} anchors in the social row, found ${anchors.length}`);
+    for (const anchor of anchors) {
+      const glyphs = (anchor.match(/<svg\b/g) || []).length + (anchor.match(/<img\b/g) || []).length;
+      if (glyphs !== 1) failures.push(`${relative}: each social anchor carries exactly one glyph, found ${glyphs}`);
+      // Silent either way: a vector is aria-hidden, a raster carries an empty alt. An <img> with no
+      // alt attribute at all would announce its filename, so the empty one is required, not optional.
+      const silent = /aria-hidden="true"/.test(anchor) || /<img\b[^>]*\salt=""/.test(anchor);
+      if (!silent) failures.push(`${relative}: the glyph must be silent so the anchor's label is the accessible name`);
+      const visible = anchor.replace(/<[^>]+>/g, "").trim();
+      if (visible) failures.push(`${relative}: the social row must carry no visible text, found "${visible}"`);
+    }
+    // Colour is not decoration here. Four of the six brands approve white or black only, so a vector
+    // that stops inheriting currentColor has left the approved set. The computed white is asserted in
+    // the browser suite; this is the markup half. LinkedIn is excluded by count because its brand
+    // centre ships no vector: it is delivered as the published white raster and has no fill to set.
+    const vectorGlyphs = EXPECTED_SOCIAL - RASTER_GLYPHS;
+    const inheriting = (socialRow.match(/fill="currentColor"/g) || []).length;
+    if (inheriting !== vectorGlyphs) failures.push(`${relative}: every vector glyph must inherit currentColor, found ${inheriting} of ${vectorGlyphs}`);
+    const rasters = (socialRow.match(/<img\b/g) || []).length;
+    if (rasters !== RASTER_GLYPHS) failures.push(`${relative}: expected ${RASTER_GLYPHS} raster glyph in the social row, found ${rasters}`);
+    // The brand files keep their own published fills, so this is what actually holds the colour rule:
+    // every fill in the row must be white, currentColor, or none. Grey is approved by one of the six
+    // brands and by none of the other five, and a brand's own colour (Facebook blue, YouTube red) is
+    // approved only in the full-colour treatment this row does not use. Anything else means somebody
+    // recoloured a trademark.
+    const ALLOWED_FILLS = new Set(["currentcolor", "none", "white", "#fff", "#ffffff", "#fffffe"]);
+    for (const [, value] of socialRow.matchAll(/fill="([^"]*)"/g)) {
+      if (!ALLOWED_FILLS.has(value.trim().toLowerCase())) {
+        failures.push(`${relative}: the social row carries fill="${value}"; these marks may only be rendered white`);
+      }
+    }
+    // The app links are Owners-column business. sameAs is the organization's own profiles and an app
+    // store listing is a product page, so neither may drift into the social row.
+    for (const [label, href] of EXPECTED_FOOTER_LINKS.slice(EXPECTED_SOCIAL, EXPECTED_SOCIAL + 2)) {
+      if (socialRow.includes(href)) failures.push(`${relative}: the ${label} link belongs in the Owners column, not the social row`);
+    }
   }
   const legalItems = ((footer.match(/<ul class="footer-legal__links">([\s\S]*?)<\/ul>/) || [])[1] || "").match(/<li>/g) || [];
   if (legalItems.length !== EXPECTED_LEGAL) failures.push(`${relative}: expected ${EXPECTED_LEGAL} legal links, found ${legalItems.length}`);
-  // The visible word must be inside the longer accessible name, or the label the visitor reads is not
-  // the label they can speak. WCAG 2.5.3, asserted rather than assumed.
-  for (const [label] of EXPECTED_FOOTER_LINKS.slice(0, EXPECTED_SOCIAL)) {
-    if (!footer.includes(`aria-label="Vanderhall on ${label}">${label}</a>`)) failures.push(`${relative}: ${label}'s accessible name must contain its visible text`);
-  }
-  // V11-I shipped text, not glyphs, and this is the check that keeps that decision from being
-  // reversed by accident. LinkedIn's mark was removed from Simple Icons at v14.0.0 after Microsoft's
-  // legal notice and LinkedIn's own brand guidelines do not permit third-party use; Twitter's left
-  // with the X rebrand, so the collection's glyph is X while the destination and the label are
-  // Twitter. Four marks and two bare words would read as unfinished, and reinstating LinkedIn's from
-  // an older release would mean publishing artwork its owner asked to have withdrawn. Owen chose all
-  // six as text on 2026-08-05. An inline SVG appearing in this column means somebody has re-opened a
-  // rights question, and it should fail until they have answered it.
-  if (/<div class="footer-follow">[\s\S]*?<svg/.test(footer)) failures.push(`${relative}: a glyph appeared in the Follow column; the platform artwork rights behind it are not cleared`);
+  // V22 retires two V11-I guards, and it is worth saying why each one goes.
+  //
+  // The first asserted that each social link's visible word sat inside its longer accessible name
+  // (WCAG 2.5.3, Label in Name). It went with the words: a glyph has no visible text to disagree with
+  // the name, and the replacement above is stricter, requiring that the row carry no visible text at
+  // all so the aria-label is the only name there is.
+  //
+  // The second failed the build if any <svg> appeared in this column. It was a rights hold, not a
+  // design rule: V11-I recorded that LinkedIn's mark had been pulled from Simple Icons after
+  // Microsoft's legal notice and that Twitter's glyph had gone with the X rebrand, so it froze the
+  // column as text until somebody answered the question properly. V22-plan.md section 2 is that
+  // answer, per platform, against each brand's own published terms, and it overturns both premises.
+  // LinkedIn restricts its WORDMARK; the "in" bug is expressly permitted "as a hyperlink to your...
+  // company page" and "in a series of social media icons". Twitter's missing glyph stopped being a
+  // problem when the platform became X and published one. What replaces the ban is narrower and
+  // harder to satisfy: artwork may appear, but only artwork traceable to a file this build read off
+  // disk and a manifest entry naming its source. Hand-authored path data cannot pass it.
+  // The manifest itself is checked once, after this loop, rather than on all forty pages.
 
   // V13, Q-V13-26. The complete inquiry address, visible as text, in the Connect column, on every page. The
   // exact href matters as much as the label: a subject, a body, a tracking query, or a JavaScript handler
@@ -1388,6 +1450,52 @@ for (const page of builtPages) {
   if (!footer.includes('<a href="/concepts/">Concepts</a><a href="/experience/">Experience</a>')) failures.push(`${relative}: Experience must sit under Concepts in the Vehicles column`);
   if (footer.includes('href="/blog/"')) failures.push(`${relative}: the footer must not carry a Blog link`);
   if (footer.includes("<h2>Experience</h2>")) failures.push(`${relative}: the retired Experience footer column remains`);
+  // V22. Owen on 2026-08-13, about the band under the new glyph row: "The bottom section looks great
+  // dont change any of that." So it is pinned, not merely left alone. The lockup, the Provo line and
+  // the three legal links keep their exact V20 markup and order, and a change to any of them fails
+  // here rather than being noticed in a screenshot later.
+  const legalBand = (footer.match(/<div class="footer-legal">([\s\S]*?)<\/div>\s*<\/footer>/) || [])[1];
+  if (!legalBand) failures.push(`${relative}: the footer legal band is missing`);
+  else {
+    if (!legalBand.includes('<img class="footer-lockup" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" width="231" height="24"')) {
+      failures.push(`${relative}: the legal band's lockup must keep its V20 source and intrinsic size`);
+    }
+    if (!/<span>© 2026 Vanderhall\. Hand-built in Provo, Utah\.<\/span>/.test(legalBand)) failures.push(`${relative}: the legal band's copyright line changed`);
+    if (legalBand.includes("<svg")) failures.push(`${relative}: the social glyphs must sit above the legal band, not inside it`);
+  }
+}
+// V22, D-V22-7. The rights manifest, checked once. Every glyph the build inlined has to be accounted
+// for by name in assets/brand/social/RIGHTS.md, and each entry has to carry a source URL, because an
+// entry that names a file without saying where the artwork came from records nothing worth having.
+// This is the guard that makes "only artwork with stated terms" enforceable rather than aspirational,
+// and it closes the footer's slice of the long-standing missing-rights-manifest open item.
+const socialRightsPath = resolve(root, "assets/brand/social/RIGHTS.md");
+let socialRights = "";
+try {
+  socialRights = await readFile(socialRightsPath, "utf8");
+} catch {
+  failures.push("assets/brand/social/RIGHTS.md is missing: footer brand artwork ships with a manifest or it does not ship");
+}
+if (socialRights) {
+  for (const [platform, file] of Object.entries(SOCIAL_GLYPH_FILES)) {
+    if (!socialRights.includes(file)) failures.push(`RIGHTS.md does not account for ${file} (${platform})`);
+  }
+  const sourceUrls = (socialRights.match(/https?:\/\/\S+/g) || []).length;
+  if (sourceUrls < Object.keys(SOCIAL_GLYPH_FILES).length) {
+    failures.push(`RIGHTS.md must cite a source URL for each of the ${Object.keys(SOCIAL_GLYPH_FILES).length} glyphs, found ${sourceUrls} URLs`);
+  }
+  // The one mark named as forbidden, because it is the one a well-meaning edit would reach for:
+  // LinkedIn permits the "in" bug here and does not permit the LinkedIn wordmark. The test is on
+  // delivered FILENAMES rather than on prose, which the first version got wrong. It matched the word
+  // "wordmark" anywhere in this file and so failed on the sentence explaining that the wordmark is
+  // banned, which is the one sentence that most needs to stay.
+  const linkedinFile = SOCIAL_GLYPH_FILES.linkedin ?? "";
+  if (/wordmark|linkedin-logo/i.test(linkedinFile)) {
+    failures.push(`RIGHTS.md ships ${linkedinFile}; only the 'in' bug is permitted for a footer link`);
+  }
+  if (!/in-?bug|in-logo/i.test(socialRights)) {
+    failures.push("RIGHTS.md must record LinkedIn's artwork as the 'in' bug, which is the only mark permitted for this use");
+  }
 }
 // Owen pasted these URLs with his own session's analytics identifiers attached. Publishing one would
 // hand every visitor a copy of them, so the ban is on the whole built tree and on the source that
@@ -1398,7 +1506,9 @@ for (const path of textFiles.filter((file) => !CHECK_SCRIPTS.includes(file) && !
     if (text.includes(parameter)) failures.push(`${path.replace(root, "")}: tracking parameter remains: ${parameter}`);
   }
 }
-// Structured data may only restate visible text, and these are now visible on every page.
+// Structured data may only restate what the page itself offers. V22 turns these six from visible words
+// into visible controls, which does not change the rule: each URL is still a link a visitor can follow
+// from every page, and sameAs still has to be exactly that set in exactly that order.
 const organization = homeSchemas[0]?.["@graph"]?.find((node) => node["@type"] === "Organization");
 if (JSON.stringify(organization?.sameAs) !== JSON.stringify(EXPECTED_FOOTER_LINKS.slice(0, EXPECTED_SOCIAL).map(([, href]) => href))) {
   failures.push(`The organization schema's sameAs must be the six visible social destinations, found ${JSON.stringify(organization?.sameAs)}`);
@@ -1985,7 +2095,12 @@ for (const [name, text] of RESERVATION_SURFACES) {
   // and version strings that share its punctuation. An eight-digit ISO date cannot reach this test.
   // Link targets are scanned for addresses above but not for numbers: the footer's App Store link
   // carries a ten-digit application id, which is a URL and not something anybody can ring.
-  const dialable = text.replace(/(?:href|src)="[^"]*"/g, "");
+  // V22: inline SVG comes out before the scan as well. A path's coordinate list is a long run of
+  // digits, spaces, dots and minus signs, so X's mark alone ("M714.163 519.284L1160.89 0H1055.03...")
+  // reads as dozens of dialable numbers and buried the real assertion under 308 false failures. An
+  // <svg> here is a brand glyph and carries geometry, never contact details; the surrounding HTML,
+  // which is where a customer's number would actually appear, is still scanned in full.
+  const dialable = text.replace(/<svg[\s\S]*?<\/svg>/gi, "").replace(/(?:href|src)="[^"]*"/g, "");
   for (const number of new Set(dialable.match(/\+?\d[\d\s().-]{8,}\d/g) || [])) {
     if (number.replace(/\D/g, "").length < 10) continue;
     if (!/555[\s.-]?01\d\d/.test(number.replace(/[()]/g, ""))) {

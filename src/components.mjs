@@ -5,6 +5,7 @@ import { currentModels, models, pastModels } from "./data/models.mjs";
 import { COUNTRIES, FORM_ENDPOINTS, INQUIRY_EMAIL, ORDER_COUNTRIES, US_REGIONS } from "./data/forms.mjs";
 import { FOOTNOTE_SYMBOLS, footnoteText } from "./data/footnotes.mjs";
 import { IS_PROTOTYPE } from "./data/prototype.mjs";
+import { socialGlyph } from "./data/social-icons.mjs";
 import { CONTACT_CATEGORIES, CONTACT_TIMEFRAMES } from "./data/mock/contact.mjs";
 import { formatDate } from "./data/adapters.mjs";
 import { WORLD_BOX, WORLD_SIZE, mercatorPoint, worldBordersPath, worldLandPath } from "./data/worldmap.mjs";
@@ -719,7 +720,12 @@ export const header = (path) => `<a class="skip-link" href="#main">Skip to conte
 export const SOCIAL_LINKS = [
   ["Facebook", "https://www.facebook.com/vanderhallusa/"],
   ["Instagram", "https://www.instagram.com/vanderhall/"],
-  ["Twitter", "https://twitter.com/vanderhallusa"],
+  // V22, D-V22-4. Twitter becomes X, in all three places at once: the visible mark is X's glyph, so
+  // the accessible name and the destination follow it rather than describing a bird nobody ships any
+  // more. x.com/vanderhallusa is the same account twitter.com/vanderhallusa redirects to, confirmed
+  // by request, and X's own brand guide requires the platform be called X. The organization schema's
+  // sameAs reads this array, so it moves with it.
+  ["X", "https://x.com/vanderhallusa"],
   ["LinkedIn", "https://www.linkedin.com/company/vanderhall"],
   ["TikTok", "https://www.tiktok.com/@vanderhallusa"],
   ["YouTube", "https://www.youtube.com/@VanderhallUSA"],
@@ -784,8 +790,31 @@ export const footer = () => `<footer class="site-footer">
           column. Owen asked for it on 2026-08-13: it is how somebody who has already reserved gets back
           to their own status page without hunting for the email Vanderhall sent them. */""}
     <div><h2>Connect</h2><a href="/dealers/">Dealers</a><a href="/contact/">Contact</a><a class="footer-email" href="mailto:${INQUIRY_EMAIL}">${escapeHtml(INQUIRY_EMAIL)}</a><a href="/reservation-status/">Reservation status</a><a href="/recommend-dealer/">Recommend a dealer</a><a href="/dealer-inquiry/">Become a dealer</a></div>
-    <div class="footer-follow"><h2>Follow</h2>${SOCIAL_LINKS.map(([label, href]) => `<a href="${href}" aria-label="${BRAND} on ${escapeHtml(label)}">${escapeHtml(label)}</a>`).join("")}</div>
   </div>
+  ${/* V22, D-V22-1. The Follow column is retired and its six destinations become their own centred
+        strip between the link columns and the legal band. Owen on 2026-08-13: "change the follow page
+        links at the bottom to be icons and across the bottom", and separately that the legal band
+        below "looks great dont change any of that", so nothing under this row moves.
+
+        The glyph is the whole visible control, so each anchor's accessible name is its aria-label and
+        the mark itself is silent: a screen reader hears "Vanderhall on Instagram", not a file it
+        cannot describe. WCAG 2.5.3 (Label in Name) no longer applies here because no visible text
+        remains to disagree with the name.
+
+        Why artwork is finally allowed, after V11-I shipped six words and check-content spent four
+        versions failing any glyph that appeared here: the rights question that guard was holding open
+        has been answered per platform against each brand's own published terms, and V22-plan.md
+        section 2 records the permission language and its source URL for all six. The two facts that
+        had blocked it were both wrong. LinkedIn's restriction is on the LinkedIn WORDMARK; the "in"
+        bug is expressly permitted "as a hyperlink to your... company page" and "in a series of social
+        media icons". And Twitter's absent glyph stopped mattering when the platform became X, which
+        publishes one. Every mark here is a real downloaded file, unaltered, rendered in a colour its
+        licence approves. assets/brand/social/RIGHTS.md is the manifest, it records that TikTok's and
+        YouTube's are CC0 rather than official and why, and check-content refuses any glyph it does
+        not name. */""}
+  <ul class="footer-social">
+    ${SOCIAL_LINKS.map(([label, href]) => `<li><a href="${href}" aria-label="${BRAND} on ${escapeHtml(label)}">${socialGlyph(label)}</a></li>`).join("")}
+  </ul>
   <div class="footer-legal">
     <img class="footer-lockup" src="/assets/brand/vanderhall-lockup-horizontal-white.svg" width="231" height="24" loading="lazy" decoding="async" alt="${BRAND}">
     <span>© 2026 ${BRAND}. Hand-built in Provo, Utah.</span>

@@ -1323,22 +1323,63 @@ for (const route of ["/", "/brawley/gts/", "/privacy/", "/concepts/indio/"]) {
   await page.goto(`${base}${route}`, { waitUntil: "networkidle" });
   report.interactions.footer[route] = await page.evaluate(() => {
     const hrefs = (selector) => [...document.querySelectorAll(selector)].map((anchor) => anchor.getAttribute("href"));
-    const social = [...document.querySelectorAll(".footer-follow a")];
+    const social = [...document.querySelectorAll(".footer-social a")];
     const legalRow = document.querySelector(".footer-legal");
     const legalLinks = document.querySelector(".footer-legal__links");
     const legalRowRect = legalRow.getBoundingClientRect();
     const legalLinksRect = legalLinks.getBoundingClientRect();
+    // V22. The glyph row, measured rather than described. Three of these numbers are brand
+    // requirements (Instagram's 29px floor, WCAG's 44px target, X's one-glyph-width clear space) and
+    // one is a rights condition: white is an approved single-colour rendering for all six brands and
+    // grey is approved by only one, so a glyph that computes to the footer's grey text tone has left
+    // the terms this artwork ships under. Colour is read as the SVG's computed fill.
+    const glyphBoxes = social.map((anchor) => {
+      const glyph = anchor.querySelector("svg, img");
+      const raster = glyph?.tagName.toLowerCase() === "img";
+      const anchorRect = anchor.getBoundingClientRect();
+      const glyphRect = glyph?.getBoundingClientRect();
+      return {
+        anchorWidth: Math.round(anchorRect.width),
+        anchorHeight: Math.round(anchorRect.height),
+        glyphWidth: glyphRect ? Math.round(glyphRect.width) : 0,
+        glyphHeight: glyphRect ? Math.round(glyphRect.height) : 0,
+        raster,
+        // A vector's colour comes from the stylesheet and is asserted. LinkedIn's raster carries its
+        // own approved white in the file, so the assertion there is that the file actually loaded:
+        // a 404 renders a zero-width box and would otherwise pass every geometry test silently.
+        fill: raster ? "" : getComputedStyle(glyph).fill,
+        loaded: raster ? glyph.complete && glyph.naturalWidth > 0 : true,
+        silent: raster ? glyph.getAttribute("alt") === "" : glyph?.getAttribute("aria-hidden") === "true",
+      };
+    });
+    // Gaps between adjacent marks, left to right, to prove the clear space is really there.
+    const rects = social.map((anchor) => anchor.getBoundingClientRect());
+    const gaps = rects.slice(1).map((rect, index) => Math.round(rect.left - rects[index].right));
+    const onOneRow = rects.length ? rects.every((rect) => Math.abs(rect.top - rects[0].top) <= 1) : false;
     return {
-      social: hrefs(".footer-follow a"),
-      socialNames: social.map((anchor) => ({ visible: anchor.textContent, accessible: anchor.getAttribute("aria-label") })),
+      social: hrefs(".footer-social a"),
+      socialNames: social.map((anchor) => ({ visible: anchor.textContent.trim(), accessible: anchor.getAttribute("aria-label") })),
+      glyphBoxes,
+      gaps,
+      onOneRow,
+      // The row sits between the columns and the legal band, which is where Owen asked for it.
+      rowBetween: (() => {
+        const row = document.querySelector(".footer-social");
+        const columns = document.querySelector(".footer-links");
+        if (!row || !columns) return false;
+        return columns.getBoundingClientRect().bottom <= row.getBoundingClientRect().top + 1
+          && row.getBoundingClientRect().bottom <= legalRowRect.top + 1;
+      })(),
+      // D-V22-5: the three columns and the legal band share one left edge.
+      columnAlignment: [...document.querySelectorAll(".footer-links > div")].map((column) => getComputedStyle(column).textAlign),
       legal: hrefs(".footer-legal__links a"),
       app: hrefs(".footer-links a").filter((href) => href.includes("apps.apple.com") || href.includes("play.google.com")),
       tracked: hrefs("a").filter((href) => href && /[?&](?:_gl|_ga|_gcl_au|utm_[a-z]+|fref)=/.test(href)),
       // The links a visitor can actually reach with a keyboard, which is the only test that matters
       // for a row of small text links.
       focusable: social.filter((anchor) => anchor.tabIndex >= 0).length,
-      // V15-G. Four columns exactly: Vehicles, Owners, Connect, Follow. Experience sits in the
-      // Vehicles column under Concepts, and Blog has no footer entry at all.
+      // V22, D-V22-1. Three columns exactly: Vehicles, Owners, Connect. Follow is retired and its six
+      // destinations are the glyph row, counted separately above.
       columns: [...document.querySelectorAll(".footer-links > div h2")].map((heading) => heading.textContent),
       ownerManuals: [...document.querySelectorAll(".footer-links a")].filter((anchor) => anchor.getAttribute("href") === "/owners/").map((anchor) => anchor.textContent),
       experience: hrefs(".footer-links a").filter((href) => href === "/experience/" || href === "/blog/"),
@@ -1348,7 +1389,7 @@ for (const route of ["/", "/brawley/gts/", "/privacy/", "/concepts/indio/"]) {
   });
   const footer = report.interactions.footer[route];
   if (footer.social.length !== 6) failures.push(`${route}: expected six social links in the footer, found ${footer.social.length}`);
-  if (JSON.stringify(footer.columns) !== JSON.stringify(["Vehicles", "Owners", "Connect", "Follow"])) failures.push(`${route}: footer columns are ${footer.columns.join(", ")}`);
+  if (JSON.stringify(footer.columns) !== JSON.stringify(["Vehicles", "Owners", "Connect"])) failures.push(`${route}: footer columns are ${footer.columns.join(", ")}`);
   if (JSON.stringify(footer.ownerManuals) !== JSON.stringify(["Owner manuals"])) failures.push(`${route}: the Owners column must lead with Owner manuals, found ${footer.ownerManuals.join(", ")}`);
   if (JSON.stringify(footer.experience) !== JSON.stringify(["/experience/"])) failures.push(`${route}: Experience must appear once, in the Vehicles column, and Blog not at all; found ${footer.experience.join(", ")}`);
   if (JSON.stringify(footer.vehiclesColumn.slice(-2)) !== JSON.stringify(["/concepts/", "/experience/"])) failures.push(`${route}: the Vehicles column must end Concepts then Experience, found ${footer.vehiclesColumn.join(", ")}`);
@@ -1358,8 +1399,37 @@ for (const route of ["/", "/brawley/gts/", "/privacy/", "/concepts/indio/"]) {
   if (footer.app.length !== 2) failures.push(`${route}: expected two app store links, found ${footer.app.length}`);
   if (footer.tracked.length) failures.push(`${route}: a footer link carries tracking parameters: ${footer.tracked.join(", ")}`);
   if (footer.focusable !== 6) failures.push(`${route}: ${6 - footer.focusable} social links are not reachable by keyboard`);
+  // V22. A glyph carries no visible text, so the aria-label is the whole accessible name and it has to
+  // be present and non-empty on every one of them. The V11-I test that the visible word sat inside the
+  // longer name is retired with the words it described.
   for (const name of footer.socialNames) {
-    if (!name.accessible?.includes(name.visible)) failures.push(`${route}: the accessible name ${name.accessible} does not contain the visible label ${name.visible}`);
+    if (name.visible) failures.push(`${route}: the social row must carry no visible text, found "${name.visible}"`);
+    if (!name.accessible?.startsWith("Vanderhall on ")) failures.push(`${route}: a social anchor has no usable accessible name, found ${name.accessible}`);
+  }
+  if (!footer.rowBetween) failures.push(`${route}: the social row must sit between the link columns and the legal band`);
+  if (!footer.onOneRow) failures.push(`${route}: the six social glyphs must sit on one row`);
+  if (footer.columnAlignment.some((alignment) => alignment !== "left")) failures.push(`${route}: the footer columns must be left-aligned, found ${footer.columnAlignment.join(", ")}`);
+  for (const [index, box] of footer.glyphBoxes.entries()) {
+    const who = footer.socialNames[index]?.accessible ?? `glyph ${index}`;
+    // Instagram's floor is the highest of the six at 29px, so it is the one number all six must clear.
+    if (box.glyphWidth < 29 || box.glyphHeight < 29) failures.push(`${route}: ${who} renders at ${box.glyphWidth}x${box.glyphHeight}, below the 29px minimum Instagram's guidelines set`);
+    if (box.anchorWidth < 44 || box.anchorHeight < 44) failures.push(`${route}: ${who} has a ${box.anchorWidth}x${box.anchorHeight} target, below the 44px WCAG 2.5.5 minimum`);
+    if (!box.silent) failures.push(`${route}: ${who}'s glyph must be silent (aria-hidden on a vector, empty alt on a raster)`);
+    if (box.raster) {
+      // A raster carries its approved colour in the file, so there is no fill to read. What matters is
+      // that the file arrived: a 404 leaves a zero-width box that passes every geometry test above.
+      if (!box.loaded) failures.push(`${route}: ${who}'s artwork did not load`);
+    } else if (!/^rgba?\(255,\s*255,\s*255/.test(box.fill)) {
+      // White, exactly. rgb(255, 255, 255) is the only computed fill these terms allow here.
+      failures.push(`${route}: ${who} computes to ${box.fill}; the glyphs must be white, which is the rendering all six brands approve`);
+    }
+  }
+  // X asks for clear space at least the width of the logo on every side. Anchor padding plus the row
+  // gap is what provides it, so the measured distance between adjacent marks is what proves it.
+  const tightest = footer.gaps.length ? Math.min(...footer.gaps) : 0;
+  const glyphWidth = footer.glyphBoxes[0]?.glyphWidth ?? 30;
+  if (footer.gaps.length && tightest + (footer.glyphBoxes[0]?.anchorWidth ?? 44) - glyphWidth < glyphWidth) {
+    failures.push(`${route}: only ${tightest}px between social anchors; adjacent marks need about one glyph width of clear space`);
   }
 }
 // The legal links resolve. The two external ones are checked by request rather than by navigation, so
@@ -1702,7 +1772,9 @@ if (noJsPrivacy.words !== 0 || noJsPrivacy.textLength < 9500) failures.push(`No-
 
 // Every footer destination must be a plain link with no script anywhere near it.
 report.noJs.footer = await noJsPage.evaluate(() => ({
-  social: document.querySelectorAll(".footer-follow a[href]").length,
+  // V22: the glyph strip, which replaced the Follow column. It has to work with scripting off like
+  // everything else in the footer, and inline SVG plus a plain <img> is exactly why it does.
+  social: document.querySelectorAll(".footer-social a[href]").length,
   legal: document.querySelectorAll(".footer-legal__links a[href]").length,
   privacyHref: [...document.querySelectorAll(".footer-legal__links a")].map((anchor) => anchor.getAttribute("href")).includes("/privacy/"),
 }));
