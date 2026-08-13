@@ -1411,8 +1411,13 @@ for (const route of ["/", "/brawley/gts/", "/privacy/", "/concepts/indio/"]) {
   if (footer.columnAlignment.some((alignment) => alignment !== "left")) failures.push(`${route}: the footer columns must be left-aligned, found ${footer.columnAlignment.join(", ")}`);
   for (const [index, box] of footer.glyphBoxes.entries()) {
     const who = footer.socialNames[index]?.accessible ?? `glyph ${index}`;
-    // Instagram's floor is the highest of the six at 29px, so it is the one number all six must clear.
-    if (box.glyphWidth < 29 || box.glyphHeight < 29) failures.push(`${route}: ${who} renders at ${box.glyphWidth}x${box.glyphHeight}, below the 29px minimum Instagram's guidelines set`);
+    // 24px, Owen's call on 2026-08-13 asking for smaller marks. This is a DEVIATION from Instagram's
+    // stated 29px floor, which the row cleared before at 30px; it still clears YouTube's 20px and
+    // Facebook's 16px. Instagram's minimum is a legibility guideline rather than a condition of the
+    // permission, and shrinking them was an explicit request, so the floor moves and the deviation is
+    // recorded in site.css and RIGHTS.md. It is a floor, not a target: going lower needs a new
+    // decision, which is why this still fails rather than being deleted.
+    if (box.glyphWidth < 24 || box.glyphHeight < 24) failures.push(`${route}: ${who} renders at ${box.glyphWidth}x${box.glyphHeight}, below the 24px floor`);
     if (box.anchorWidth < 44 || box.anchorHeight < 44) failures.push(`${route}: ${who} has a ${box.anchorWidth}x${box.anchorHeight} target, below the 44px WCAG 2.5.5 minimum`);
     if (!box.silent) failures.push(`${route}: ${who}'s glyph must be silent (aria-hidden on a vector, empty alt on a raster)`);
     if (box.raster) {
